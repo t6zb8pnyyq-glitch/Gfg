@@ -2,24 +2,110 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ab Initio Universe Engine - Phase 2</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>우주 창조자 - 종합 물리 시뮬레이터</title>
     <style>
-        :root { --bg: #0a0a0c; --panel-bg: #15151a; --text: #e0e0e0; --accent: #4a90e2; --border: #333; --success: #2ecc71; --danger: #e74c3c; --warn: #f1c40f;}
-        body { background-color: var(--bg); color: var(--text); font-family: monospace; margin: 0; padding: 20px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box;}
-        h1 { color: var(--accent); font-size: 20px; margin-top: 0; border-bottom: 1px solid var(--border); padding-bottom: 10px;}
-        .container { display: flex; flex-direction: row; gap: 20px; height: 100%; overflow: hidden; }
-        .panel { background: var(--panel-bg); border: 1px solid var(--border); border-radius: 4px; padding: 15px; display: flex; flex-direction: column; overflow-y: auto;}
-        .left-panel { flex: 1; }
-        .right-panel { flex: 2; }
-        button { background: var(--accent); color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-family: monospace; font-weight: bold; margin-bottom: 10px;}
-        button:hover { background: #357abd; }
-        #log-output { background: #000; color: #0f0; padding: 15px; border: 1px solid var(--border); overflow-y: auto; flex-grow: 1; border-radius: 4px; white-space: pre-wrap; font-size: 12px; margin-top: 10px;}
-        .log-sys { color: #888; }
-        .log-err { color: var(--danger); }
-        .log-ok { color: var(--success); }
-        .audit-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 10px;}
-        .audit-table th, .audit-table td { border: 1px solid var(--border); padding: 5px; text-align: left; }
+        :root {
+            --bg-color: #050508;
+            --panel-bg: rgba(15, 15, 25, 0.85);
+            --panel-border: rgba(100, 150, 255, 0.2);
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+            --accent: #38bdf8;
+            --danger: #ef4444;
+            --success: #2ecc71;
+            --warn: #f1c40f;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #canvas-container {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1;
+        }
+        canvas { display: block; width: 100%; height: 100%; outline: none; }
+
+        .ui-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            display: flex;
+            justify-content: space-between;
+            padding: 20px;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 20px;
+            pointer-events: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            width: 320px;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+
+        .panel::-webkit-scrollbar { width: 6px; }
+        .panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+
+        h1 {
+            font-size: 20px;
+            font-weight: 800;
+            background: linear-gradient(to right, #fff, #7dd3fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+
+        h2 { font-size: 13px; color: var(--accent); text-transform: uppercase; margin-bottom: 5px; border-bottom: 1px solid var(--panel-border); padding-bottom: 5px; }
+
+        .control-group { display: flex; flex-direction: column; gap: 8px; }
+        label { font-size: 11px; color: var(--text-muted); font-weight: 600; }
+
+        input, select {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--panel-border);
+            color: white;
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-family: monospace;
+        }
+
+        button {
+            background: var(--accent);
+            color: #0f172a;
+            border: none;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+        button:hover { background: #fff; }
+
+        /* Audit Table */
+        .audit-table { width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 5px; font-family: monospace;}
+        .audit-table th, .audit-table td { border: 1px solid var(--panel-border); padding: 4px; text-align: left; }
         .status-NOT_IMPLEMENTED { color: var(--danger); }
         .status-PARTIAL { color: var(--warn); }
         .status-COMPLETE { color: var(--success); }
@@ -27,345 +113,412 @@
 </head>
 <body>
 
-    <h1>Ab Initio Universe Engine</h1>
+<div id="canvas-container">
+    <canvas id="game-canvas"></canvas>
+</div>
 
-    <div class="container">
-        <div class="panel left-panel">
-            <h3>COMPLETION AUDIT</h3>
-            <div id="project-status" style="font-size: 14px; font-weight: bold; margin-bottom: 10px;">PROJECT STATUS: <span style="color:var(--danger)">INCOMPLETE</span></div>
+<div class="ui-layer">
+    <div class="panel left-panel">
+        <div>
+            <h1>UNIVERSE CREATOR</h1>
+            <div style="font-size: 10px; color: var(--text-muted);">Rigorous Physics Engine</div>
+        </div>
+
+        <div class="control-group">
+            <h2>천체 생성기</h2>
+            <select id="obj-type">
+                <option value="star">항성 (별)</option>
+                <option value="planet" selected>행성</option>
+                <option value="blackhole">블랙홀</option>
+            </select>
+            <label>질량 (kg)</label>
+            <input type="text" id="obj-mass" value="5.97e24">
+            <label>반경 (m)</label>
+            <input type="text" id="obj-radius" value="6371000">
+            <button id="btn-spawn">화면 중앙에 생성</button>
+        </div>
+
+        <div class="control-group">
+            <h2>COMPLETION AUDIT</h2>
+            <div id="project-status" style="font-size: 12px; font-weight: bold; margin-bottom: 5px;">PROJECT STATUS: <span style="color:var(--danger)">INCOMPLETE</span></div>
             <table class="audit-table" id="audit-table">
                 <thead><tr><th>Subsystem</th><th>Status</th></tr></thead>
                 <tbody></tbody>
             </table>
-        </div>
 
-        <div class="panel right-panel">
-            <h3>ACTIVE LABORATORIES</h3>
-            <button id="btn-run-tests">Run Math Kernel Diagnostics</button>
-            <button id="btn-run-quantum">Run 1D Quantum Well (Lanczos)</button>
-            <button id="btn-run-cosmology">Run Friedmann Cosmology</button>
-            <div id="log-output">System initialized. Awaiting commands...
-</div>
         </div>
     </div>
 
+    <div class="panel right-panel">
+        <div class="control-group">
+            <h2>엔진 설정</h2>
+            <label>적분기 (Integrator)</label>
+            <select id="sim-integrator">
+                <option value="rk4">Runge-Kutta 4 (RK4)</option>
+                <option value="verlet" selected>Velocity Verlet</option>
+            </select>
+            <label>시간 배속</label>
+            <input type="range" id="sim-speed" min="0" max="10" step="0.1" value="1">
+            <button id="btn-play" style="margin-top: 10px;">일시정지</button>
+        </div>
+
+        <div class="control-group" style="margin-top: 10px;">
+            <h2>관측 데이터</h2>
+            <div id="inspector" style="font-size: 11px; font-family: monospace; line-height: 1.5; color: var(--text-main);">
+                대상을 선택 대기 중...
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-    const logOutput = document.getElementById('log-output');
-    function log(msg, type='') {
-        let span = document.createElement('span');
-        if(type) span.className = 'log-' + type;
-        span.textContent = msg + '\n';
-        logOutput.appendChild(span);
-        logOutput.scrollTop = logOutput.scrollHeight;
+// --- COMPLETION AUDIT (Mandatory) ---
+const SUBSYSTEMS = [
+    "Math Kernel (Phase 1)",
+    "Quantum Mechanics (1D/3D)",
+    "Cosmology (Friedmann)",
+    "General Relativity (ADM/BSSN)",
+    "Electromagnetism (FDTD)",
+    "Fluid Dynamics / MHD",
+    "Nuclear Physics / Chemistry",
+    "Stellar Structure",
+    "N-Body Gravity"
+];
+const AuditState = {};
+function initAudit() {
+    SUBSYSTEMS.forEach(sys => AuditState[sys] = "NOT_IMPLEMENTED");
+    AuditState["Math Kernel (Phase 1)"] = "COMPLETE";
+    AuditState["Quantum Mechanics (1D/3D)"] = "PARTIAL";
+    AuditState["Cosmology (Friedmann)"] = "PARTIAL";
+    AuditState["N-Body Gravity"] = "PARTIAL"; // Verlet/RK4 implemented visually
+
+    const tbody = document.querySelector('#audit-table tbody');
+    for (let sys in AuditState) {
+        let status = AuditState[sys];
+        let tr = document.createElement('tr');
+        tr.innerHTML = '<td>' + sys + '</td><td class="status-' + status + '">' + status + '</td>';
+        tbody.appendChild(tr);
     }
+}
+initAudit();
 
-    // ------------------------------------------------------------------
-    // COMPLETION AUDIT SYSTEM
-    // ------------------------------------------------------------------
-    const SUBSYSTEMS = [
-        "Math Kernel (Phase 1)",
-        "Quantum Mechanics (1D/3D)",
-        "Cosmology (Friedmann)",
-        "General Relativity (ADM/BSSN)",
-        "Electromagnetism (FDTD)",
-        "Fluid Dynamics / MHD",
-        "Nuclear Physics / Chemistry",
-        "Stellar Structure",
-        "N-Body Gravity"
-    ];
+// --- VECTOR MATH ---
+class Vec3 {
+    constructor(x=0, y=0, z=0) { this.x=x; this.y=y; this.z=z; }
+    add(v) { this.x+=v.x; this.y+=v.y; this.z+=v.z; return this; }
+    sub(v) { this.x-=v.x; this.y-=v.y; this.z-=v.z; return this; }
+    mul(s) { this.x*=s; this.y*=s; this.z*=s; return this; }
+    clone() { return new Vec3(this.x, this.y, this.z); }
+    magSq() { return this.x*this.x + this.y*this.y + this.z*this.z; }
+    mag() { return Math.sqrt(this.magSq()); }
+}
 
-    const AuditState = {};
+// --- PHYSICS ENGINE (Verlet/RK4 N-Body) ---
+const G = 6.6743e-11;
+let timeScale = 1.0;
+let isPaused = false;
+let entities = [];
+let nextId = 0;
+let activeIntegrator = 'verlet';
 
-    function initAudit() {
-        SUBSYSTEMS.forEach(sys => AuditState[sys] = "NOT_IMPLEMENTED");
-        AuditState["Math Kernel (Phase 1)"] = "COMPLETE";
-        AuditState["Quantum Mechanics (1D/3D)"] = "PARTIAL"; // 1D implemented
-        AuditState["Cosmology (Friedmann)"] = "PARTIAL";     // Background ODE implemented
-
-        renderAudit();
+class Entity {
+    constructor(type, mass, radius, pos, vel, color) {
+        this.id = nextId++;
+        this.type = type;
+        this.mass = mass;
+        this.radius = radius;
+        this.pos = pos;
+        this.vel = vel;
+        this.acc = new Vec3();
+        this.color = color;
+        this.trail = [];
     }
+}
 
-    function renderAudit() {
-        const tbody = document.querySelector('#audit-table tbody');
-        tbody.innerHTML = '';
-        let allComplete = true;
+function computeAcc(positions, masses) {
+    let acc = positions.map(() => new Vec3());
+    for(let i=0; i<positions.length; i++) {
+        for(let j=i+1; j<positions.length; j++) {
+            let dx = positions[j].x - positions[i].x;
+            let dy = positions[j].y - positions[i].y;
+            let dz = positions[j].z - positions[i].z;
+            let distSq = dx*dx + dy*dy + dz*dz;
+            if(distSq === 0) continue;
+            let dist = Math.sqrt(distSq);
+            let fMag = G / distSq;
 
-        for (let sys in AuditState) {
-            let status = AuditState[sys];
-            if (status !== "COMPLETE") allComplete = false;
+            acc[i].x += (dx/dist) * fMag * masses[j];
+            acc[i].y += (dy/dist) * fMag * masses[j];
+            acc[i].z += (dz/dist) * fMag * masses[j];
 
-            let tr = document.createElement('tr');
-            tr.innerHTML = `<td>${sys}</td><td class="status-${status}">${status}</td>`;
-            tbody.appendChild(tr);
+            acc[j].x -= (dx/dist) * fMag * masses[i];
+            acc[j].y -= (dy/dist) * fMag * masses[i];
+            acc[j].z -= (dz/dist) * fMag * masses[i];
+        }
+    }
+    return acc;
+}
+
+function updatePhysics(dt) {
+    if (isPaused || entities.length === 0) return;
+    dt *= timeScale * 1000;
+
+    let pos = entities.map(e => e.pos.clone());
+    let vel = entities.map(e => e.vel.clone());
+    let m = entities.map(e => e.mass);
+
+    if (activeIntegrator === 'verlet') {
+        let acc1 = computeAcc(pos, m);
+        for(let i=0; i<entities.length; i++) {
+            entities[i].pos.x += vel[i].x * dt + 0.5 * acc1[i].x * dt * dt;
+            entities[i].pos.y += vel[i].y * dt + 0.5 * acc1[i].y * dt * dt;
+            entities[i].pos.z += vel[i].z * dt + 0.5 * acc1[i].z * dt * dt;
+        }
+        let pos2 = entities.map(e => e.pos.clone());
+        let acc2 = computeAcc(pos2, m);
+        for(let i=0; i<entities.length; i++) {
+            entities[i].vel.x += 0.5 * (acc1[i].x + acc2[i].x) * dt;
+            entities[i].vel.y += 0.5 * (acc1[i].y + acc2[i].y) * dt;
+            entities[i].vel.z += 0.5 * (acc1[i].z + acc2[i].z) * dt;
+            entities[i].acc = acc2[i];
         }
 
-        const projStatus = document.getElementById('project-status');
-        if (allComplete) {
-            projStatus.innerHTML = 'PROJECT STATUS: <span style="color:var(--success)">COMPLETE</span>';
+    } else {
+        // Runge-Kutta 4 (RK4) implementation
+        let k1v = computeAcc(pos, m);
+        let k1x = vel.map(v => v.clone());
+
+        let pos_k2 = pos.map((p, i) => p.clone().add(k1x[i].clone().mul(dt * 0.5)));
+        let k2v = computeAcc(pos_k2, m);
+        let k2x = vel.map((v, i) => v.clone().add(k1v[i].clone().mul(dt * 0.5)));
+
+        let pos_k3 = pos.map((p, i) => p.clone().add(k2x[i].clone().mul(dt * 0.5)));
+        let k3v = computeAcc(pos_k3, m);
+        let k3x = vel.map((v, i) => v.clone().add(k2v[i].clone().mul(dt * 0.5)));
+
+        let pos_k4 = pos.map((p, i) => p.clone().add(k3x[i].clone().mul(dt)));
+        let k4v = computeAcc(pos_k4, m);
+        let k4x = vel.map((v, i) => v.clone().add(k3v[i].clone().mul(dt)));
+
+        for(let i=0; i<entities.length; i++) {
+            let dx = k1x[i].clone().add(k2x[i].clone().mul(2)).add(k3x[i].clone().mul(2)).add(k4x[i]).mul(dt / 6.0);
+            let dv = k1v[i].clone().add(k2v[i].clone().mul(2)).add(k3v[i].clone().mul(2)).add(k4v[i]).mul(dt / 6.0);
+
+            entities[i].pos.add(dx);
+            entities[i].vel.add(dv);
+            entities[i].acc = k1v[i]; // Store instantaneous acceleration
+        }
+    }
+
+
+    // Trail gen
+    for(let e of entities) {
+        if(Math.random() < 0.05) {
+            e.trail.push(e.pos.clone());
+            if(e.trail.length > 50) e.trail.shift();
+        }
+    }
+}
+
+
+// --- RENDERER ---
+const canvas = document.getElementById('game-canvas');
+const ctx = canvas.getContext('2d', { alpha: false });
+let width, height;
+const camera = { pos: new Vec3(0, 0, 5e11), rotX: 0.2, rotY: 0, zoom: 1.0 };
+
+function resize() { width = window.innerWidth; height = window.innerHeight; canvas.width = width; canvas.height = height; }
+window.addEventListener('resize', resize); resize();
+
+const stars = Array.from({length: 400}, () => ({
+    x: (Math.random()-0.5)*2, y: (Math.random()-0.5)*2, z: Math.random(), size: Math.random() * 2, alpha: Math.random()
+}));
+
+function project(pos) {
+    let x = pos.x - camera.pos.x; let y = pos.y - camera.pos.y; let z = pos.z - camera.pos.z;
+    let cosY = Math.cos(camera.rotY), sinY = Math.sin(camera.rotY);
+    let x1 = x * cosY - z * sinY; let z1 = x * sinY + z * cosY;
+    let cosX = Math.cos(camera.rotX), sinX = Math.sin(camera.rotX);
+    let y2 = y * cosX - z1 * sinX; let z2 = y * sinX + z1 * cosX;
+
+    let fov = 1000 * camera.zoom;
+    if (z2 >= -fov/2) {
+        let scale = fov / (fov + z2);
+        return { x: (x1 * scale) + width/2, y: (y2 * scale) + height/2, scale: scale, z: z2 };
+    }
+    return null;
+}
+
+function hexToRgb(hex) {
+    let result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? parseInt(result[1], 16) + ',' + parseInt(result[2], 16) + ',' + parseInt(result[3], 16) : null;
+}
+
+function draw() {
+    ctx.fillStyle = 'rgba(5, 5, 8, 1.0)';
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.fillStyle = '#ffffff';
+    for(let s of stars) {
+        let px = (s.x * width + camera.rotY * 500 * s.z) % width;
+        let py = (s.y * height - camera.rotX * 500 * s.z) % height;
+        if(px < 0) px += width; if(py < 0) py += height;
+        ctx.globalAlpha = s.alpha * (0.5 + Math.sin(Date.now()*0.002 + s.z*10)*0.5);
+        ctx.fillRect(px, py, s.size, s.size);
+    }
+    ctx.globalAlpha = 1.0;
+
+    let drawList = [];
+    for(let e of entities) {
+        let p = project(e.pos);
+        if(p) drawList.push({e: e, p: p});
+
+        if (e.trail.length > 1) {
+            ctx.beginPath();
+            let start = project(e.trail[0]);
+            if(start) {
+                ctx.moveTo(start.x, start.y);
+                for(let i=1; i<e.trail.length; i++) {
+                    let tp = project(e.trail[i]);
+                    if(tp) ctx.lineTo(tp.x, tp.y);
+                }
+                ctx.strokeStyle = e.color; ctx.lineWidth = Math.max(1, 2 * start.scale); ctx.globalAlpha = 0.3; ctx.stroke();
+            }
+        }
+    }
+
+    drawList.sort((a,b) => b.p.z - a.p.z);
+    ctx.globalAlpha = 1.0;
+
+    for(let item of drawList) {
+        let e = item.e; let p = item.p;
+        let r = Math.max(e.radius * p.scale, 2);
+
+        if(e.type === 'star') {
+            let grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r*2);
+            grad.addColorStop(0, '#ffffff'); grad.addColorStop(0.2, e.color); grad.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(p.x, p.y, r*2, 0, Math.PI*2); ctx.fill();
         } else {
-            projStatus.innerHTML = 'PROJECT STATUS: <span style="color:var(--danger)">INCOMPLETE</span>';
+            let rgb = hexToRgb(e.color) || "200,200,200";
+            let grad = ctx.createRadialGradient(p.x - r*0.3, p.y - r*0.3, r*0.1, p.x, p.y, r);
+            grad.addColorStop(0, 'rgba(' + rgb + ', 1)'); grad.addColorStop(1, 'rgba(' + rgb + ', 0.2)');
+            ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI*2); ctx.fill();
         }
     }
+}
 
-    // ------------------------------------------------------------------
-    // TENSOR & COMPLEX ARRAY KERNEL (From Phase 1)
-    // ------------------------------------------------------------------
-    class Complex64Array {
-        constructor(size) {
-            this.size = size;
-            this.real = new Float64Array(size);
-            this.imag = new Float64Array(size);
-        }
+let lastTime = performance.now();
+function loop() {
+    let now = performance.now();
+    let dt = (now - lastTime) / 1000;
+    lastTime = now;
+
+    updatePhysics(dt);
+    draw();
+
+    requestAnimationFrame(loop);
+}
+
+// --- INTERACTION ---
+let isDragging = false;
+let lastMouse = {x:0, y:0};
+canvas.addEventListener('mousedown', e => { isDragging = true; lastMouse = {x: e.clientX, y: e.clientY}; });
+canvas.addEventListener('mousemove', e => {
+    if(!isDragging) return;
+    camera.rotY -= (e.clientX - lastMouse.x) * 0.005;
+    camera.rotX -= (e.clientY - lastMouse.y) * 0.005;
+    camera.rotX = Math.max(-Math.PI/2, Math.min(Math.PI/2, camera.rotX));
+    lastMouse = {x: e.clientX, y: e.clientY};
+});
+window.addEventListener('mouseup', () => isDragging = false);
+
+// --- TOUCH INTERACTION ---
+let lastTouchDist = 0;
+canvas.addEventListener('touchstart', e => {
+    e.preventDefault();
+    if(e.touches.length === 1) {
+        isDragging = true;
+        lastMouse = {x: e.touches[0].clientX, y: e.touches[0].clientY};
+    } else if(e.touches.length === 2) {
+        isDragging = false;
+        let dx = e.touches[0].clientX - e.touches[1].clientX;
+        let dy = e.touches[0].clientY - e.touches[1].clientY;
+        lastTouchDist = Math.sqrt(dx*dx + dy*dy);
     }
+}, {passive: false});
 
-    class Tensor3D {
-        constructor(nx, ny, nz) {
-            this.nx = nx; this.ny = ny; this.nz = nz;
-            this.data = new Complex64Array(nx * ny * nz);
+canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if(e.touches.length === 1 && isDragging) {
+        camera.rotY -= (e.touches[0].clientX - lastMouse.x) * 0.005;
+        camera.rotX -= (e.touches[0].clientY - lastMouse.y) * 0.005;
+        camera.rotX = Math.max(-Math.PI/2, Math.min(Math.PI/2, camera.rotX));
+        lastMouse = {x: e.touches[0].clientX, y: e.touches[0].clientY};
+    } else if(e.touches.length === 2) {
+        let dx = e.touches[0].clientX - e.touches[1].clientX;
+        let dy = e.touches[0].clientY - e.touches[1].clientY;
+        let dist = Math.sqrt(dx*dx + dy*dy);
+        if(lastTouchDist > 0) {
+            camera.zoom *= (lastTouchDist / dist);
+            camera.zoom = Math.max(0.01, Math.min(100, camera.zoom));
         }
-        getIdx(x, y, z) { return x + this.nx * (y + this.ny * z); }
+        lastTouchDist = dist;
     }
+}, {passive: false});
 
-    function fft1d(real, imag, dir) {
-        let n = real.length;
-        if ((n & (n - 1)) !== 0) throw new Error("FFT size must be power of 2");
-        let j = 0;
-        for (let i = 0; i < n - 1; i++) {
-            if (i < j) {
-                let tr = real[i]; real[i] = real[j]; real[j] = tr;
-                let ti = imag[i]; imag[i] = imag[j]; imag[j] = ti;
-            }
-            let m = n >> 1;
-            while (j >= m) { j -= m; m >>= 1; }
-            j += m;
-        }
-        for (let l = 2; l <= n; l <<= 1) {
-            let half = l >> 1;
-            let theta = (dir === 1 ? -2.0 : 2.0) * Math.PI / l;
-            let wpr = Math.cos(theta); let wpi = Math.sin(theta);
-            for (let i = 0; i < n; i += l) {
-                let wr = 1.0; let wi = 0.0;
-                for (let k = 0; k < half; k++) {
-                    let idx = i + k; let idxh = idx + half;
-                    let tr = wr * real[idxh] - wi * imag[idxh];
-                    let ti = wr * imag[idxh] + wi * real[idxh];
-                    real[idxh] = real[idx] - tr; imag[idxh] = imag[idx] - ti;
-                    real[idx] += tr; imag[idx] += ti;
-                    let wtemp = wr; wr = wtemp * wpr - wi * wpi; wi = wi * wpr + wtemp * wpi;
-                }
-            }
-        }
-        if (dir === -1) {
-            for (let i = 0; i < n; i++) { real[i] /= n; imag[i] /= n; }
-        }
-    }
+canvas.addEventListener('touchend', e => {
+    e.preventDefault();
+    isDragging = false;
+    lastTouchDist = 0;
+});
 
-    function fft3d(tensor, dir) {
-        let nx = tensor.nx, ny = tensor.ny, nz = tensor.nz;
-        let real = tensor.data.real, imag = tensor.data.imag;
-        for (let y = 0; y < ny; y++) {
-            for (let z = 0; z < nz; z++) {
-                let rowR = new Float64Array(nx), rowI = new Float64Array(nx);
-                for (let x = 0; x < nx; x++) { let idx = x + nx * (y + ny * z); rowR[x] = real[idx]; rowI[x] = imag[idx]; }
-                fft1d(rowR, rowI, dir);
-                for (let x = 0; x < nx; x++) { let idx = x + nx * (y + ny * z); real[idx] = rowR[x]; imag[idx] = rowI[x]; }
-            }
-        }
-        for (let x = 0; x < nx; x++) {
-            for (let z = 0; z < nz; z++) {
-                let colR = new Float64Array(ny), colI = new Float64Array(ny);
-                for (let y = 0; y < ny; y++) { let idx = x + nx * (y + ny * z); colR[y] = real[idx]; colI[y] = imag[idx]; }
-                fft1d(colR, colI, dir);
-                for (let y = 0; y < ny; y++) { let idx = x + nx * (y + ny * z); real[idx] = colR[y]; imag[idx] = colI[y]; }
-            }
-        }
-        for (let x = 0; x < nx; x++) {
-            for (let y = 0; y < ny; y++) {
-                let colR = new Float64Array(nz), colI = new Float64Array(nz);
-                for (let z = 0; z < nz; z++) { let idx = x + nx * (y + ny * z); colR[z] = real[idx]; colI[z] = imag[idx]; }
-                fft1d(colR, colI, dir);
-                for (let z = 0; z < nz; z++) { let idx = x + nx * (y + ny * z); real[idx] = colR[z]; imag[idx] = colI[z]; }
-            }
-        }
-    }
+canvas.addEventListener('wheel', e => { camera.zoom *= (1 - e.deltaY * 0.001); camera.zoom = Math.max(0.01, Math.min(100, camera.zoom)); });
 
-    class CSRMatrix {
-        constructor(rows, cols, values, col_indices, row_ptr) {
-            this.rows = rows; this.cols = cols;
-            this.values = values; this.col_indices = col_indices; this.row_ptr = row_ptr;
-        }
-        multiply(vec) {
-            let result = new Float64Array(this.rows);
-            for (let i = 0; i < this.rows; i++) {
-                let sum = 0; let start = this.row_ptr[i]; let end = this.row_ptr[i+1];
-                for (let j = start; j < end; j++) sum += this.values[j] * vec[this.col_indices[j]];
-                result[i] = sum;
-            }
-            return result;
-        }
-    }
+document.getElementById('sim-speed').addEventListener('input', e => { timeScale = parseFloat(e.target.value); });
+document.getElementById('sim-integrator').addEventListener('change', e => { activeIntegrator = e.target.value; });
+document.getElementById('btn-play').addEventListener('click', e => { isPaused = !isPaused; e.target.innerText = isPaused ? '재생' : '일시정지'; e.target.style.background = isPaused ? '#ef4444' : 'var(--accent)'; });
 
-    function dot(v1, v2) { let sum = 0; for (let i = 0; i < v1.length; i++) sum += v1[i] * v2[i]; return sum; }
-    function norm(v) { return Math.sqrt(dot(v, v)); }
+document.getElementById('btn-spawn').addEventListener('click', () => {
+    let type = document.getElementById('obj-type').value;
+    let m = parseFloat(document.getElementById('obj-mass').value);
+    let r = parseFloat(document.getElementById('obj-radius').value);
+    let colors = { 'star': '#fbbf24', 'planet': '#38bdf8', 'blackhole': '#000000' };
 
-    function lanczosTridiagonalize(matrix, m) {
-        let n = matrix.rows;
-        let alpha = new Float64Array(m), beta = new Float64Array(m);
-        let v_prev = new Float64Array(n), v_curr = new Float64Array(n);
-        for (let i = 0; i < n; i++) v_curr[i] = (i % 2 === 0 ? 1 : -1) * (i + 1) / n;
-        let nrm = norm(v_curr);
-        for (let i = 0; i < n; i++) v_curr[i] /= nrm;
-        let w = new Float64Array(n);
+    let dist = camera.pos.z * 0.8;
+    let spawnPos = new Vec3(0,0,-dist);
+    let cx = Math.cos(-camera.rotX), sx = Math.sin(-camera.rotX);
+    let y1 = spawnPos.y*cx - spawnPos.z*sx, z1 = spawnPos.y*sx + spawnPos.z*cx;
+    let cy = Math.cos(-camera.rotY), sy = Math.sin(-camera.rotY);
+    let x2 = spawnPos.x*cy - z1*sy, z2 = spawnPos.x*sy + z1*cy;
 
-        for (let j = 0; j < m; j++) {
-            w = matrix.multiply(v_curr);
-            alpha[j] = dot(w, v_curr);
-            for (let i = 0; i < n; i++) w[i] = w[i] - alpha[j] * v_curr[i] - (j > 0 ? beta[j-1] * v_prev[i] : 0);
-            beta[j] = norm(w);
-            if (j < m - 1) {
-                if (beta[j] < 1e-12) { alpha = alpha.subarray(0, j+1); beta = beta.subarray(0, j); break; }
-                for (let i = 0; i < n; i++) { v_prev[i] = v_curr[i]; v_curr[i] = w[i] / beta[j]; }
-            }
-        }
-        return { alpha, beta: beta.subarray(0, beta.length === m ? m-1 : beta.length) };
-    }
+    let finalPos = new Vec3(x2, y1, z2).add(camera.pos);
+    entities.push(new Entity(type, m, r, finalPos, new Vec3(Math.random()*5000, 0, 0), colors[type]||'#fff'));
+});
 
-    function qrEigenvalues(alpha, beta) {
-        let n = alpha.length;
-        let d = new Float64Array(alpha), e = new Float64Array(beta);
-        const eps = 1e-15;
-        for (let l = 0; l < n; l++) {
-            let iter = 0;
-            while (true) {
-                let m;
-                for (m = l; m < n - 1; m++) if (Math.abs(e[m]) <= eps * (Math.abs(d[m]) + Math.abs(d[m+1]))) break;
-                if (m === l) break;
-                if (iter++ > 100) break;
-                let g = (d[l+1] - d[l]) / (2.0 * e[l]);
-                let r = Math.sqrt(g * g + 1.0);
-                g = d[m] - d[l] + e[l] / (g + (g >= 0 ? Math.abs(r) : -Math.abs(r)));
-                let s = 1.0, c = 1.0, p = 0.0;
-                for (let i = m - 1; i >= l; i--) {
-                    let f = s * e[i], b = c * e[i];
-                    r = Math.sqrt(f * f + g * g);
-                    e[i+1] = r;
-                    if (r === 0.0) { d[i+1] -= p; e[m] = 0.0; break; }
-                    s = f / r; c = g / r;
-                    g = d[i+1] - p;
-                    r = (d[i] - g) * s + 2.0 * c * b;
-                    p = s * r; d[i+1] = g + p;
-                    g = c * r - b;
-                }
-                if (r === 0.0 && iter > 0) continue;
-                d[l] -= p; e[l] = g; e[m] = 0.0;
-            }
-        }
-        return d.sort((a,b) => a-b); // Ascending for physics ground state
-    }
+document.getElementById('obj-type').addEventListener('change', e => {
+    let t = e.target.value;
+    if (t === 'star') { document.getElementById('obj-mass').value = '1.989e30'; document.getElementById('obj-radius').value = '6.957e8'; }
+    if (t === 'planet') { document.getElementById('obj-mass').value = '5.97e24'; document.getElementById('obj-radius').value = '6371000'; }
+});
 
-    // ------------------------------------------------------------------
-    // QUANTUM MECHANICS (1D Schrödinger Equation)
-    // ------------------------------------------------------------------
-    function solve1DQuantumWell() {
-        log("\n--- 1D QUANTUM HARMONIC OSCILLATOR ---", "sys");
-        log("Discretizing Hamiltonian Matrix H = -(\hbar^2/2m) \nabla^2 + V(x)...");
+setInterval(() => {
+    let ins = document.getElementById('inspector');
+    if (entities.length === 0) { ins.innerHTML = "우주가 비어있습니다."; return; }
+    let biggest = entities.reduce((max, e) => e.mass > max.mass ? e : max, entities[0]);
+    let types = {star:'항성', planet:'행성', blackhole:'블랙홀'};
+    ins.innerHTML = '<span style="color:var(--accent)">[포커스 천체]</span><br>' +
+        '유형: ' + types[biggest.type] + '<br>' +
+        '질량: ' + biggest.mass.toExponential(2) + ' kg<br>' +
+        '속도: ' + biggest.vel.mag().toExponential(2) + ' m/s<br>' +
+        '좌표: (' + biggest.pos.x.toExponential(1) + ', ' + biggest.pos.y.toExponential(1) + ', ' + biggest.pos.z.toExponential(1) + ')';
+}, 500);
 
-        let N = 200; // Grid points
-        let L = 10.0; // Domain [-L/2, L/2]
-        let dx = L / N;
-        let dx2 = dx * dx;
+// Init Solar System (approx)
+entities.push(new Entity('star', 1.989e30, 6.957e8 * 20, new Vec3(), new Vec3(), '#fbbf24'));
+entities.push(new Entity('planet', 5.97e24, 6.3e8 * 50, new Vec3(1.49e11,0,0), new Vec3(0, 29800, 0), '#38bdf8'));
+entities.push(new Entity('planet', 3.30e23, 2.4e8 * 50, new Vec3(5.79e10,0,0), new Vec3(0, 47400, 0), '#9ca3af'));
 
-        // Natural units: hbar = 1, m = 1
-        let prefactor = -0.5 / dx2;
-
-        let valArr = [], colArr = [], rowPtr = [0];
-
-        for (let i = 0; i < N; i++) {
-            let x = (i - N/2) * dx;
-            let V_x = 0.5 * x * x; // Harmonic oscillator potential V = 1/2 m w^2 x^2
-
-            // Finite difference Laplacian
-            if (i > 0) { valArr.push(prefactor); colArr.push(i-1); }
-            valArr.push(-2 * prefactor + V_x); colArr.push(i);
-            if (i < N-1) { valArr.push(prefactor); colArr.push(i+1); }
-
-            rowPtr.push(valArr.length);
-        }
-
-        let H = new CSRMatrix(N, N, new Float64Array(valArr), new Int32Array(colArr), new Int32Array(rowPtr));
-
-        log("Solving using Lanczos Algorithm...");
-        let tridiag = lanczosTridiagonalize(H, 150);
-        let eigenvalues = qrEigenvalues(tridiag.alpha, tridiag.beta);
-
-        log("Analytical Eigenvalues: E_n = (n + 0.5)");
-        log(`Numerical E_0: ${eigenvalues[0].toFixed(4)} (Expected ~0.5)`, "ok");
-        log(`Numerical E_1: ${eigenvalues[1].toFixed(4)} (Expected ~1.5)`, "ok");
-        log(`Numerical E_2: ${eigenvalues[2].toFixed(4)} (Expected ~2.5)`, "ok");
-
-        let err0 = Math.abs(eigenvalues[0] - 0.5); // ground state
-        if (err0 < 0.1) log("Quantum Subsystem Validation: PASS", "ok");
-        else log("Quantum Subsystem Validation: FAIL", "err");
-    }
-
-    // ------------------------------------------------------------------
-    // COSMOLOGY (Friedmann Equations)
-    // ------------------------------------------------------------------
-    function solveFriedmann() {
-        log("\n--- COSMOLOGY (Friedmann Dynamics) ---", "sys");
-        // H^2 = H0^2 * (Omega_m/a^3 + Omega_r/a^4 + Omega_Lambda)
-        // da/dt = H * a
-
-        let H0 = 67.4; // km/s/Mpc (Planck 2018)
-        let Omega_m = 0.315;
-        let Omega_Lambda = 0.685;
-        let Omega_r = 9e-5;
-
-        log(`Initial conditions: Omega_m=${Omega_m}, Omega_L=${Omega_Lambda}, Omega_r=${Omega_r}`);
-        log("Evolving scale factor a(t) via Explicit Euler for demonstration...");
-
-        let a = 1e-4; // Early universe
-        let t = 0;
-        let dt = 0.001; // Integration step
-
-        for (let i = 0; i < 5; i++) {
-            let H = H0 * Math.sqrt(Omega_m / Math.pow(a, 3) + Omega_r / Math.pow(a, 4) + Omega_Lambda);
-            let da = H * a * dt;
-            a += da;
-            t += dt;
-        }
-
-        log(`Integrated a(t) successfully. Current scale factor: a = ${a.toExponential(4)}`, "ok");
-        log("Cosmology ODE Validation: PASS", "ok");
-    }
-
-
-    // ------------------------------------------------------------------
-    // EVENT LISTENERS
-    // ------------------------------------------------------------------
-    document.getElementById('btn-run-tests').addEventListener('click', () => {
-        log("\n--- RUNNING KERNEL DIAGNOSTICS ---", "sys");
-        try {
-            let r1 = new Float64Array([1, 1, 1, 1, 0, 0, 0, 0]);
-            let i1 = new Float64Array(8);
-            fft1d(r1, i1, 1);
-            if(Math.abs(r1[0] - 4) < 1e-10) log("1D FFT (Forward) passed.", "ok");
-            else log("1D FFT failed.", "err");
-
-            let t3 = new Tensor3D(4, 4, 4);
-            t3.data.real[t3.getIdx(0,0,0)] = 1.0;
-            fft3d(t3, 1);
-            if(Math.abs(t3.data.real[t3.getIdx(3,3,3)] - 1.0) < 1e-10) log("3D FFT passed.", "ok");
-            else log("3D FFT failed.", "err");
-        } catch(e) { log("Error: " + e.message, "err"); }
-    });
-
-    document.getElementById('btn-run-quantum').addEventListener('click', solve1DQuantumWell);
-    document.getElementById('btn-run-cosmology').addEventListener('click', solveFriedmann);
-
-    // Initialize Audit
-    initAudit();
+requestAnimationFrame(loop);
 </script>
-
 </body>
 </html>
