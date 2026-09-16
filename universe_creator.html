@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Universe Creator - Computational Physics Lab</title>
+    <style>
+        :root { --bg: #0a0a0c; --panel-bg: #15151a; --text: #e0e0e0; --accent: #4a90e2; --border: #333; --danger: #e74c3c; --success: #2ecc71; --warning: #f1c40f; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--bg); color: var(--text); overflow: hidden; display: flex; flex-direction: column; height: 100vh; font-size: 14px; }
+
+        #app-container { display: flex; width: 100%; height: 100%; flex-direction: row; position: relative; }
+        #canvas-container { flex-grow: 1; position: relative; overflow: hidden; background: #000; min-height: 50vh; }
+        canvas { display: block; width: 100%; height: 100%; touch-action: none; outline: none; }
+
+        .panel { width: 320px; background: var(--panel-bg); display: flex; flex-direction: column; z-index: 10; border-right: 1px solid var(--border); border-left: 1px solid var(--border); }
+        .panel-header { padding: 10px; background: #1a1a24; border-bottom: 1px solid var(--border); font-weight: bold; text-align: center; }
+        .panel-content { flex-grow: 1; overflow-y: auto; padding: 10px; }
+
+        .control-group { margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+        .control-group h3 { font-size: 13px; color: var(--accent); margin-bottom: 8px; text-transform: uppercase; }
+        label { display: block; margin-bottom: 4px; font-size: 12px; }
+        input, select, button { width: 100%; padding: 6px; margin-bottom: 8px; background: #222; color: #fff; border: 1px solid var(--border); border-radius: 4px; }
+        button { background: var(--accent); color: white; border: none; cursor: pointer; font-weight: bold; }
+        button:hover { background: #357abd; }
+
+        .hud { position: absolute; top: 10px; left: 10px; pointer-events: none; text-shadow: 1px 1px 2px #000; font-family: monospace; font-size: 12px; z-index: 5; color: rgba(255,255,255,0.8); }
+        .diagnostic-row { display: flex; justify-content: space-between; margin-bottom: 4px; font-family: monospace; font-size: 11px; }
+        .status-pass { color: var(--success); }
+        .status-fail { color: var(--danger); }
+        .status-warn { color: var(--warning); }
+
+        #bottom-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 50px; background: rgba(21, 21, 26, 0.8); display: flex; align-items: center; justify-content: center; z-index: 10; gap: 10px; pointer-events: auto;}
+
+        /* Mobile Navigation Overlay */
+        #mobile-nav { display: none; background: #1a1a24; padding: 10px; justify-content: space-around; border-bottom: 1px solid var(--border); }
+        .nav-btn { background: #222; color: #fff; padding: 8px 12px; border-radius: 4px; border: 1px solid var(--border); margin: 0; width: auto; font-size: 12px;}
+        .nav-btn.active { background: var(--accent); }
+
+        /* Responsive Layout */
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            #mobile-nav { display: flex; flex-shrink: 0; z-index: 20;}
+            #app-container { flex-direction: column; flex-grow: 1; height: 0; }
+
+            /* Panels become absolute overlays or flex items depending on active state */
+            .panel { width: 100%; border: none; flex-shrink: 0; flex-grow: 1; height: 100%; display: none; }
+            .panel.active { display: flex; }
+
+            #canvas-container { display: none; height: 100%; flex-grow: 1; }
+            #canvas-container.active { display: block; }
+
+            #bottom-bar { position: static; height: auto; padding: 10px; flex-wrap: wrap; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="mobile-nav">
+    <button class="nav-btn active" onclick="switchView('canvas-container', this)">Universe</button>
+    <button class="nav-btn" onclick="switchView('left-panel', this)">Creator</button>
+    <button class="nav-btn" onclick="switchView('right-panel', this)">Diagnostics</button>
+</div>
+
+<div id="app-container">
+    <div class="panel" id="left-panel">
+        <div class="panel-header">Creator & Config</div>
+        <div class="panel-content">
+            <div class="control-group">
+                <h3>Add Object</h3>
+                <label>Type</label>
+                <select id="obj-type">
+                    <option value="star">Star</option>
+                    <option value="planet">Planet</option>
+                    <option value="blackhole">Black Hole</option>
+                    <option value="particle">Charged Particle</option>
+                </select>
+                <label>Mass (kg)</label>
+                <input type="number" id="obj-mass" value="5.972e24">
+                <label>Charge (C)</label>
+                <input type="number" id="obj-charge" value="0">
+                <label>Radius (m)</label>
+                <input type="number" id="obj-radius" value="6371000">
+                <label>Position (m) x,y,z</label>
+                <input type="text" id="obj-pos" value="0, 0, 0">
+                <label>Velocity (m/s) vx,vy,vz</label>
+                <input type="text" id="obj-vel" value="0, 0, 0">
+                <button id="btn-add">Place Object</button>
+            </div>
+            <div class="control-group">
+                <h3>Experiments</h3>
+                <button id="btn-exp-solar">Solar System (Inner)</button>
+                <button id="btn-exp-collision">Inelastic Collision</button>
+                <button id="btn-exp-em">EM Attraction</button>
+            </div>
+            <div class="control-group">
+                <h3>Global Settings</h3>
+                <label>Integrator</label>
+                <select id="sim-integrator"><option value="rk4">Runge-Kutta 4 (RK4)</option><option value="verlet">Velocity Verlet</option><option value="euler">Explicit Euler</option></select>
+                <label>Base Timestep (s)</label>
+                <input type="number" id="sim-dt" value="120">
+                <label>Max Substeps</label>
+                <input type="number" id="sim-substeps" value="10">
+            </div>
+            <div class="control-group">
+                <h3>Physics Subsystems</h3>
+                <label><input type="checkbox" id="mod-collisions" checked> Collisions</label>
+                <label><input type="checkbox" id="mod-relativity"> Relativistic Proxy (Limit v < c)</label>
+                <label><input type="checkbox" id="mod-em"> Electromagnetism (Coulomb)</label>
+            </div>
+        </div>
+    </div>
+
+    <div id="canvas-container" class="active">
+        <canvas id="sim-canvas"></canvas>
+        <div class="hud" id="hud-stats">Sim Time: 0 s<br>FPS: 0</div>
+        <div id="bottom-bar">
+            <button id="btn-playpause" style="width: auto; padding: 6px 12px; margin: 0;">Play</button>
+            <span style="font-size: 12px; color: white;">Time Scale:</span>
+            <input type="range" id="time-scale" min="0" max="1000" value="1" style="width: 100px; margin: 0;">
+            <span id="time-scale-val" style="font-size: 12px; color: white;">1x</span>
+            <button id="btn-reset" style="width: auto; padding: 6px 12px; margin: 0; background: #e74c3c;">Reset</button>
+        </div>
+    </div>
+
+    <div class="panel" id="right-panel">
+        <div class="panel-header">Diagnostics & Inspector</div>
+        <div class="panel-content">
+            <div class="control-group">
+                <h3>Conservation</h3>
+                <div id="diag-mass" class="diagnostic-row"><span>Mass dM:</span> <span class="val">0.00%</span></div>
+                <div id="diag-energy" class="diagnostic-row"><span>Energy dE:</span> <span class="val">0.00%</span></div>
+                <div id="diag-momentum" class="diagnostic-row"><span>Momentum dP:</span> <span class="val">0.00%</span></div>
+            </div>
+            <div class="control-group" id="inspector-group">
+                <h3>Inspector</h3>
+                <div id="inspector-content" style="font-size: 12px;">Click/Tap object.</div>
+            </div>
+            <div class="control-group">
+                <button id="btn-run-tests" style="margin-bottom: 10px;">Run Validation Suite</button>
+                <h3>Test Results</h3>
+                <div id="test-results" style="font-size: 11px; font-family: monospace; max-height: 200px; overflow-y: auto;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// View switcher for Mobile
+function switchView(viewId, btn) {
+    if(window.innerWidth <= 768) {
+        document.getElementById('left-panel').classList.remove('active');
+        document.getElementById('right-panel').classList.remove('active');
+        document.getElementById('canvas-container').classList.remove('active');
+
+        document.getElementById(viewId).classList.add('active');
+
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        if(viewId === 'canvas-container') {
+            setTimeout(resize, 100);
+        }
+    }
+}
+
+// CONSTANTS
+const G = 6.67430e-11;
+const c = 299792458;
+const c2 = c * c;
+const hbar = 1.0545718e-34;
+const kB = 1.380649e-23;
+const k_e = 8.9875517923e9; // Coulomb
+const M_SUN = 1.98847e30;
+const R_SUN = 6.957e8;
+const AU = 1.495978707e11;
+
+// VECTOR MATH
+class Vector3 {
+    constructor(x=0, y=0, z=0) { this.x=x; this.y=y; this.z=z; }
+    add(v) { return new Vector3(this.x+v.x, this.y+v.y, this.z+v.z); }
+    addScaled(v, s) { return new Vector3(this.x+v.x*s, this.y+v.y*s, this.z+v.z*s); }
+    sub(v) { return new Vector3(this.x-v.x, this.y-v.y, this.z-v.z); }
+    mul(s) { return new Vector3(this.x*s, this.y*s, this.z*s); }
+    div(s) { return new Vector3(this.x/s, this.y/s, this.z/s); }
+    dot(v) { return this.x*v.x + this.y*v.y + this.z*v.z; }
+    cross(v) { return new Vector3(this.y*v.z - this.z*v.y, this.z*v.x - this.x*v.z, this.x*v.y - this.y*v.x); }
+    magSq() { return this.x*this.x + this.y*this.y + this.z*this.z; }
+    mag() { return Math.sqrt(this.magSq()); }
+    normalize() { let m = this.mag(); return m === 0 ? new Vector3() : this.div(m); }
+    distanceTo(v) { return this.sub(v).mag(); }
+    clone() { return new Vector3(this.x, this.y, this.z); }
+}
+
+// BODY
+class PhysicalBody {
+    constructor(id, type, mass, radius, pos, vel, color, charge=0) {
+        this.id = id; this.type = type; this.mass = mass; this.radius = radius;
+        this.pos = pos; this.vel = vel; this.acc = new Vector3();
+        this.color = color || '#ffffff'; this.charge = charge;
+        this.isDeleted = false;
+
+        this.temperature = 0;
+        this.density = mass / ((4/3)*Math.PI*Math.pow(Math.max(radius,1), 3));
+        this.luminosity = 0;
+        this.schwarzschildRadius = 2 * G * this.mass / c2;
+        if(this.type === 'star') {
+            this.temperature = 5778 * Math.pow(mass/M_SUN, 0.5);
+            this.luminosity = 3.828e26 * Math.pow(mass/M_SUN, 3.5);
+        }
+
+        this.trail = [];
+    }
+    updateTrail() { this.trail.push(this.pos.clone()); if(this.trail.length > 200) this.trail.shift(); }
+}
+
+
+// UNIVERSE ENGINE
+class Universe {
+    constructor() {
+        this.bodies = []; this.time = 0; this.nextId = 0;
+        this.integrator = 'rk4'; this.dt = 120; this.substeps = 10;
+        this.enableCollisions = true; this.enableRelativity = false;
+        this.enableEM = false;
+        this.initialMass = 0; this.initialEnergy = 0; this.initialMomentum = new Vector3();
+    }
+    addBody(b) { this.bodies.push(b); this.recalc(); }
+    clear() { this.bodies = []; this.time = 0; this.recalc(); }
+
+    computeAcc(pos, vel, masses, charges) {
+        let n = pos.length;
+        let accs = Array.from({length:n}, () => new Vector3());
+
+        for(let i=0; i<n; i++) {
+            for(let j=i+1; j<n; j++) {
+                let rVec = pos[j].sub(pos[i]);
+                let rSq = rVec.magSq(); if(rSq === 0) continue;
+                let r = Math.sqrt(rSq);
+
+                // Gravity
+                let fG = G * masses[i] * masses[j] / rSq;
+                if(this.enableRelativity) {
+                    let rs_i = 2 * G * masses[i] / c2;
+                    let rs_j = 2 * G * masses[j] / c2;
+                    fG *= (1 + 3 * (rs_i + rs_j) / (2 * r)); // Schwarzschild lowest order proxy
+                }
+
+                // EM Coulomb
+                let fE = 0;
+                if(this.enableEM && charges && charges[i] !== 0 && charges[j] !== 0) {
+                    fE = -k_e * charges[i] * charges[j] / rSq; // negative means attractive
+                }
+
+                let forceMag = fG + fE;
+                let forceVec = rVec.mul(forceMag / r);
+
+                accs[i] = accs[i].add(forceVec.div(masses[i]));
+                accs[j] = accs[j].sub(forceVec.div(masses[j]));
+            }
+        }
+        return accs;
+    }
+
+    stepRK4(dt) {
+        let n = this.bodies.length;
+        let pos = this.bodies.map(b => b.pos);
+        let vel = this.bodies.map(b => b.vel);
+        let m = this.bodies.map(b => b.mass);
+        let q = this.bodies.map(b => b.charge);
+
+        let a1 = this.computeAcc(pos, vel, m, q);
+        let v1 = vel;
+
+        let pos2 = pos.map((p, i) => p.addScaled(v1[i], dt/2));
+        let vel2 = vel.map((v, i) => v.addScaled(a1[i], dt/2));
+        let a2 = this.computeAcc(pos2, vel2, m, q);
+        let v2 = vel2;
+
+        let pos3 = pos.map((p, i) => p.addScaled(v2[i], dt/2));
+        let vel3 = vel.map((v, i) => v.addScaled(a2[i], dt/2));
+        let a3 = this.computeAcc(pos3, vel3, m, q);
+        let v3 = vel3;
+
+        let pos4 = pos.map((p, i) => p.addScaled(v3[i], dt));
+        let vel4 = vel.map((v, i) => v.addScaled(a3[i], dt));
+        let a4 = this.computeAcc(pos4, vel4, m, q);
+        let v4 = vel4;
+
+        for(let i=0; i<n; i++) {
+            this.bodies[i].pos = pos[i].add( v1[i].add(v2[i].mul(2)).add(v3[i].mul(2)).add(v4[i]).mul(dt/6) );
+            this.bodies[i].vel = vel[i].add( a1[i].add(a2[i].mul(2)).add(a3[i].mul(2)).add(a4[i]).mul(dt/6) );
+            this.bodies[i].acc = a1[i];
+
+            if(this.enableRelativity) {
+                let vmag = this.bodies[i].vel.mag();
+                if(vmag >= c) this.bodies[i].vel = this.bodies[i].vel.normalize().mul(c * 0.999);
+            }
+        }
+    }
+
+    stepEuler(dt) {
+        let n = this.bodies.length;
+        let pos = this.bodies.map(b => b.pos);
+        let vel = this.bodies.map(b => b.vel);
+        let m = this.bodies.map(b => b.mass);
+        let q = this.bodies.map(b => b.charge);
+        let acc = this.computeAcc(pos, vel, m, q);
+        for(let i=0; i<n; i++) {
+            this.bodies[i].vel = this.bodies[i].vel.add(acc[i].mul(dt));
+            this.bodies[i].pos = this.bodies[i].pos.add(this.bodies[i].vel.mul(dt));
+        }
+    }
+
+    stepVerlet(dt) {
+        let n = this.bodies.length;
+        let m = this.bodies.map(b => b.mass);
+        let q = this.bodies.map(b => b.charge);
+
+        for(let i=0; i<n; i++) {
+            this.bodies[i].pos = this.bodies[i].pos.add(this.bodies[i].vel.mul(dt)).add(this.bodies[i].acc.mul(0.5 * dt * dt));
+        }
+
+        let pos = this.bodies.map(b => b.pos);
+        let vel = this.bodies.map(b => b.vel);
+        let newAcc = this.computeAcc(pos, vel, m, q);
+
+        for(let i=0; i<n; i++) {
+            this.bodies[i].vel = this.bodies[i].vel.add(this.bodies[i].acc.add(newAcc[i]).mul(0.5 * dt));
+            this.bodies[i].acc = newAcc[i];
+            if(this.enableRelativity) {
+                let vmag = this.bodies[i].vel.mag();
+                if(vmag >= c) this.bodies[i].vel = this.bodies[i].vel.normalize().mul(c * 0.999);
+            }
+        }
+    }
+
+    handleCollisions() {
+        if(!this.enableCollisions) return;
+        let newBodies = []; let deletedIds = new Set();
+        for(let i=0; i<this.bodies.length; i++) {
+            if(deletedIds.has(this.bodies[i].id)) continue;
+            for(let j=i+1; j<this.bodies.length; j++) {
+                if(deletedIds.has(this.bodies[j].id)) continue;
+                let b1 = this.bodies[i], b2 = this.bodies[j];
+                let dist = b1.pos.distanceTo(b2.pos);
+                if(dist < (b1.radius + b2.radius)) {
+                    let tM = b1.mass + b2.mass;
+                    let nV = (b1.vel.mul(b1.mass).add(b2.vel.mul(b2.mass))).div(tM);
+                    let nP = (b1.pos.mul(b1.mass).add(b2.pos.mul(b2.mass))).div(tM);
+                    let v1 = (4/3)*Math.PI*Math.pow(b1.radius, 3);
+                    let v2 = (4/3)*Math.PI*Math.pow(b2.radius, 3);
+                    let nR = Math.pow((v1+v2)/((4/3)*Math.PI), 1/3);
+                    let type = b1.mass > b2.mass ? b1.type : b2.type;
+                    let col = b1.mass > b2.mass ? b1.color : b2.color;
+                    let mb = new PhysicalBody(this.nextId++, type, tM, nR, nP, nV, col, b1.charge+b2.charge);
+                    newBodies.push(mb); deletedIds.add(b1.id); deletedIds.add(b2.id);
+                    break;
+                }
+            }
+        }
+        this.bodies = this.bodies.filter(b => !deletedIds.has(b.id));
+        this.bodies.push(...newBodies);
+    }
+
+    update(baseDt, steps) {
+        let dt = baseDt / steps;
+        for(let s=0; s<steps; s++) {
+            if(this.integrator==='rk4') this.stepRK4(dt);
+            else if(this.integrator==='verlet') this.stepVerlet(dt);
+            else this.stepEuler(dt);
+            this.handleCollisions();
+            this.time += dt;
+        }
+        for(let b of this.bodies) b.updateTrail();
+    }
+
+    recalc() {
+        this.initialMass = this.bodies.reduce((s,b)=>s+b.mass,0);
+        this.initialMomentum = this.bodies.reduce((s,b)=>s.add(b.vel.mul(b.mass)), new Vector3());
+        let E = 0;
+        for(let i=0; i<this.bodies.length; i++) {
+            let v = this.bodies[i].vel.mag();
+            E += 0.5 * this.bodies[i].mass * v * v;
+            for(let j=i+1; j<this.bodies.length; j++) {
+                let r = this.bodies[i].pos.distanceTo(this.bodies[j].pos);
+                E -= G * this.bodies[i].mass * this.bodies[j].mass / r;
+                if(this.enableEM) {
+                    E += k_e * this.bodies[i].charge * this.bodies[j].charge / r;
+                }
+            }
+        }
+        this.initialEnergy = E;
+    }
+
+    getM() { return this.bodies.reduce((s,b)=>s+b.mass,0); }
+    getP() { return this.bodies.reduce((s,b)=>s.add(b.vel.mul(b.mass)), new Vector3()); }
+    getE() {
+        let E = 0;
+        for(let i=0; i<this.bodies.length; i++) {
+            let v = this.bodies[i].vel.mag();
+            E += 0.5 * this.bodies[i].mass * v * v;
+            for(let j=i+1; j<this.bodies.length; j++) {
+                let r = this.bodies[i].pos.distanceTo(this.bodies[j].pos);
+                E -= G * this.bodies[i].mass * this.bodies[j].mass / r;
+                if(this.enableEM) {
+                    E += k_e * this.bodies[i].charge * this.bodies[j].charge / r;
+                }
+            }
+        }
+        return E;
+    }
+}
+
+// RENDERER
+class Camera {
+    constructor() { this.pos = new Vector3(0,0,1e9); this.target = new Vector3(); this.fov = 800; this.pitch = 0; this.yaw = 0; }
+    project(p, w, h) {
+        let t = p.sub(this.target);
+        let cy = Math.cos(this.yaw), sy = Math.sin(this.yaw);
+        let x1 = t.x*cy - t.z*sy, z1 = t.x*sy + t.z*cy;
+        let cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
+        let y2 = t.y*cp - z1*sp, z2 = t.y*sp + z1*cp;
+        let z3 = z2 + this.pos.z; if(z3 <= 0) return null;
+        let sc = this.fov / z3;
+        return { x: x1*sc + w/2, y: -y2*sc + h/2, scale: sc, z: z3 };
+    }
+}
+
+const universe = new Universe();
+const camera = new Camera();
+let canvas = document.getElementById('sim-canvas'); let ctx = canvas.getContext('2d');
+let width, height;
+function resize() {
+    let container = document.getElementById('canvas-container');
+    width = container.clientWidth;
+    height = container.clientHeight;
+    canvas.width=width;
+    canvas.height=height;
+}
+window.addEventListener('resize', resize); resize();
+
+// CAMERA INTERACTIONS (Mouse & Touch)
+let isDragging = false;
+let lastP = {x:0, y:0};
+let lastDist = 0; // for pinch zoom
+
+canvas.addEventListener('mousedown', (e) => { isDragging = true; lastP = {x:e.clientX, y:e.clientY}; handleSelect(e.clientX, e.clientY); });
+canvas.addEventListener('mousemove', (e) => {
+    if(isDragging) {
+        let dx = e.clientX - lastP.x; let dy = e.clientY - lastP.y;
+        camera.yaw += dx * 0.005; camera.pitch += dy * 0.005;
+        camera.pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, camera.pitch));
+        lastP = {x:e.clientX, y:e.clientY};
+    }
+});
+canvas.addEventListener('mouseup', () => isDragging = false);
+canvas.addEventListener('mouseleave', () => isDragging = false);
+canvas.addEventListener('wheel', (e) => { camera.pos.z *= (1 + e.deltaY * 0.001); camera.pos.z = Math.max(10, camera.pos.z); }, {passive: true});
+
+// TOUCH EVENTS
+canvas.addEventListener('touchstart', (e) => {
+    if(e.touches.length === 1) {
+        isDragging = true;
+        lastP = {x:e.touches[0].clientX, y:e.touches[0].clientY};
+        handleSelect(e.touches[0].clientX, e.touches[0].clientY);
+    } else if(e.touches.length === 2) {
+        isDragging = false;
+        let dx = e.touches[0].clientX - e.touches[1].clientX;
+        let dy = e.touches[0].clientY - e.touches[1].clientY;
+        lastDist = Math.sqrt(dx*dx + dy*dy);
+    }
+}, {passive: true});
+
+canvas.addEventListener('touchmove', (e) => {
+    if(e.touches.length === 1 && isDragging) {
+        let dx = e.touches[0].clientX - lastP.x; let dy = e.touches[0].clientY - lastP.y;
+        camera.yaw += dx * 0.01; camera.pitch += dy * 0.01;
+        camera.pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, camera.pitch));
+        lastP = {x:e.touches[0].clientX, y:e.touches[0].clientY};
+    } else if(e.touches.length === 2) {
+        let dx = e.touches[0].clientX - e.touches[1].clientX;
+        let dy = e.touches[0].clientY - e.touches[1].clientY;
+        let dist = Math.sqrt(dx*dx + dy*dy);
+        if(lastDist > 0) {
+            let scale = lastDist / dist;
+            camera.pos.z *= scale;
+            camera.pos.z = Math.max(10, camera.pos.z);
+        }
+        lastDist = dist;
+    }
+}, {passive: true});
+
+canvas.addEventListener('touchend', () => { isDragging = false; lastDist = 0; });
+canvas.addEventListener('touchcancel', () => { isDragging = false; lastDist = 0; });
+
+function handleSelect(cx, cy) {
+    let rect = canvas.getBoundingClientRect();
+    let mx = cx - rect.left; let my = cy - rect.top;
+    let closestId = null; let closestZ = Infinity;
+
+    for(let b of universe.bodies) {
+        let proj = camera.project(b.pos, width, height);
+        if(proj) {
+            let r = Math.max(b.radius * proj.scale, 10); // min tap target size
+            let dx = proj.x - mx; let dy = proj.y - my;
+            if(dx*dx + dy*dy <= r*r && proj.z < closestZ) {
+                closestId = b.id; closestZ = proj.z;
+            }
+        }
+    }
+    selId = closestId;
+    updateInspector();
+}
+
+function updateInspector() {
+    let ins = document.getElementById('inspector-content');
+    let b = universe.bodies.find(x => x.id === selId);
+    if(b) {
+        ins.innerHTML = `
+            <b>ID:</b> ${b.id}<br><b>Type:</b> ${b.type}<br>
+            <b>Mass:</b> ${b.mass.toExponential(3)} kg<br>
+            <b>Radius:</b> ${b.radius.toExponential(3)} m<br>
+            <b>Charge:</b> ${b.charge.toExponential(3)} C<br>
+            <b>Pos:</b> ${b.pos.x.toExponential(2)}, ${b.pos.y.toExponential(2)}, ${b.pos.z.toExponential(2)}<br>
+            <b>Vel:</b> ${b.vel.x.toExponential(2)}, ${b.vel.y.toExponential(2)}, ${b.vel.z.toExponential(2)}<br>
+            <b>|Vel|:</b> ${b.vel.mag().toExponential(2)} m/s<br>
+        `;
+    } else {
+        ins.innerHTML = 'Click/Tap object.';
+    }
+}
+
+
+// UI MAP
+let isPlaying = false, timeScale = 1;
+document.getElementById('btn-playpause').onclick = (e) => { isPlaying = !isPlaying; e.target.innerText = isPlaying ? 'Pause' : 'Play'; };
+document.getElementById('btn-reset').onclick = () => { universe.clear(); selId=null; updateInspector(); };
+document.getElementById('time-scale').oninput = (e) => { timeScale = parseFloat(e.target.value); document.getElementById('time-scale-val').innerText = timeScale+'x'; };
+['integrator','dt','substeps'].forEach(id => document.getElementById('sim-'+id).onchange = e => universe[id] = e.target.value);
+['collisions','relativity','em'].forEach(id => document.getElementById('mod-'+id).onchange = e => {
+    let k = 'enable' + id.charAt(0).toUpperCase() + id.slice(1);
+    universe[k] = e.target.checked;
+});
+
+document.getElementById('btn-add').onclick = () => {
+    let t = document.getElementById('obj-type').value;
+    let m = parseFloat(document.getElementById('obj-mass').value);
+    let q = parseFloat(document.getElementById('obj-charge').value);
+    let r = parseFloat(document.getElementById('obj-radius').value);
+    let p = document.getElementById('obj-pos').value.split(',').map(parseFloat);
+    let v = document.getElementById('obj-vel').value.split(',').map(parseFloat);
+    let cMap = {'star':'#fd0','planet':'#46f','blackhole':'#000','particle':'#f4f'};
+    universe.addBody(new PhysicalBody(universe.nextId++, t, m, r, new Vector3(...p), new Vector3(...v), cMap[t]||'#fff', q));
+};
+
+document.getElementById('btn-exp-solar').onclick = () => { universe.clear(); universe.addBody(new PhysicalBody(0,'star',M_SUN,R_SUN,new Vector3(),new Vector3())); universe.addBody(new PhysicalBody(1,'planet',5.97e24,6.37e6,new Vector3(AU,0,0),new Vector3(0,29780,0),'#46f')); camera.pos.z = 3*AU; };
+document.getElementById('btn-exp-collision').onclick = () => { universe.clear(); let m=5.97e24, r=6.37e6; universe.addBody(new PhysicalBody(0,'planet',m,r,new Vector3(-r*3,0,0),new Vector3(5000,0,0))); universe.addBody(new PhysicalBody(1,'planet',m,r,new Vector3(r*3,0,0),new Vector3(-5000,0,0))); camera.pos.z = r*15; };
+document.getElementById('btn-exp-em').onclick = () => { universe.clear(); universe.enableEM = true; document.getElementById('mod-em').checked=true; universe.addBody(new PhysicalBody(0,'particle',1,1,new Vector3(-10,0,0),new Vector3(),'#fff', 1e-4)); universe.addBody(new PhysicalBody(1,'particle',1,1,new Vector3(10,0,0),new Vector3(),'#fff', -1e-4)); camera.pos.z = 50; };
+
+// VALIDATION TESTS
+document.getElementById('btn-run-tests').onclick = () => {
+    let r = document.getElementById('test-results'); r.innerHTML = "";
+    let l = (n,p,d) => r.innerHTML += `<span style="color:var(--${p?'success':'danger'})">[${p?'PASS':'FAIL'}]</span> ${n} (Err: ${d.toExponential(2)})<br>`;
+
+    // Kepler
+    let u = new Universe(); u.addBody(new PhysicalBody(0,'star',M_SUN,R_SUN,new Vector3(),new Vector3()));
+    let v = Math.sqrt(G*M_SUN/AU);
+    u.addBody(new PhysicalBody(1,'p',1,1,new Vector3(AU,0,0),new Vector3(0,v,0)));
+    let dt = (2*Math.PI*Math.sqrt(Math.pow(AU,3)/(G*M_SUN))) / 1000;
+    u.integrator = 'rk4';
+    u.update(dt, 1000);
+    let dist = u.bodies[1].pos.distanceTo(new Vector3(AU,0,0));
+    let err = dist / AU;
+    l('Kepler Orbit (RK4)', err < 0.05, err);
+
+    // Relativity Limit Proxy
+    u.clear(); u.enableRelativity = true;
+    u.addBody(new PhysicalBody(0,'p',1,1,new Vector3(),new Vector3(c*0.9,0,0)));
+    u.addBody(new PhysicalBody(1,'p',1,1,new Vector3(1e3,0,0),new Vector3()));
+    u.update(1, 10);
+    let vMag = u.bodies[0].vel.mag();
+    l('Relativistic Velocity Limit (v < c)', vMag < c, Math.max(0, vMag-c));
+
+    // EM Coulomb Direction
+    u.clear(); u.enableEM = true;
+    u.addBody(new PhysicalBody(0,'particle',1,1,new Vector3(-10,0,0),new Vector3(),'#fff', 1e-5));
+    u.addBody(new PhysicalBody(1,'particle',1,1,new Vector3(10,0,0),new Vector3(),'#fff', -1e-5));
+    let startD = u.bodies[0].pos.distanceTo(u.bodies[1].pos);
+    u.update(0.1, 10);
+    let endD = u.bodies[0].pos.distanceTo(u.bodies[1].pos);
+    let dDiff = startD - endD;
+    l('EM Coulomb Attraction (+ and -)', endD < startD, dDiff > 0 ? 0 : -dDiff);
+};
+
+// RENDER LOOP
+let lf = performance.now();
+function loop() {
+    let now = performance.now(); let dt = (now-lf)/1000; lf = now;
+    if(isPlaying && universe.bodies.length > 0) {
+        universe.update(universe.dt*timeScale, universe.substeps);
+    }
+
+    ctx.fillStyle = '#000'; ctx.fillRect(0,0,width,height);
+
+    // Draw bodies
+    let drawList = [];
+    for(let b of universe.bodies) {
+        let p = camera.project(b.pos, width, height);
+        if(p) drawList.push({b, p});
+
+        // Draw trails
+        if(b.trail.length > 1) {
+            ctx.beginPath(); ctx.strokeStyle = b.color; ctx.globalAlpha = 0.3;
+            let start = camera.project(b.trail[0], width, height);
+            if(start) ctx.moveTo(start.x, start.y);
+            for(let i=1; i<b.trail.length; i++) {
+                let pp = camera.project(b.trail[i], width, height);
+                if(pp) ctx.lineTo(pp.x, pp.y);
+            }
+            ctx.stroke(); ctx.globalAlpha = 1.0;
+        }
+    }
+
+    drawList.sort((a,b) => b.p.z - a.p.z);
+
+    for(let item of drawList) {
+        let b = item.b; let p = item.p;
+        let r = Math.max(b.radius * p.scale, 2);
+
+        if(b.type === 'blackhole') {
+            let rs = b.schwarzschildRadius * p.scale;
+            ctx.fillStyle = 'rgba(255,100,0,0.2)'; ctx.beginPath(); ctx.arc(p.x,p.y,Math.max(rs*3, r*3),0,Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(p.x,p.y,Math.max(rs, 1),0,Math.PI*2); ctx.fill(); ctx.strokeStyle='#fff'; ctx.stroke();
+        } else {
+            ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(p.x,p.y,r,0,Math.PI*2); ctx.fill();
+        }
+
+        if(b.id === selId) {
+            ctx.strokeStyle = 'var(--accent)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x,p.y,r+2,0,Math.PI*2); ctx.stroke(); ctx.lineWidth = 1;
+        }
+    }
+
+    document.getElementById('hud-stats').innerHTML = `Sim Time: ${universe.time.toExponential(2)} s<br>Objects: ${universe.bodies.length}`;
+    if(Math.random() < 0.1 && universe.bodies.length > 0) {
+        let fE = (v,i) => i===0 ? "0.00%" : ((v-i)/Math.abs(i)*100).toFixed(3)+"%";
+        document.querySelector('#diag-mass .val').innerText = fE(universe.getM(), universe.initialMass);
+        document.querySelector('#diag-energy .val').innerText = fE(universe.getE(), universe.initialEnergy);
+        document.querySelector('#diag-momentum .val').innerText = fE(universe.getP().mag(), universe.initialMomentum.mag());
+    }
+
+    requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>
