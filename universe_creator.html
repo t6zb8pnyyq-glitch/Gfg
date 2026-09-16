@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Universe Creator - Computational Physics Lab</title>
+    <title>우주 창조자 - 전산 물리학 연구소</title>
     <style>
         :root { --bg: #0a0a0c; --panel-bg: #15151a; --text: #e0e0e0; --accent: #4a90e2; --border: #333; --danger: #e74c3c; --success: #2ecc71; --warning: #f1c40f; }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
@@ -23,6 +23,8 @@
         input, select, button { width: 100%; padding: 6px; margin-bottom: 8px; background: #222; color: #fff; border: 1px solid var(--border); border-radius: 4px; }
         button { background: var(--accent); color: white; border: none; cursor: pointer; font-weight: bold; }
         button:hover { background: #357abd; }
+        .checkbox-label { display: flex; align-items: center; gap: 5px; }
+        .checkbox-label input { width: auto; margin-bottom: 0; }
 
         .hud { position: absolute; top: 10px; left: 10px; pointer-events: none; text-shadow: 1px 1px 2px #000; font-family: monospace; font-size: 12px; z-index: 5; color: rgba(255,255,255,0.8); }
         .diagnostic-row { display: flex; justify-content: space-between; margin-bottom: 4px; font-family: monospace; font-size: 11px; }
@@ -43,7 +45,6 @@
             #mobile-nav { display: flex; flex-shrink: 0; z-index: 20;}
             #app-container { flex-direction: column; flex-grow: 1; height: 0; }
 
-            /* Panels become absolute overlays or flex items depending on active state */
             .panel { width: 100%; border: none; flex-shrink: 0; flex-grow: 1; height: 100%; display: none; }
             .panel.active { display: flex; }
 
@@ -57,88 +58,97 @@
 <body>
 
 <div id="mobile-nav">
-    <button class="nav-btn active" onclick="switchView('canvas-container', this)">Universe</button>
-    <button class="nav-btn" onclick="switchView('left-panel', this)">Creator</button>
-    <button class="nav-btn" onclick="switchView('right-panel', this)">Diagnostics</button>
+    <button class="nav-btn active" onclick="switchView('canvas-container', this)">우주 보기</button>
+    <button class="nav-btn" onclick="switchView('left-panel', this)">생성기</button>
+    <button class="nav-btn" onclick="switchView('right-panel', this)">진단</button>
 </div>
 
 <div id="app-container">
     <div class="panel" id="left-panel">
-        <div class="panel-header">Creator & Config</div>
+        <div class="panel-header">생성 및 설정</div>
         <div class="panel-content">
             <div class="control-group">
-                <h3>Add Object</h3>
-                <label>Type</label>
+                <h3>천체 추가</h3>
+                <label>종류</label>
                 <select id="obj-type">
-                    <option value="star">Star</option>
-                    <option value="planet">Planet</option>
-                    <option value="blackhole">Black Hole</option>
-                    <option value="particle">Charged Particle</option>
+                    <option value="star">항성 (별)</option>
+                    <option value="planet" selected>행성</option>
+                    <option value="blackhole">블랙홀</option>
+                    <option value="particle">대전 입자</option>
                 </select>
-                <label>Mass (kg)</label>
+                <label>질량 (kg)</label>
                 <input type="number" id="obj-mass" value="5.972e24">
-                <label>Charge (C)</label>
+                <label>전하량 (C)</label>
                 <input type="number" id="obj-charge" value="0">
-                <label>Radius (m)</label>
+                <label>반경 (m)</label>
                 <input type="number" id="obj-radius" value="6371000">
-                <label>Position (m) x,y,z</label>
+
+                <label class="checkbox-label" style="color: var(--success); font-weight: bold; margin-top: 10px;">
+                    <input type="checkbox" id="mod-touch-spawn"> 우주 화면 터치로 생성
+                </label>
+
+                <label style="margin-top: 5px;">위치 (m) x,y,z</label>
                 <input type="text" id="obj-pos" value="0, 0, 0">
-                <label>Velocity (m/s) vx,vy,vz</label>
+                <label>속도 (m/s) vx,vy,vz</label>
                 <input type="text" id="obj-vel" value="0, 0, 0">
-                <button id="btn-add">Place Object</button>
+                <button id="btn-add">천체 배치</button>
             </div>
             <div class="control-group">
-                <h3>Experiments</h3>
-                <button id="btn-exp-solar">Solar System (Inner)</button>
-                <button id="btn-exp-collision">Inelastic Collision</button>
-                <button id="btn-exp-em">EM Attraction</button>
+                <h3>실험 프리셋</h3>
+                <button id="btn-exp-solar">태양계 (내행성)</button>
+                <button id="btn-exp-collision">비탄성 충돌</button>
+                <button id="btn-exp-em">전자기력 인력</button>
             </div>
             <div class="control-group">
-                <h3>Global Settings</h3>
-                <label>Integrator</label>
-                <select id="sim-integrator"><option value="rk4">Runge-Kutta 4 (RK4)</option><option value="verlet">Velocity Verlet</option><option value="euler">Explicit Euler</option></select>
-                <label>Base Timestep (s)</label>
+                <h3>전역 설정</h3>
+                <label>적분기</label>
+                <select id="sim-integrator">
+                    <option value="rk4">룽게-쿠타 4 (RK4)</option>
+                    <option value="verlet">속도 벨레</option>
+                    <option value="euler">명시적 오일러</option>
+                </select>
+                <label>기본 시간 간격 (초)</label>
                 <input type="number" id="sim-dt" value="120">
-                <label>Max Substeps</label>
+                <label>최대 하위 단계</label>
                 <input type="number" id="sim-substeps" value="10">
             </div>
             <div class="control-group">
-                <h3>Physics Subsystems</h3>
-                <label><input type="checkbox" id="mod-collisions" checked> Collisions</label>
-                <label><input type="checkbox" id="mod-relativity"> Relativistic Proxy (Limit v < c)</label>
-                <label><input type="checkbox" id="mod-em"> Electromagnetism (Coulomb)</label>
+                <h3>물리 시스템</h3>
+                <label class="checkbox-label"><input type="checkbox" id="mod-collisions" checked> 충돌 허용</label>
+                <label class="checkbox-label"><input type="checkbox" id="mod-relativity"> 상대론적 근사 (광속 제한)</label>
+                <label class="checkbox-label"><input type="checkbox" id="mod-em"> 전자기력 (쿨롱)</label>
             </div>
         </div>
     </div>
 
     <div id="canvas-container" class="active">
         <canvas id="sim-canvas"></canvas>
-        <div class="hud" id="hud-stats">Sim Time: 0 s<br>FPS: 0</div>
+        <div class="hud" id="hud-stats">시뮬레이션 시간: 0 s<br>천체 수: 0</div>
         <div id="bottom-bar">
-            <button id="btn-playpause" style="width: auto; padding: 6px 12px; margin: 0;">Play</button>
-            <span style="font-size: 12px; color: white;">Time Scale:</span>
+            <button id="btn-playpause" style="width: auto; padding: 6px 12px; margin: 0;">재생</button>
+            <span style="font-size: 12px; color: white;">배속:</span>
             <input type="range" id="time-scale" min="0" max="1000" value="1" style="width: 100px; margin: 0;">
             <span id="time-scale-val" style="font-size: 12px; color: white;">1x</span>
-            <button id="btn-reset" style="width: auto; padding: 6px 12px; margin: 0; background: #e74c3c;">Reset</button>
+            <button id="btn-reset" style="width: auto; padding: 6px 12px; margin: 0; background: #e74c3c;">초기화</button>
         </div>
     </div>
 
     <div class="panel" id="right-panel">
-        <div class="panel-header">Diagnostics & Inspector</div>
+        <div class="panel-header">진단 및 조사</div>
         <div class="panel-content">
             <div class="control-group">
-                <h3>Conservation</h3>
-                <div id="diag-mass" class="diagnostic-row"><span>Mass dM:</span> <span class="val">0.00%</span></div>
-                <div id="diag-energy" class="diagnostic-row"><span>Energy dE:</span> <span class="val">0.00%</span></div>
-                <div id="diag-momentum" class="diagnostic-row"><span>Momentum dP:</span> <span class="val">0.00%</span></div>
+                <h3>보존 법칙</h3>
+                <div id="diag-mass" class="diagnostic-row"><span>질량 dM:</span> <span class="val">0.00%</span></div>
+                <div id="diag-energy" class="diagnostic-row"><span>에너지 dE:</span> <span class="val">0.00%</span></div>
+                <div id="diag-momentum" class="diagnostic-row"><span>운동량 dP:</span> <span class="val">0.00%</span></div>
             </div>
             <div class="control-group" id="inspector-group">
-                <h3>Inspector</h3>
-                <div id="inspector-content" style="font-size: 12px;">Click/Tap object.</div>
+                <h3>속성 검사기</h3>
+                <div id="inspector-content" style="font-size: 12px;">천체를 탭하거나 클릭하세요.</div>
             </div>
             <div class="control-group">
-                <button id="btn-run-tests" style="margin-bottom: 10px;">Run Validation Suite</button>
-                <h3>Test Results</h3>
+                <button id="btn-run-tests" style="margin-bottom: 10px;">검증 테스트 실행</button>
+                <h3>테스트 결과</h3>
                 <div id="test-results" style="font-size: 11px; font-family: monospace; max-height: 200px; overflow-y: auto;"></div>
             </div>
         </div>
@@ -146,7 +156,6 @@
 </div>
 
 <script>
-// View switcher for Mobile
 function switchView(viewId, btn) {
     if(window.innerWidth <= 768) {
         document.getElementById('left-panel').classList.remove('active');
@@ -168,9 +177,7 @@ function switchView(viewId, btn) {
 const G = 6.67430e-11;
 const c = 299792458;
 const c2 = c * c;
-const hbar = 1.0545718e-34;
-const kB = 1.380649e-23;
-const k_e = 8.9875517923e9; // Coulomb
+const k_e = 8.9875517923e9;
 const M_SUN = 1.98847e30;
 const R_SUN = 6.957e8;
 const AU = 1.495978707e11;
@@ -199,21 +206,11 @@ class PhysicalBody {
         this.pos = pos; this.vel = vel; this.acc = new Vector3();
         this.color = color || '#ffffff'; this.charge = charge;
         this.isDeleted = false;
-
-        this.temperature = 0;
-        this.density = mass / ((4/3)*Math.PI*Math.pow(Math.max(radius,1), 3));
-        this.luminosity = 0;
         this.schwarzschildRadius = 2 * G * this.mass / c2;
-        if(this.type === 'star') {
-            this.temperature = 5778 * Math.pow(mass/M_SUN, 0.5);
-            this.luminosity = 3.828e26 * Math.pow(mass/M_SUN, 3.5);
-        }
-
         this.trail = [];
     }
     updateTrail() { this.trail.push(this.pos.clone()); if(this.trail.length > 200) this.trail.shift(); }
 }
-
 
 // UNIVERSE ENGINE
 class Universe {
@@ -237,18 +234,16 @@ class Universe {
                 let rSq = rVec.magSq(); if(rSq === 0) continue;
                 let r = Math.sqrt(rSq);
 
-                // Gravity
                 let fG = G * masses[i] * masses[j] / rSq;
                 if(this.enableRelativity) {
                     let rs_i = 2 * G * masses[i] / c2;
                     let rs_j = 2 * G * masses[j] / c2;
-                    fG *= (1 + 3 * (rs_i + rs_j) / (2 * r)); // Schwarzschild lowest order proxy
+                    fG *= (1 + 3 * (rs_i + rs_j) / (2 * r));
                 }
 
-                // EM Coulomb
                 let fE = 0;
                 if(this.enableEM && charges && charges[i] !== 0 && charges[j] !== 0) {
-                    fE = -k_e * charges[i] * charges[j] / rSq; // negative means attractive
+                    fE = -k_e * charges[i] * charges[j] / rSq;
                 }
 
                 let forceMag = fG + fE;
@@ -384,9 +379,7 @@ class Universe {
             for(let j=i+1; j<this.bodies.length; j++) {
                 let r = this.bodies[i].pos.distanceTo(this.bodies[j].pos);
                 E -= G * this.bodies[i].mass * this.bodies[j].mass / r;
-                if(this.enableEM) {
-                    E += k_e * this.bodies[i].charge * this.bodies[j].charge / r;
-                }
+                if(this.enableEM) E += k_e * this.bodies[i].charge * this.bodies[j].charge / r;
             }
         }
         this.initialEnergy = E;
@@ -402,16 +395,14 @@ class Universe {
             for(let j=i+1; j<this.bodies.length; j++) {
                 let r = this.bodies[i].pos.distanceTo(this.bodies[j].pos);
                 E -= G * this.bodies[i].mass * this.bodies[j].mass / r;
-                if(this.enableEM) {
-                    E += k_e * this.bodies[i].charge * this.bodies[j].charge / r;
-                }
+                if(this.enableEM) E += k_e * this.bodies[i].charge * this.bodies[j].charge / r;
             }
         }
         return E;
     }
 }
 
-// RENDERER
+// RENDERER & CAMERA
 class Camera {
     constructor() { this.pos = new Vector3(0,0,1e9); this.target = new Vector3(); this.fov = 800; this.pitch = 0; this.yaw = 0; }
     project(p, w, h) {
@@ -424,10 +415,56 @@ class Camera {
         let sc = this.fov / z3;
         return { x: x1*sc + w/2, y: -y2*sc + h/2, scale: sc, z: z3 };
     }
+
+    // Inverse projection to find 3D point on the Z=0 plane from screen coords
+    unproject(sx, sy, w, h) {
+        // screen center
+        let ndcX = (sx - w/2) / this.fov;
+        let ndcY = -(sy - h/2) / this.fov;
+
+        // Ray from camera
+        let rayDir = new Vector3(ndcX, ndcY, 1).normalize();
+
+        // Rotate ray back to world space
+        let cp = Math.cos(-this.pitch), sp = Math.sin(-this.pitch);
+        let y1 = rayDir.y*cp - rayDir.z*sp, z1 = rayDir.y*sp + rayDir.z*cp;
+
+        let cy = Math.cos(-this.yaw), sy_yaw = Math.sin(-this.yaw);
+        let x2 = rayDir.x*cy - z1*sy_yaw, z2 = rayDir.x*sy_yaw + z1*cy;
+
+        let worldRay = new Vector3(x2, y1, z2);
+
+        // Camera world position (offset by target)
+        let camWorld = new Vector3(0, 0, -this.pos.z);
+        // Inverse pitch/yaw on cam position
+        let cy2 = camWorld.y*cp - camWorld.z*sp, cz2 = camWorld.y*sp + camWorld.z*cp;
+        let cx3 = camWorld.x*cy - cz2*sy_yaw, cz3 = camWorld.x*sy_yaw + cz2*cy;
+        let realCamPos = new Vector3(cx3, cy2, cz3).add(this.target);
+
+        // Find intersection with Z=0 plane (if ray is not parallel)
+        if(Math.abs(worldRay.z) > 1e-6) {
+            let t = -realCamPos.z / worldRay.z;
+            if(t > 0) {
+                return realCamPos.add(worldRay.mul(t));
+            }
+        }
+
+        // Fallback: simple scaling at target plane
+        let scale = this.pos.z / this.fov;
+        let pX = (sx - w/2) * scale;
+        let pY = -(sy - h/2) * scale;
+
+        // unrotate
+        let _y2 = pY*cp - 0*sp; let _z1 = pY*sp + 0*cp;
+        let _x1 = pX*cy - _z1*sy_yaw; let _z2 = pX*sy_yaw + _z1*cy;
+
+        return new Vector3(_x1, _y2, _z2).add(this.target);
+    }
 }
 
 const universe = new Universe();
 const camera = new Camera();
+let selId = null;
 let canvas = document.getElementById('sim-canvas'); let ctx = canvas.getContext('2d');
 let width, height;
 function resize() {
@@ -442,27 +479,42 @@ window.addEventListener('resize', resize); resize();
 // CAMERA INTERACTIONS (Mouse & Touch)
 let isDragging = false;
 let lastP = {x:0, y:0};
-let lastDist = 0; // for pinch zoom
+let lastDist = 0;
+let isMoved = false;
 
-canvas.addEventListener('mousedown', (e) => { isDragging = true; lastP = {x:e.clientX, y:e.clientY}; handleSelect(e.clientX, e.clientY); });
-canvas.addEventListener('mousemove', (e) => {
-    if(isDragging) {
-        let dx = e.clientX - lastP.x; let dy = e.clientY - lastP.y;
-        camera.yaw += dx * 0.005; camera.pitch += dy * 0.005;
-        camera.pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, camera.pitch));
-        lastP = {x:e.clientX, y:e.clientY};
+function handleInteractionDown(clientX, clientY) {
+    isDragging = true;
+    isMoved = false;
+    lastP = {x:clientX, y:clientY};
+}
+
+function handleInteractionMove(clientX, clientY) {
+    if(!isDragging) return;
+    let dx = clientX - lastP.x; let dy = clientY - lastP.y;
+    if(Math.abs(dx) > 3 || Math.abs(dy) > 3) isMoved = true;
+
+    camera.yaw += dx * 0.005; camera.pitch += dy * 0.005;
+    camera.pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, camera.pitch));
+    lastP = {x:clientX, y:clientY};
+}
+
+function handleInteractionUp(clientX, clientY) {
+    isDragging = false;
+    if(!isMoved) {
+        handleTapClick(clientX, clientY);
     }
-});
-canvas.addEventListener('mouseup', () => isDragging = false);
+}
+
+canvas.addEventListener('mousedown', (e) => handleInteractionDown(e.clientX, e.clientY));
+canvas.addEventListener('mousemove', (e) => handleInteractionMove(e.clientX, e.clientY));
+canvas.addEventListener('mouseup', (e) => handleInteractionUp(e.clientX, e.clientY));
 canvas.addEventListener('mouseleave', () => isDragging = false);
 canvas.addEventListener('wheel', (e) => { camera.pos.z *= (1 + e.deltaY * 0.001); camera.pos.z = Math.max(10, camera.pos.z); }, {passive: true});
 
 // TOUCH EVENTS
 canvas.addEventListener('touchstart', (e) => {
     if(e.touches.length === 1) {
-        isDragging = true;
-        lastP = {x:e.touches[0].clientX, y:e.touches[0].clientY};
-        handleSelect(e.touches[0].clientX, e.touches[0].clientY);
+        handleInteractionDown(e.touches[0].clientX, e.touches[0].clientY);
     } else if(e.touches.length === 2) {
         isDragging = false;
         let dx = e.touches[0].clientX - e.touches[1].clientX;
@@ -473,10 +525,7 @@ canvas.addEventListener('touchstart', (e) => {
 
 canvas.addEventListener('touchmove', (e) => {
     if(e.touches.length === 1 && isDragging) {
-        let dx = e.touches[0].clientX - lastP.x; let dy = e.touches[0].clientY - lastP.y;
-        camera.yaw += dx * 0.01; camera.pitch += dy * 0.01;
-        camera.pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, camera.pitch));
-        lastP = {x:e.touches[0].clientX, y:e.touches[0].clientY};
+        handleInteractionMove(e.touches[0].clientX, e.touches[0].clientY);
     } else if(e.touches.length === 2) {
         let dx = e.touches[0].clientX - e.touches[1].clientX;
         let dy = e.touches[0].clientY - e.touches[1].clientY;
@@ -490,56 +539,97 @@ canvas.addEventListener('touchmove', (e) => {
     }
 }, {passive: true});
 
-canvas.addEventListener('touchend', () => { isDragging = false; lastDist = 0; });
+canvas.addEventListener('touchend', (e) => {
+    if(e.changedTouches.length === 1) {
+        handleInteractionUp(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+    }
+    isDragging = false; lastDist = 0;
+});
 canvas.addEventListener('touchcancel', () => { isDragging = false; lastDist = 0; });
 
-function handleSelect(cx, cy) {
+function handleTapClick(cx, cy) {
     let rect = canvas.getBoundingClientRect();
     let mx = cx - rect.left; let my = cy - rect.top;
-    let closestId = null; let closestZ = Infinity;
 
+    // 1. Check if we tapped on an existing object
+    let closestId = null; let closestZ = Infinity;
     for(let b of universe.bodies) {
         let proj = camera.project(b.pos, width, height);
         if(proj) {
-            let r = Math.max(b.radius * proj.scale, 10); // min tap target size
+            let r = Math.max(b.radius * proj.scale, 15); // tap target size
             let dx = proj.x - mx; let dy = proj.y - my;
             if(dx*dx + dy*dy <= r*r && proj.z < closestZ) {
                 closestId = b.id; closestZ = proj.z;
             }
         }
     }
-    selId = closestId;
-    updateInspector();
+
+    if(closestId !== null) {
+        selId = closestId;
+        updateInspector();
+        return;
+    }
+
+    // 2. If Touch Spawn is enabled, unproject and set position / spawn
+    let isTouchSpawnEnabled = document.getElementById('mod-touch-spawn').checked;
+
+    let worldPos = camera.unproject(mx, my, width, height);
+    document.getElementById('obj-pos').value = `${worldPos.x.toExponential(2)}, ${worldPos.y.toExponential(2)}, ${worldPos.z.toExponential(2)}`;
+
+    if(isTouchSpawnEnabled) {
+        document.getElementById('btn-add').click();
+    }
 }
 
 function updateInspector() {
     let ins = document.getElementById('inspector-content');
     let b = universe.bodies.find(x => x.id === selId);
     if(b) {
+        let typeMap = {'star':'항성', 'planet':'행성', 'blackhole':'블랙홀', 'particle':'대전 입자'};
         ins.innerHTML = `
-            <b>ID:</b> ${b.id}<br><b>Type:</b> ${b.type}<br>
-            <b>Mass:</b> ${b.mass.toExponential(3)} kg<br>
-            <b>Radius:</b> ${b.radius.toExponential(3)} m<br>
-            <b>Charge:</b> ${b.charge.toExponential(3)} C<br>
-            <b>Pos:</b> ${b.pos.x.toExponential(2)}, ${b.pos.y.toExponential(2)}, ${b.pos.z.toExponential(2)}<br>
-            <b>Vel:</b> ${b.vel.x.toExponential(2)}, ${b.vel.y.toExponential(2)}, ${b.vel.z.toExponential(2)}<br>
-            <b>|Vel|:</b> ${b.vel.mag().toExponential(2)} m/s<br>
+            <b>ID:</b> ${b.id}<br><b>종류:</b> ${typeMap[b.type]||b.type}<br>
+            <b>질량:</b> ${b.mass.toExponential(3)} kg<br>
+            <b>반경:</b> ${b.radius.toExponential(3)} m<br>
+            <b>전하량:</b> ${b.charge.toExponential(3)} C<br>
+            <b>위치:</b> ${b.pos.x.toExponential(2)}, ${b.pos.y.toExponential(2)}, ${b.pos.z.toExponential(2)}<br>
+            <b>속도:</b> ${b.vel.x.toExponential(2)}, ${b.vel.y.toExponential(2)}, ${b.vel.z.toExponential(2)}<br>
+            <b>|속도|:</b> ${b.vel.mag().toExponential(2)} m/s<br>
         `;
     } else {
-        ins.innerHTML = 'Click/Tap object.';
+        ins.innerHTML = '천체를 탭하거나 클릭하세요.';
     }
 }
 
-
 // UI MAP
 let isPlaying = false, timeScale = 1;
-document.getElementById('btn-playpause').onclick = (e) => { isPlaying = !isPlaying; e.target.innerText = isPlaying ? 'Pause' : 'Play'; };
+document.getElementById('btn-playpause').onclick = (e) => { isPlaying = !isPlaying; e.target.innerText = isPlaying ? '일시정지' : '재생'; };
 document.getElementById('btn-reset').onclick = () => { universe.clear(); selId=null; updateInspector(); };
 document.getElementById('time-scale').oninput = (e) => { timeScale = parseFloat(e.target.value); document.getElementById('time-scale-val').innerText = timeScale+'x'; };
 ['integrator','dt','substeps'].forEach(id => document.getElementById('sim-'+id).onchange = e => universe[id] = e.target.value);
 ['collisions','relativity','em'].forEach(id => document.getElementById('mod-'+id).onchange = e => {
     let k = 'enable' + id.charAt(0).toUpperCase() + id.slice(1);
     universe[k] = e.target.checked;
+});
+
+// Auto-fill defaults on type change
+document.getElementById('obj-type').addEventListener('change', (e) => {
+    let type = e.target.value;
+    let massInput = document.getElementById('obj-mass');
+    let radInput = document.getElementById('obj-radius');
+
+    if(type === 'star') {
+        massInput.value = M_SUN.toExponential(4);
+        radInput.value = R_SUN.toExponential(4);
+    } else if(type === 'planet') {
+        massInput.value = "5.972e24";
+        radInput.value = "6371000";
+    } else if(type === 'blackhole') {
+        massInput.value = (M_SUN * 10).toExponential(4); // 10 solar masses
+        radInput.value = "29500"; // roughly rs
+    } else if (type === 'particle') {
+        massInput.value = "1";
+        radInput.value = "1";
+    }
 });
 
 document.getElementById('btn-add').onclick = () => {
@@ -550,19 +640,23 @@ document.getElementById('btn-add').onclick = () => {
     let p = document.getElementById('obj-pos').value.split(',').map(parseFloat);
     let v = document.getElementById('obj-vel').value.split(',').map(parseFloat);
     let cMap = {'star':'#fd0','planet':'#46f','blackhole':'#000','particle':'#f4f'};
+
+    // Fallback if parsing fails
+    if(isNaN(p[0])) p = [0,0,0];
+    if(isNaN(v[0])) v = [0,0,0];
+
     universe.addBody(new PhysicalBody(universe.nextId++, t, m, r, new Vector3(...p), new Vector3(...v), cMap[t]||'#fff', q));
 };
 
-document.getElementById('btn-exp-solar').onclick = () => { universe.clear(); universe.addBody(new PhysicalBody(0,'star',M_SUN,R_SUN,new Vector3(),new Vector3())); universe.addBody(new PhysicalBody(1,'planet',5.97e24,6.37e6,new Vector3(AU,0,0),new Vector3(0,29780,0),'#46f')); camera.pos.z = 3*AU; };
-document.getElementById('btn-exp-collision').onclick = () => { universe.clear(); let m=5.97e24, r=6.37e6; universe.addBody(new PhysicalBody(0,'planet',m,r,new Vector3(-r*3,0,0),new Vector3(5000,0,0))); universe.addBody(new PhysicalBody(1,'planet',m,r,new Vector3(r*3,0,0),new Vector3(-5000,0,0))); camera.pos.z = r*15; };
-document.getElementById('btn-exp-em').onclick = () => { universe.clear(); universe.enableEM = true; document.getElementById('mod-em').checked=true; universe.addBody(new PhysicalBody(0,'particle',1,1,new Vector3(-10,0,0),new Vector3(),'#fff', 1e-4)); universe.addBody(new PhysicalBody(1,'particle',1,1,new Vector3(10,0,0),new Vector3(),'#fff', -1e-4)); camera.pos.z = 50; };
+document.getElementById('btn-exp-solar').onclick = () => { universe.clear(); universe.addBody(new PhysicalBody(0,'star',M_SUN,R_SUN,new Vector3(),new Vector3(), '#fd0')); universe.addBody(new PhysicalBody(1,'planet',5.97e24,6.37e6,new Vector3(AU,0,0),new Vector3(0,29780,0),'#46f')); camera.pos.z = 3*AU; };
+document.getElementById('btn-exp-collision').onclick = () => { universe.clear(); let m=5.97e24, r=6.37e6; universe.addBody(new PhysicalBody(0,'planet',m,r,new Vector3(-r*3,0,0),new Vector3(5000,0,0),'#46f')); universe.addBody(new PhysicalBody(1,'planet',m,r,new Vector3(r*3,0,0),new Vector3(-5000,0,0),'#e74c3c')); camera.pos.z = r*15; };
+document.getElementById('btn-exp-em').onclick = () => { universe.clear(); universe.enableEM = true; document.getElementById('mod-em').checked=true; universe.addBody(new PhysicalBody(0,'particle',1,1,new Vector3(-10,0,0),new Vector3(),'#f4f', 1e-4)); universe.addBody(new PhysicalBody(1,'particle',1,1,new Vector3(10,0,0),new Vector3(),'#4ff', -1e-4)); camera.pos.z = 50; };
 
 // VALIDATION TESTS
 document.getElementById('btn-run-tests').onclick = () => {
     let r = document.getElementById('test-results'); r.innerHTML = "";
-    let l = (n,p,d) => r.innerHTML += `<span style="color:var(--${p?'success':'danger'})">[${p?'PASS':'FAIL'}]</span> ${n} (Err: ${d.toExponential(2)})<br>`;
+    let l = (n,p,d) => r.innerHTML += `<span style="color:var(--${p?'success':'danger'})">[${p?'성공':'실패'}]</span> ${n} (오차: ${d.toExponential(2)})<br>`;
 
-    // Kepler
     let u = new Universe(); u.addBody(new PhysicalBody(0,'star',M_SUN,R_SUN,new Vector3(),new Vector3()));
     let v = Math.sqrt(G*M_SUN/AU);
     u.addBody(new PhysicalBody(1,'p',1,1,new Vector3(AU,0,0),new Vector3(0,v,0)));
@@ -571,17 +665,15 @@ document.getElementById('btn-run-tests').onclick = () => {
     u.update(dt, 1000);
     let dist = u.bodies[1].pos.distanceTo(new Vector3(AU,0,0));
     let err = dist / AU;
-    l('Kepler Orbit (RK4)', err < 0.05, err);
+    l('케플러 궤도 (RK4)', err < 0.05, err);
 
-    // Relativity Limit Proxy
     u.clear(); u.enableRelativity = true;
     u.addBody(new PhysicalBody(0,'p',1,1,new Vector3(),new Vector3(c*0.9,0,0)));
     u.addBody(new PhysicalBody(1,'p',1,1,new Vector3(1e3,0,0),new Vector3()));
     u.update(1, 10);
     let vMag = u.bodies[0].vel.mag();
-    l('Relativistic Velocity Limit (v < c)', vMag < c, Math.max(0, vMag-c));
+    l('상대론적 속도 제한 (v < c)', vMag < c, Math.max(0, vMag-c));
 
-    // EM Coulomb Direction
     u.clear(); u.enableEM = true;
     u.addBody(new PhysicalBody(0,'particle',1,1,new Vector3(-10,0,0),new Vector3(),'#fff', 1e-5));
     u.addBody(new PhysicalBody(1,'particle',1,1,new Vector3(10,0,0),new Vector3(),'#fff', -1e-5));
@@ -589,7 +681,7 @@ document.getElementById('btn-run-tests').onclick = () => {
     u.update(0.1, 10);
     let endD = u.bodies[0].pos.distanceTo(u.bodies[1].pos);
     let dDiff = startD - endD;
-    l('EM Coulomb Attraction (+ and -)', endD < startD, dDiff > 0 ? 0 : -dDiff);
+    l('전자기력 인력 (+ 와 -)', endD < startD, dDiff > 0 ? 0 : -dDiff);
 };
 
 // RENDER LOOP
@@ -602,13 +694,11 @@ function loop() {
 
     ctx.fillStyle = '#000'; ctx.fillRect(0,0,width,height);
 
-    // Draw bodies
     let drawList = [];
     for(let b of universe.bodies) {
         let p = camera.project(b.pos, width, height);
         if(p) drawList.push({b, p});
 
-        // Draw trails
         if(b.trail.length > 1) {
             ctx.beginPath(); ctx.strokeStyle = b.color; ctx.globalAlpha = 0.3;
             let start = camera.project(b.trail[0], width, height);
@@ -640,7 +730,7 @@ function loop() {
         }
     }
 
-    document.getElementById('hud-stats').innerHTML = `Sim Time: ${universe.time.toExponential(2)} s<br>Objects: ${universe.bodies.length}`;
+    document.getElementById('hud-stats').innerHTML = `시뮬레이션 시간: ${universe.time.toExponential(2)} s<br>천체 수: ${universe.bodies.length}`;
     if(Math.random() < 0.1 && universe.bodies.length > 0) {
         let fE = (v,i) => i===0 ? "0.00%" : ((v-i)/Math.abs(i)*100).toFixed(3)+"%";
         document.querySelector('#diag-mass .val').innerText = fE(universe.getM(), universe.initialMass);
