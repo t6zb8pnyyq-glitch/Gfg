@@ -1,0 +1,48 @@
+:root {
+                --bg: #000000;
+                --text: #e0e0e0;
+                --panel: rgba(10, 10, 15, 0.9);
+                --border: #38bdf8;
+                --accent: #0284c7;
+                --success: #10b981;
+                --warning: #f59e0b;
+                --danger: #ef4444;
+            }
+            body {
+                margin: 0; padding: 0; background: var(--bg); color: var(--text);
+                font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', monospace; overflow: hidden;
+                display: flex; flex-direction: column; height: 100vh;
+            }
+            /* Layout */
+            #top-bar { height: 45px; background: var(--panel); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 10px; font-weight: bold; overflow-x: auto; white-space: nowrap; }
+            #main-area { display: flex; flex: 1; height: calc(100vh - 85px); position: relative; }
+            .panel-col { width: 320px; background: var(--panel); overflow-y: auto; padding: 10px; box-sizing: border-box; font-size: 12px; z-index: 10; border-right: 1px solid var(--border); }
+            #right-panel { border-right: none; border-left: 1px solid var(--border); }
+            #center-viewport { flex: 1; position: relative; background: #000; overflow: hidden; z-index: 1; }
+            #bottom-bar { height: 40px; background: var(--panel); border-top: 1px solid var(--border); display: flex; align-items: center; padding: 0 10px; z-index: 10; }
+
+            /* Controls */
+            select, input, button { background: #1e293b; color: #fff; border: 1px solid var(--border); padding: 5px; font-family: inherit; margin: 3px 0; width: 100%; box-sizing: border-box; }
+            button { background: var(--accent); cursor: pointer; font-weight: bold; transition: background 0.2s; }
+            button:hover { background: #0369a1; }
+            .section { margin-bottom: 15px; border: 1px solid rgba(56, 189, 248, 0.3); padding: 10px; background: rgba(15, 23, 42, 0.6); }
+            .section h3 { margin: 0 0 10px 0; font-size: 14px; color: var(--border); border-bottom: 1px solid rgba(56, 189, 248, 0.3); padding-bottom: 5px; }
+
+            canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; touch-action: none; }
+
+            /* UI Elements */
+            .lab-btn { margin-right: 5px; background: #1e293b; border: 1px solid var(--border); padding: 5px 10px; cursor: pointer; width: auto; font-size: 11px;}
+            .lab-btn.active { background: var(--accent); color: white; }
+            table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 10px; }
+            td { padding: 3px 0; border-bottom: 1px dotted #334155; }
+            .val { float: right; font-family: monospace; }
+            .pass { color: var(--success); }
+            .fail { color: var(--danger); }
+            .warn { color: var(--warning); }
+
+            /* Modal */
+            .modal { display: none; position: absolute; top: 5%; left: 5%; width: 90%; height: 90%; background: var(--panel); border: 2px solid var(--border); z-index: 1000; overflow: auto; padding: 20px; box-sizing: border-box; backdrop-filter: blur(5px); }
+            #close-modal { float: right; background: var(--danger); width: auto; padding: 5px 15px; border: none;}
+
+            /* Audit UI */
+            .audit-tag { display: inline-block; padding: 2px 6px; margin: 2px; border-radius: 3px; font-size: 10px; background: var(--success); color: #000; font-weight: bold; }
