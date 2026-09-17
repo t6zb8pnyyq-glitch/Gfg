@@ -262,6 +262,10 @@ class OctreeNode {
     }
     insert(body) {
         if(!this.box.contains(body.pos)) return;
+        // Prevent infinite recursion if bodies have exactly identical coordinates
+        if (this.body && this.body.pos.x === body.pos.x && this.body.pos.y === body.pos.y && this.body.pos.z === body.pos.z) {
+            body.pos.x += 1e-4; // Perturb slightly
+        }
         if(this.mass === 0) {
             this.body = body;
             this.mass = body.mass;
@@ -613,23 +617,74 @@ const Diagnostics = {
 /* =====================================================================
    36. SCIENTIFIC VALIDATION FRAMEWORK (검증 프레임워크)
    ===================================================================== */
-const Validator = {
-    tests: [],
-    addTest: function(name, runFn) { this.tests.push({name, runFn}); },
-    runAllTests: function() {
-        let output = document.getElementById('validation-results');
-        document.getElementById('validation-modal').style.display = 'block';
-        output.innerHTML = "과학적 검증 프레임워크 수행 중 (Running Tests)...\n\n";
-        let passCount = 0;
-        for(let t of this.tests) {
-            try {
-                let res = t.runFn();
-                if(res.pass) { output.innerHTML += `[ <span class="pass">PASS</span> ] ${t.name}\n`; passCount++; }
-                else { output.innerHTML += `[ <span class="fail">FAIL</span> ] ${t.name}\n`; }
-                output.innerHTML += `       Expected: ${res.expected}, Got: ${res.got}, Error: ${res.error}\n`;
-            } catch(e) { output.innerHTML += `[ <span class="fail">ERROR</span> ] ${t.name}: ${e.message}\n`; }
+    const Validator = {
+    tests: [
+        {
+            name: "Momentum Conservation",
+            run: () => {
+                if (bodies.length === 0) return { status: 'NOT APPLICABLE', error: 0, tolerance: 1e-6 };
+                let initialP = {x:0, y:0, z:0};
+                let currentP = {x:0, y:0, z:0};
+                for(let b of bodies) {
+                    currentP.x += b.mass * b.velocity.x;
+                    currentP.y += b.mass * b.velocity.y;
+                    currentP.z += b.mass * b.velocity.z;
+                }
+                if(!this._initP) this._initP = { ...currentP };
+                initialP = this._initP;
+
+                let pMag = Math.sqrt(currentP.x**2 + currentP.y**2 + currentP.z**2);
+                let initPMag = Math.sqrt(initialP.x**2 + initialP.y**2 + initialP.z**2);
+                let diff = Math.abs(pMag - initPMag);
+                let rel = initPMag === 0 ? diff : diff / initPMag;
+
+                return { status: rel < 1e-6 ? 'PASS' : 'FAIL', error: rel, tolerance: 1e-6 };
+            }
+        },
+        {
+            name: "Energy Consistency",
+            run: () => {
+                if (bodies.length < 2) return { status: 'NOT APPLICABLE', error: 0, tolerance: 1e-4 };
+                let ke = 0, pe = 0;
+                for (let i = 0; i < bodies.length; i++) {
+                    let b = bodies[i];
+                    let v2 = b.velocity.x**2 + b.velocity.y**2 + b.velocity.z**2;
+                    ke += 0.5 * b.mass * v2;
+                    for (let j = i + 1; j < bodies.length; j++) {
+                        let b2 = bodies[j];
+                        let dx = b2.position.x - b.position.x;
+                        let dy = b2.position.y - b.position.y;
+                        let dz = b2.position.z - b.position.z;
+                        let r = Math.sqrt(dx*dx + dy*dy + dz*dz) + 0.0001;
+                        pe -= PhysicsConstants.G * b.mass * b2.mass / r;
+                    }
+                }
+                let currentE = ke + pe;
+                if(!this._initE) this._initE = currentE;
+
+                let diff = Math.abs(currentE - this._initE);
+                let rel = this._initE === 0 ? diff : diff / Math.abs(this._initE);
+
+                return { status: rel < 0.1 ? 'PASS' : (rel < 0.5 ? 'WARNING' : 'FAIL'), error: rel, tolerance: 0.1 };
+            }
         }
-        output.innerHTML += `\nTotal: ${passCount} / ${this.tests.length} passed.\n`;
+    ],
+    runAllTests: function(returnResults = false) {
+        let results = [];
+        for (let test of this.tests) {
+            let res = test.run();
+            results.push({ name: test.name, ...res });
+        }
+        if(returnResults) return results;
+
+        // Legacy UI update (only if not requested for explicit return)
+        let html = "";
+        for (let r of results) {
+            let color = r.status === 'PASS' ? '#4caf50' : (r.status === 'WARNING' ? '#ff9800' : (r.status === 'FAIL' ? '#f44336' : '#9e9e9e'));
+            html += `<div><strong>${r.name}:</strong> <span style="color:${color}">${r.status}</span> (Error: ${(r.error*100).toFixed(4)}%)</div>`;
+        }
+        document.getElementById('validation-results').innerHTML = html;
+        document.getElementById('validation-modal').style.display = 'block';
     }
 };
 Validator.addTest("운동량 보존 (Momentum Conservation)", () => {
@@ -816,11 +871,58 @@ const Renderer = {
         this.ctx = this.canvas.getContext('2d');
         this.resize(); window.addEventListener('resize', () => this.resize());
 
-        this.canvas.addEventListener('mousedown', (e) => {
-            if(e.button === 0) this.isDragging = true;
-            if(e.button === 2) this.isPanDragging = true;
-            this.lastMouse = {x: e.clientX, y: e.clientY};
-        });
+        this.
+// Pointer and touch handling for mobile support
+canvas.addEventListener('pointerdown', (e) => {
+    isDragging = true;
+    lastMouse = { x: e.clientX, y: e.clientY };
+    canvas.setPointerCapture(e.pointerId);
+});
+window.addEventListener('pointerup', (e) => {
+    isDragging = false;
+    canvas.releasePointerCapture(e.pointerId);
+});
+window.addEventListener('pointermove', (e) => {
+    if (isDragging) {
+        let dx = e.clientX - lastMouse.x;
+        let dy = e.clientY - lastMouse.y;
+        camera.rot.y += dx * 0.01;
+        camera.rot.x += dy * 0.01;
+        lastMouse = { x: e.clientX, y: e.clientY };
+    }
+});
+
+// Allow double tap / double click to spawn object
+canvas.addEventListener('dblclick', (e) => {
+    // Create an object approximately where tapped
+    let type = document.getElementById('type').value;
+    let mass = parseFloat(document.getElementById('mass').value) || 1e24;
+    let radius = parseFloat(document.getElementById('radius').value) || 6000000;
+    let dist = 1e8; // arbitrary placement distance
+    let spawnPos = new Vec3(
+        dist * Math.sin(camera.rot.y),
+        dist * Math.sin(-camera.rot.x),
+        -dist * Math.cos(camera.rot.y)
+    );
+    let b = new PhysicalBody(Date.now().toString(), type, mass, radius, spawnPos, new Vec3(0,0,0));
+    if(type === 'star') b.temperature = 5778;
+    engine.objects.push(b);
+    updateInspector();
+});
+
+canvas.addEventListener('wheel', (e) => {
+    camera.distance += e.deltaY * 1e8;
+    if(camera.distance < 1e8) camera.distance = 1e8;
+});
+
+// Allow double tap / double click to spawn object at raycast intersection (mocked at depth)
+canvas.addEventListener('dblclick', (e) => {
+    // Simple mapping from screen to world space approximation for creation
+    let b = new Body(1e24, 6000000, 0, 0, 0, 0, 0, 0);
+    bodies.push(b);
+    updateInspector();
+});
+
         this.canvas.addEventListener('mousemove', (e) => {
             let dx = e.clientX - this.lastMouse.x; let dy = e.clientY - this.lastMouse.y;
             if(this.isDragging) { this.cameraRot.x -= dy * 0.01; this.cameraRot.y -= dx * 0.01; }
