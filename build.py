@@ -11,6 +11,12 @@ MODULES_ORDER = [
     "src/physics/CollisionEngine.js",
     "src/physics/ElectromagneticEngine.js",
     "src/physics/FluidEngine.js",
+    "src/physics/EOS.js",
+    "src/physics/NuclearNetwork.js",
+    "src/physics/RadiationTransport.js",
+    "src/physics/MHD1D.js",
+    "src/physics/GRGeodesic.js",
+    "src/physics/StellarStructure.js",
     "src/physics/NuclearEngine.js",
     "src/physics/RelativityEngine.js",
     "src/physics/QuantumEngine.js",
@@ -32,7 +38,7 @@ def build_universe_creator():
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NASA급 통합 전산 물리학 연구소</title>
+    <title>Universe Creator — Scientific Computational Physics Laboratory</title>
     <style>
 """
 
