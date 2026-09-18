@@ -1,8 +1,10 @@
 import os
 
 MODULES_ORDER = [
+    "vendor/astronomy-engine.min.js",
     "src/math/Vec3.js",
     "src/physics/Constants.js",
+    "src/physics/EphemerisEngine.js",
     "src/physics/PeriodicTable.js",
     "src/physics/PhysicalBody.js",
     "src/physics/gravity/BBox.js",
