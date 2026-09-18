@@ -13,5 +13,8 @@ document:{getElementById:()=>({innerText:"",className:"",dataset:{}})},Engine:{s
 vm.createContext(sandbox);
 for(const f of files) vm.runInContext(fs.readFileSync(path.join(root,f),"utf8"),sandbox,{filename:f});
 const results=sandbox.Validator.runAllTests(true);
+if (results.some(r=>r.status==="FAIL")) {
+  console.error("Scientific regression failure detected.");
+}
 console.log(JSON.stringify(results,null,2));
 if(results.some(r=>r.status!=="PASS")) process.exit(1);
