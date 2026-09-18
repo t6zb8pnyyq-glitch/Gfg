@@ -970,8 +970,8 @@ const Labs = {
                 let smbhMass = 1e35;
                 Engine.objects.push(new PhysicalBody("SMBH", "BLACK_HOLE", smbhMass, 1e9, new Vec3(), new Vec3())); // Central BH
                 for(let i=0; i<300; i++) {
-                    let r = 1e11 + Math.random()*1e12;
-                    let theta = Math.random()*Math.PI*2;
+                    let r = 1e11 + ((i*0.6180339887498949)%1)*1e12;
+                    let theta = (i*2.399963229728653)%(Math.PI*2);
                     let v = Math.sqrt(PhysicsConstants.G * smbhMass / r);
                     Engine.objects.push(new PhysicalBody("S"+i, "STAR", PhysicsConstants.M_sun, 1e8,
                         new Vec3(r*Math.cos(theta), 0, r*Math.sin(theta)),
@@ -1021,7 +1021,7 @@ const Labs = {
                 Engine.activeModels.push("Fluid", "Thermodynamics");
                 for(let i=0; i<50; i++) {
                     Engine.objects.push(new PhysicalBody("G"+i, "GAS_CLOUD", 1e20, 1e5,
-                        new Vec3((Math.random()-0.5)*1e6, (Math.random()-0.5)*1e6, 0), new Vec3()));
+                        new Vec3(((i*37)%101-50)*1e4, ((i*61)%101-50)*1e4, ((i*17)%31-15)*2e3), new Vec3()));
                 }
                 Engine.dt = 1; Renderer.scale = 1e-4;
             }
