@@ -7,15 +7,17 @@ const Integrators = {
             }
         },
         verlet: function(objects, dt, getAccelsFn) {
-            // Velocity Verlet: r(t+dt) = r(t) + v(t)dt + 0.5*a(t)dt^2
-            // v(t+dt) = v(t) + 0.5*(a(t) + a(t+dt))dt
-            for(let i=0; i<objects.length; i++) {
-                objects[i].pos = objects[i].pos.add(objects[i].vel.mult(dt)).add(objects[i].acc.mult(0.5 * dt * dt));
+            if(!(dt>0)||!Number.isFinite(dt)) throw new Error("Invalid Velocity-Verlet timestep");
+            const currentAccels=getAccelsFn(objects);
+            if(currentAccels.length!==objects.length) throw new Error("Acceleration/state size mismatch");
+            for(let i=0;i<objects.length;i++){
+                objects[i].acc=currentAccels[i];
+                objects[i].pos=objects[i].pos.add(objects[i].vel.mult(dt)).add(currentAccels[i].mult(0.5*dt*dt));
             }
-            let newAccels = getAccelsFn(objects);
-            for(let i=0; i<objects.length; i++) {
-                objects[i].vel = objects[i].vel.add((objects[i].acc.add(newAccels[i])).mult(0.5 * dt));
-                objects[i].acc = newAccels[i];
+            const newAccels=getAccelsFn(objects);
+            for(let i=0;i<objects.length;i++){
+                objects[i].vel=objects[i].vel.add(currentAccels[i].add(newAccels[i]).mult(0.5*dt));
+                objects[i].acc=newAccels[i];
             }
         },
         rk4: function(objects, dt, getAccelsFn) {
