@@ -6,6 +6,7 @@ const Engine={
         if(this.activeModels.includes("Gravity")){const g=GravityEngine.computeAccelerations(objs,this.gravityAlgorithm==="BARNES_HUT");for(let i=0;i<objs.length;i++)a[i]=a[i].add(g[i]);}
         if(this.activeModels.includes("Relativity")){const g=RelativityEngine.computeSchwarzschildPrecession(objs);for(let i=0;i<objs.length;i++)a[i]=a[i].add(g[i]);}
         if(this.activeModels.includes("Electromagnetic")){const g=ElectromagneticEngine.computeAccelerations(objs);for(let i=0;i<objs.length;i++)a[i]=a[i].add(g[i]);}
+        if(this.activeModels.includes("Fluid")){const g=FluidEngine.computeAccelerations(objs);for(let i=0;i<objs.length;i++){const fg=g.get(objs[i]);if(fg)a[i]=a[i].add(fg);}}
         return a;
     },
     validateState(){
@@ -37,8 +38,9 @@ const Engine={
                 }
             }
             else throw new Error("알 수 없는 integrator: "+this.integratorType);
-            if(this.activeModels.includes("Fluid"))FluidEngine.computeSPH(this.objects);
-            if(this.activeModels.includes("Nuclear"))NuclearEngine.computeFusion(this._acceptedDt||this.dt,this.objects);
+            const acceptedDt=this._acceptedDt||this.dt;
+            if(this.activeModels.includes("Fluid"))FluidEngine.updateInternalEnergy(this.objects,acceptedDt);
+            if(this.activeModels.includes("Nuclear"))NuclearEngine.computeFusion(acceptedDt,this.objects);
             if(this.activeModels.includes("Collision"))CollisionEngine.checkAndResolve(this.objects);
             if(this.activeModels.includes("Thermodynamics")){ThermoEngine.updateTemperature(this.objects);ThermoEngine.computeRadiation(this._acceptedDt||this.dt,this.objects);}
             this.validateState();
