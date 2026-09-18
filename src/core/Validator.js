@@ -69,7 +69,13 @@ const Validator = {
             const q=QuantumEngine.solve1DSchrodinger(V,1e-10,1e-20,100,9.1093837015e-31);
             return Validator._assert(this.name,Math.abs(q.norm-1)<1e-10,{error:Math.abs(q.norm-1),tolerance:"<1e-10"});
         }},
-        {name:"SPH density symmetry", run(){
+
+        {name:"MHD conserved-state finite-volume step", run(){
+            const Bx=1e-3,U=[];for(let i=0;i<32;i++){const rho=i<16?1:.8,p=i<16?1:.8,By=1e-3,E=p/(5/3-1)+.5*(Bx*Bx+By*By)/PhysicsConstants.mu_0;U.push([rho,0,0,0,E,By,0]);}
+            const out=MHD1D.step(U,1,1e-4,Bx),finite=out.flat().every(Number.isFinite)&&out.every(u=>u[0]>0);
+            return Validator._assert(this.name,finite,{error:finite?0:1,tolerance:"all finite, rho>0"});
+        }},
+        {name:"Radiation optical-depth positivity", run(){const tau=RadiationTransport.opticalDepth(.34,1e-4,1e7);return Validator._assert(this.name,tau>=0,{error:tau,tolerance:">=0"});}},        {name:"SPH density symmetry", run(){
             const a=new PhysicalBody("a","GAS_CLOUD",1,1,new Vec3(-1,0,0),new Vec3());
             const b=new PhysicalBody("b","GAS_CLOUD",1,1,new Vec3(1,0,0),new Vec3());
             FluidEngine.h=4; FluidEngine.computeState([a,b]);
