@@ -6,7 +6,15 @@ const Labs = {
         document.querySelectorAll(".lab-module").forEach(b=>b.classList.remove("active"));
         try{document.getElementById("btn-lab-"+labName).classList.add("active")}catch(e){}
         let info="";
-        if(labName==="GALAXY"){
+        if(labName==="SOLAR_SYSTEM"){
+            Engine.activeModels=["Gravity","Collision","Thermodynamics"];
+            if(!EphemerisEngine.available()) throw new Error("Astronomy Engine unavailable");
+            EphemerisEngine.seedSolarSystem(Engine.objects,0);
+            Engine.gravityAlgorithm="DIRECT"; document.getElementById("sys-gravity").value="DIRECT";
+            Engine.dt=21600; Renderer.scale=1e-9;
+            info="Astronomy Engine 기준 J2000 태양계 초기조건을 SI 단위로 변환하여 Newtonian N-body로 전파합니다. 초기조건의 기준은 천체력이며 이후 운동은 본 엔진이 계산합니다.";
+            info+="<br><br>[INITIAL STATE]<br>Objects: "+Engine.objects.length+"<br>Frame: J2000 barycentric<br>t=J2000";
+        } else if(labName==="GALAXY"){
             info="은하 N-Body 역학 (Barnes-Hut 트리 알고리즘 O(N log N) 사용)."; Engine.gravityAlgorithm="BARNES_HUT"; document.getElementById("sys-gravity").value="BARNES_HUT";
             const smbhMass=1e35; Engine.objects.push(new PhysicalBody("SMBH","BLACK_HOLE",smbhMass,1e9,new Vec3(),new Vec3()));
             for(let i=0;i<300;i++){const r=1e11+Math.random()*1e12,theta=Math.random()*Math.PI*2,v=Math.sqrt(PhysicsConstants.G*smbhMass/r);Engine.objects.push(new PhysicalBody("S"+i,"STAR",PhysicsConstants.M_sun,1e8,new Vec3(r*Math.cos(theta),0,r*Math.sin(theta)),new Vec3(-v*Math.sin(theta),0,v*Math.cos(theta))));}
