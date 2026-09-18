@@ -1,80 +1,16 @@
 const Renderer = {
-        canvas: null, ctx: null, cameraRot: {x: 0, y: 0}, cameraPan: {x: 0, y: 0}, scale: 1e-9,
-        isDragging: false, isPanDragging: false, lastMouse: {x: 0, y: 0},
-
-        init: function() {
-            this.canvas = document.getElementById('universe-canvas');
-            this.ctx = this.canvas.getContext('2d');
-            this.resize();
-            window.addEventListener('resize', () => this.resize());
-
-            // Map global camera values structurally instead of loosely
-            camera.rot = this.cameraRot;
-            camera.pan = this.cameraPan;
-
-            // Unified Pointer Events for Mobile and Desktop
-            this.canvas.addEventListener('pointerdown', (e) => {
-                this.isDragging = true;
-                this.lastMouse = { x: e.clientX, y: e.clientY };
-                this.canvas.setPointerCapture(e.pointerId);
-            });
-
-            window.addEventListener('pointerup', (e) => {
-                this.isDragging = false;
-                try { this.canvas.releasePointerCapture(e.pointerId); } catch(err) {}
-            });
-
-            window.addEventListener('pointermove', (e) => {
-                if (this.isDragging) {
-                    let dx = e.clientX - this.lastMouse.x;
-                    let dy = e.clientY - this.lastMouse.y;
-                    this.cameraRot.y += dx * 0.01;
-                    this.cameraRot.x += dy * 0.01;
-                    this.lastMouse = { x: e.clientX, y: e.clientY };
-                }
-            });
-
-            this.canvas.addEventListener('wheel', (e) => {
-                e.preventDefault();
-                this.scale *= (e.deltaY > 0 ? 0.9 : 1.1);
-            }, {passive: false});
-
-            this.canvas.addEventListener('dblclick', (e) => {
-                // Delegate to UI's create object
-                UI.createObject();
-            });
-        },
-        resize: function() {
-            let r = this.canvas.parentElement.getBoundingClientRect();
-            this.canvas.width = r.width;
-            this.canvas.height = r.height;
-        },
-        draw: function() {
-            this.ctx.fillStyle = "#000";
-            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-            let cx = this.canvas.width / 2 + this.cameraPan.x;
-            let cy = this.canvas.height / 2 + this.cameraPan.y;
-            let sinX = Math.sin(this.cameraRot.x), cosX = Math.cos(this.cameraRot.x);
-            let sinY = Math.sin(this.cameraRot.y), cosY = Math.cos(this.cameraRot.y);
-
-            let projObjs = Engine.objects.map(o => {
-                let x1 = o.pos.x * cosY - o.pos.z * sinY;
-                let z1 = o.pos.z * cosY + o.pos.x * sinY;
-                let y2 = o.pos.y * cosX - z1 * sinX;
-                let z2 = z1 * cosX + o.pos.y * sinX;
-                return { obj: o, px: cx + x1 * this.scale, py: cy + y2 * this.scale, pz: z2, pr: Math.max(1.5, o.radius * this.scale) };
-            });
-            projObjs.sort((a,b) => a.pz - b.pz);
-
-            for(let p of projObjs) {
-                this.ctx.beginPath();
-                this.ctx.arc(p.px, p.py, p.pr, 0, Math.PI*2);
-                if(p.obj.type === "STAR") this.ctx.fillStyle = "#facc15";
-                else if(p.obj.type === "PLANET") this.ctx.fillStyle = "#0ea5e9";
-                else if(p.obj.type === "BLACK_HOLE") { this.ctx.fillStyle = "#000"; this.ctx.strokeStyle="#fff"; this.ctx.stroke(); }
-                else if(p.obj.type === "GAS_CLOUD") this.ctx.fillStyle = "rgba(16, 185, 129, 0.5)";
-                else this.ctx.fillStyle = "#aaa";
-                this.ctx.fill();
-            }
-        }
-    }
+ canvas:null,ctx:null,cameraRot:{x:0,y:0},cameraPan:{x:0,y:0},scale:1e-9,isDragging:false,pointerId:null,lastMouse:{x:0,y:0},downPoint:{x:0,y:0},dragMoved:false,
+ init(){
+  this.canvas=document.getElementById("universe-canvas");if(!this.canvas)throw new Error("Universe canvas missing");
+  this.ctx=this.canvas.getContext("2d");this.resize();window.addEventListener("resize",()=>this.resize(),{passive:true});this.canvas.style.touchAction="none";
+  this.canvas.addEventListener("pointerdown",e=>{if(e.pointerType==="mouse"&&e.button!==0)return;this.isDragging=true;this.pointerId=e.pointerId;this.dragMoved=false;this.lastMouse={x:e.clientX,y:e.clientY};this.downPoint={x:e.clientX,y:e.clientY};try{this.canvas.setPointerCapture(e.pointerId)}catch(_){}});
+  this.canvas.addEventListener("pointermove",e=>{if(!this.isDragging||e.pointerId!==this.pointerId)return;const dx=e.clientX-this.lastMouse.x,dy=e.clientY-this.lastMouse.y;if(Math.hypot(e.clientX-this.downPoint.x,e.clientY-this.downPoint.y)>6)this.dragMoved=true;this.cameraRot.y+=dx*.01;this.cameraRot.x+=dy*.01;this.lastMouse={x:e.clientX,y:e.clientY}});
+  const end=e=>{if(e.pointerId!==this.pointerId)return;const click=!this.dragMoved;this.isDragging=false;this.pointerId=null;try{this.canvas.releasePointerCapture(e.pointerId)}catch(_){}if(click&&e.type==="pointerup")UI.selectAtScreen(e.clientX,e.clientY)};
+  this.canvas.addEventListener("pointerup",end);this.canvas.addEventListener("pointercancel",end);
+  this.canvas.addEventListener("dblclick",e=>{if(e.target===this.canvas)UI.createObject(e.clientX,e.clientY)});
+  this.canvas.addEventListener("wheel",e=>{e.preventDefault();this.scale=Math.min(1e-2,Math.max(1e-18,this.scale*(e.deltaY>0?.9:1.1)))},{passive:false});
+ },
+ resize(){const r=this.canvas.parentElement.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);this.canvas.width=Math.max(1,Math.round(r.width*dpr));this.canvas.height=Math.max(1,Math.round(r.height*dpr));this.canvas.style.width=r.width+"px";this.canvas.style.height=r.height+"px";this.ctx.setTransform(dpr,0,0,dpr,0,0)},
+ projectObjects(){const w=this.canvas.clientWidth||1,h=this.canvas.clientHeight||1,cx=w/2+this.cameraPan.x,cy=h/2+this.cameraPan.y,sx=Math.sin(this.cameraRot.x),cxr=Math.cos(this.cameraRot.x),sy=Math.sin(this.cameraRot.y),cyr=Math.cos(this.cameraRot.y);return Engine.objects.map(o=>{const x1=o.pos.x*cyr-o.pos.z*sy,z1=o.pos.z*cyr+o.pos.x*sy,y2=o.pos.y*cxr-z1*sx,z2=z1*cxr+o.pos.y*sx;return{obj:o,px:cx+x1*this.scale,py:cy+y2*this.scale,pz:z2,pr:Math.max(1.5,o.radius*this.scale)}})},
+ draw(){const w=this.canvas.clientWidth||1,h=this.canvas.clientHeight||1;this.ctx.fillStyle="#000";this.ctx.fillRect(0,0,w,h);for(const x of this.projectObjects().sort((a,b)=>a.pz-b.pz)){this.ctx.beginPath();this.ctx.arc(x.px,x.py,x.pr,0,Math.PI*2);if(x.obj.type==="STAR")this.ctx.fillStyle="#facc15";else if(x.obj.type==="PLANET")this.ctx.fillStyle="#0ea5e9";else if(x.obj.type==="BLACK_HOLE"){this.ctx.fillStyle="#000";this.ctx.strokeStyle="#fff";this.ctx.stroke()}else if(x.obj.type==="GAS_CLOUD")this.ctx.fillStyle="rgba(16,185,129,.5)";else this.ctx.fillStyle="#aaa";this.ctx.fill();if(UI.selectedId===x.obj.id){this.ctx.beginPath();this.ctx.arc(x.px,x.py,x.pr+4,0,Math.PI*2);this.ctx.strokeStyle="#fff";this.ctx.stroke()}}}
+};
