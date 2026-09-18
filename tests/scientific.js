@@ -4,7 +4,7 @@ const files=[
 "src/math/Vec3.js","src/physics/Constants.js","src/physics/PeriodicTable.js","src/physics/PhysicalBody.js",
 "src/physics/gravity/BBox.js","src/physics/gravity/OctreeNode.js","src/physics/gravity/GravityEngine.js",
 "src/physics/CollisionEngine.js","src/physics/ElectromagneticEngine.js","src/physics/FluidEngine.js",
-"src/physics/EOS.js","src/physics/NuclearNetwork.js","src/physics/RadiationTransport.js","src/physics/MHD1D.js",
+"src/physics/EOS.js","src/physics/ThermodynamicsEngine.js","src/physics/NuclearNetwork.js","src/physics/RadiationTransport.js","src/physics/MHD1D.js",
 "src/physics/GRGeodesic.js","src/physics/StellarStructure.js","src/physics/NuclearEngine.js","src/physics/RelativityEngine.js",
 "src/physics/QuantumEngine.js","src/physics/CosmologyEngine.js","src/core/Integrator.js","src/core/Diagnostics.js","src/core/Validator.js"
 ];
