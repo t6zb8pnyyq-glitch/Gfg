@@ -1133,7 +1133,7 @@ const Labs = {
             info+="<br><br>[MHD STATE]<br>64-cell conservative update completed.<br>CFL dt: "+dt.toExponential(3)+" s";
         } else if(labName==="RADIATION"){
             info="Grey radiative diffusion laboratory with optical-depth diagnostics."; Engine.activeModels=[];
-            const N=64,T=new Float64Array(N),rho=new Float64Array(N),k=new Float64Array(N); for(let i=0;i<N;i++){T[i]=300+7000*Math.exp(-((i-N/2)/(N/6))**2);rho[i]=1e-4;k[i]=.34;}
+            const N=64,T=new Float64Array(N),rho=new Float64Array(N),k=new Float64Array(N); for(let i=0;i<N;i++){T[i]=300+7000*Math.exp(-(((i-N/2)/(N/6))**2));rho[i]=1e-4;k[i]=.34;}
             Diagnostics.radiationTemperature=RadiationTransport.stepGreyDiffusion(T,rho,k,1e7,10); info+="<br><br>[RADIATION STATE]<br>Grey diffusion step completed.";
         } else if(labName==="STELLAR"){
             info="1D hydrostatic stellar structure (EOS + opacity + reaction-rate source terms)."; Engine.activeModels=[];
