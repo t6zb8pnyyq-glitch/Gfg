@@ -27,4 +27,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add universe_creator.html
           git diff --cached --quiet || git commit -m "Build CodePen single-file Universe Creator"
+          git pull --rebase origin "$GITHUB_REF_NAME"
           git push
