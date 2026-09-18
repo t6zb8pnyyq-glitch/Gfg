@@ -82,7 +82,7 @@ const Labs = {
                 Engine.activeModels = [];
                 const model=StellarStructure.integrate({rho_c:1.6e5,T_c:1.5e7,Mmax:PhysicsConstants.M_sun,dm:PhysicsConstants.M_sun/4000});
                 Diagnostics.stellarProfile=model.profile;
-                info += "<br><br>[STELLAR STATE]<br>Integrated shells: "+model.profile.length+"<br>Enclosed mass: "+model.mass.toExponential(3)+" kg";
+                info += "<br><br>[STELLAR STATE]<br>Integrated shells: "+model.profile.length+"<br>Enclosed mass: "+model.mass.toExponential(3)+" kg<br>Luminosity: "+model.luminosity.toExponential(3)+" W";
             }
             else if(labName === 'GR') {
                 info = "Schwarzschild geodesic laboratory using proper-time equations.";
