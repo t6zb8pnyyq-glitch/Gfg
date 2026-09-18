@@ -23,7 +23,12 @@ const Diagnostics = {
     },
 
     getAngularMomentum(objects) {
-        return objects.reduce((sum, o) => sum.add(o.pos.cross(o.vel.mult(o.mass))), new Vec3());
+        return objects.reduce((sum,o)=>{
+            const orbital=o.pos.cross(o.vel.mult(o.mass));
+            const I=(2/5)*o.mass*o.radius*o.radius;
+            const spin=o.spin?o.spin.mult(I):new Vec3();
+            return sum.add(orbital).add(spin);
+        },new Vec3());
     },
 
     begin(objects) {
