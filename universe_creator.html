@@ -770,9 +770,12 @@ const MHD1D={
         if(!Array.isArray(U)||U.length<3) throw new Error("MHD grid too small");
         const maxDt=this.cflDt(U,dx,Bx,cfl);
         if(dt>maxDt*(1+1e-12)) throw new Error("MHD CFL violation: dt="+dt+" > "+maxDt);
-        const F=[];for(let i=0;i<U.length-1;i++)F[i]=this.rusanovFlux(U[i],U[i+1],Bx);
+        const N=U.length,F=new Array(N+1);
+        F[0]=this.flux(U[0],Bx);
+        for(let i=0;i<N-1;i++)F[i+1]=this.rusanovFlux(U[i],U[i+1],Bx);
+        F[N]=this.flux(U[N-1],Bx);
         const out=U.map(u=>u.slice());
-        for(let i=1;i<U.length-1;i++){for(let k=0;k<7;k++)out[i][k]-=dt/dx*(F[i][k]-F[i-1][k]);this.flux(out[i],Bx);}
+        for(let i=0;i<N;i++){for(let k=0;k<7;k++)out[i][k]-=dt/dx*(F[i+1][k]-F[i][k]);this.flux(out[i],Bx);}
         return out;
     }
 };
