@@ -87,11 +87,15 @@ html,body,#layout-container{width:100%;height:100%;min-width:0;min-height:0}
   input,select,button{font-size:16px}
 }
 
+.mobile-drawer-btn{display:none!important}@media(max-width:900px){.mobile-drawer-btn{display:block!important;flex:0 0 auto!important;min-width:58px!important;background:#334155!important}.side-panel[data-open="true"]{transform:translateX(0)!important}}
+
     </style>
 </head>
 <body>
     <div id="layout-container" style="touch-action:manipulation;">
         <div id="module-bar">
+            <button type="button" class="mobile-drawer-btn" onclick="UI.togglePanel('creator')">생성기</button>
+            <button type="button" class="mobile-drawer-btn" onclick="UI.togglePanel('inspector')">진단</button>
             <button type="button" id="btn-lab-GRAVITY" class="lab-module active" onclick="Labs.loadLab('GRAVITY')">중력/궤도</button>
             <button type="button" id="btn-lab-GALAXY" class="lab-module" onclick="Labs.loadLab('GALAXY')">은하 N-body</button>
             <button type="button" id="btn-lab-SPH_FLUID" class="lab-module" onclick="Labs.loadLab('SPH_FLUID')">SPH 유체</button>
@@ -1317,6 +1321,13 @@ const UI = {
         ins.innerHTML="<b>Target: "+o.id+" ("+o.type+")</b><br>"+
           "Mass: "+fmt(o.mass,"kg")+"<br>Radius: "+fmt(o.radius,"m")+"<br>"+
           "Temperature: "+fmt(o.temperature,"K")+"<br>Luminosity: "+fmt(o.luminosity,"W");
+    },
+    togglePanel: function(which) {
+        const el=document.getElementById(which==="creator"?"creator-panel":"inspector-panel");
+        if(!el) return;
+        const open=el.dataset.open==="true";
+        el.dataset.open=open?"false":"true";
+        el.style.transform=which==="creator"?(open?"translateX(-105%)":"translateX(0)"):(open?"translateX(105%)":"translateX(0)");
     },
     showAudit: function() {
         const results=Validator.runAllTests(true)||[];
