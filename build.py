@@ -73,27 +73,28 @@ def build_universe_creator():
         </div>
 
         <div id="creator-panel" class="side-panel">
-            <h3>생성기 (Creator)</h3>
+            <h3>창조주 — 객체 생성</h3>
             <label>객체 유형</label>
             <select id="type">
-                <option value="PLANET">행성 (Planet)</option>
-                <option value="STAR">항성 (Star)</option>
-                <option value="BLACK_HOLE">블랙홀 (Black Hole)</option>
-                <option value="GAS_CLOUD">가스 구름 (Gas)</option>
+                <option value="PLANET">행성</option><option value="STAR">항성</option><option value="BLACK_HOLE">블랙홀</option><option value="GAS_CLOUD">가스 구름</option>
             </select>
-            <label>질량 (kg)</label>
-            <input type="number" id="mass" value="5.972e24">
-            <label>반지름 (m)</label>
-            <input type="number" id="radius" value="6371000">
-            <label>속도 X (m/s)</label>
-            <input type="number" id="vel_x" value="0">
-            <label>속도 Y (m/s)</label>
-            <input type="number" id="vel_y" value="0">
-            <label>속도 Z (m/s)</label>
-            <input type="number" id="vel_z" value="0">
-            <button onclick="UI.createObject()">생성 (CREATE)</button>
-            <hr>
-            <p style="font-size:10px; color:#aaa;">* 모바일: 화면을 더블 탭하여 생성 가능</p>
+            <label>질량 (kg)</label><input type="number" id="mass" value="5.9722e24">
+            <label>반지름 (m)</label><input type="number" id="radius" value="6371000">
+            <div class="orbit-help">행성은 항성이 있으면 위치에 따라 원형 궤도 속도를 자동 계산합니다. 빈 화면을 한 번 탭하면 그 위치에 생성됩니다.</div>
+            <details><summary>직접 초기속도 — 고급</summary>
+              <label>속도 X (m/s)</label><input type="number" id="vel_x" value="0">
+              <label>속도 Y (m/s)</label><input type="number" id="vel_y" value="0">
+              <label>속도 Z (m/s)</label><input type="number" id="vel_z" value="0">
+            </details>
+            <button onclick="UI.createObject()">객체 생성</button>
+            <hr><h3>활성 물리 엔진</h3>
+            <label class="model-row"><input type="checkbox" data-model="Gravity" checked onchange="UI.toggleModel('Gravity',this.checked)">중력 / N-body</label>
+            <label class="model-row"><input type="checkbox" data-model="Collision" checked onchange="UI.toggleModel('Collision',this.checked)">충돌 / 병합</label>
+            <label class="model-row"><input type="checkbox" data-model="Nuclear" checked onchange="UI.toggleModel('Nuclear',this.checked)">핵반응 / 핵융합</label>
+            <label class="model-row"><input type="checkbox" data-model="Thermodynamics" checked onchange="UI.toggleModel('Thermodynamics',this.checked)">열역학 / 복사</label>
+            <label class="model-row"><input type="checkbox" data-model="Fluid" onchange="UI.toggleModel('Fluid',this.checked)">SPH 유체</label>
+            <label class="model-row"><input type="checkbox" data-model="Electromagnetic" onchange="UI.toggleModel('Electromagnetic',this.checked)">전자기력</label>
+            <label class="model-row"><input type="checkbox" data-model="Relativity" onchange="UI.toggleModel('Relativity',this.checked)">상대론 보정</label>
         </div>
 
         <div id="inspector-panel" class="side-panel">
@@ -109,7 +110,7 @@ def build_universe_creator():
         </div>
 
         <div id="control-bar">
-            <button id="btn-pause" onclick="Engine.togglePause()">일시정지 (PAUSE)</button>
+            <button id="btn-pause" onclick="Engine.togglePause()">일시정지 (PAUSE)</button><button onclick="Engine.resetFailure()">실패 복구</button>
             <label>적분기:</label>
             <select id="integrator" onchange="Engine.integratorType = this.value">
                 <option value="rk4">Runge-Kutta 4 (정밀)</option>
