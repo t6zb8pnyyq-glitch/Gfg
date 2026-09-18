@@ -850,7 +850,7 @@ const QuantumEngine={
         const N=V.length;if(N<4||!(dx>0&&m>0)||!V.every(Number.isFinite))throw new Error("Invalid eigenvalue problem");
         const n=N-2,k=PhysicsConstants.h_bar**2/(2*m*dx**2),diag=new Float64Array(n),off=-k;
         let lo=Infinity,hi=-Infinity;
-        for(let i=0;i<n;i++){diag[i]=2*k+V[i+1];lo=Math.min(lo,diag[i]-Math.abs(off));hi=Math.max(hi,diag[i]+Math.abs(off))}
+        for(let i=0;i<n;i++){diag[i]=2*k+V[i+1];lo=Math.min(lo,diag[i]-(i?Math.abs(off):0)-(i<n-1?Math.abs(off):0));hi=Math.max(hi,diag[i]+(i?Math.abs(off):0)+(i<n-1?Math.abs(off):0))}
         const sturm=(x)=>{let count=0,p=1;for(let i=0;i<n;i++){const q=diag[i]-x-(i?p===0?1e-300:(off*off)/p:0);if(q<0)count++;p=q}return count};
         const out=[];
         for(let target=1;target<=Math.min(count,n);target++){
