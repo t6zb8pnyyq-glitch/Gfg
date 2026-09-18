@@ -688,7 +688,7 @@ const ThermoEngine = {
             const blackbody=PhysicsConstants.sigma_sb*area*T**4;
             const source=Number.isFinite(o.luminosity)&&o.luminosity>0?o.luminosity:blackbody;
             o.radiativeLuminosity=blackbody;
-            if(o.type!=="STAR"&&o.type!=="GAS_CLOUD")o.luminosity=blackbody;
+            if(o.type!=="GAS_CLOUD")o.luminosity=Math.max(Number.isFinite(o.luminosity)?o.luminosity:0,blackbody);
             const loss=Math.min(Math.max(0,o.internalEnergy),Math.max(0,source*dt));
             o.internalEnergy=Math.max(0,o.internalEnergy-loss);
             if(typeof Engine!=="undefined")Engine.radiatedEnergy+=loss;
