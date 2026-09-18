@@ -689,6 +689,7 @@ const ThermoEngine = {
             if(o.type!=="STAR"&&o.type!=="GAS_CLOUD")o.luminosity=blackbody;
             const loss=Math.min(Math.max(0,o.internalEnergy),Math.max(0,source*dt));
             o.internalEnergy=Math.max(0,o.internalEnergy-loss);
+            if(typeof Engine!=="undefined")Engine.radiatedEnergy+=loss;
         }
     }
 };
@@ -844,19 +845,17 @@ const Integrators = {
 const Diagnostics = {
         initEnergy: null,
         getKineticEnergy: function(objects) { return objects.reduce((sum, o) => sum + 0.5 * o.mass * o.vel.magSq(), 0); },
-        getPotentialEnergy: function(objects) {
-            let u = 0;
-            for(let i=0; i<objects.length; i++) {
-                for(let j=i+1; j<objects.length; j++) {
-                    let r = objects[i].pos.sub(objects[j].pos).mag();
-                    if(r > 0) u -= PhysicsConstants.G * objects[i].mass * objects[j].mass / r;
-                }
-            }
-            return u;
+        getPotentialEnergy:function(objects){
+            let u=0;for(let i=0;i<objects.length;i++)for(let j=i+1;j<objects.length;j++){const r=objects[i].pos.sub(objects[j].pos).mag();if(r>0)u-=PhysicsConstants.G*objects[i].mass*objects[j].mass/r;}return u;
         },
+        getCoulombEnergy:function(objects){
+            let u=0,k=1/(4*Math.PI*PhysicsConstants.eps_0);
+            for(let i=0;i<objects.length;i++)for(let j=i+1;j<objects.length;j++){const r=objects[i].pos.sub(objects[j].pos).mag();if(r>0&&objects[i].charge!==0&&objects[j].charge!==0)u+=k*objects[i].charge*objects[j].charge/r;}return u;
+        },
+        getInternalEnergy:function(objects){return objects.reduce((s,o)=>s+Math.max(0,Number.isFinite(o.internalEnergy)?o.internalEnergy:0),0);},
         getTotalMomentum: function(objects) { return objects.reduce((sum, o) => sum.add(o.vel.mult(o.mass)), new Vec3()); },
         update: function(objects) {
-            let totalE = this.getKineticEnergy(objects) + this.getPotentialEnergy(objects);
+            let totalE=this.getKineticEnergy(objects)+this.getPotentialEnergy(objects)+this.getCoulombEnergy(objects)+this.getInternalEnergy(objects)+(typeof Engine!=="undefined"?Engine.radiatedEnergy:0);
             let mom = this.getTotalMomentum(objects);
             if (this.initEnergy === null && objects.length > 0) this.initEnergy = totalE;
             const denom = Math.max(Math.abs(this.initEnergy ?? 0), Number.MIN_VALUE);
@@ -925,6 +924,7 @@ const Labs = {
             UI.selectedId = null;
             Engine.objects = [];
             Engine.time = 0;
+            Engine.radiatedEnergy = 0;
             Engine.status = "STABLE";
             Engine.paused = false;
             Diagnostics.initEnergy = null;
@@ -1207,7 +1207,7 @@ const UI = {
     }
 
 const Engine = {
-        objects: [], time: 0, dt: 120, integratorType: "RK4", gravityAlgorithm: "BARNES_HUT",
+        objects: [], time: 0, dt: 120, integratorType: "RK4", gravityAlgorithm: "BARNES_HUT", radiatedEnergy:0,
         status: "STABLE", paused: false, frames: 0, lastFpsTime: 0, lastUiUpdate: 0,
         activeModels: ["Gravity", "Collision", "Thermodynamics"],
 
