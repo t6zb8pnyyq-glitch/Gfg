@@ -66,6 +66,8 @@
                 #creator-panel.mobile-open, #inspector-panel.mobile-open { display:block; }
             }
             @media (prefers-reduced-motion: reduce) { * { scroll-behavior:auto !important; transition:none !important; } }
+            .sys-message { padding:6px 8px; margin:4px 0 8px; border-left:3px solid var(--border); background:rgba(15,23,42,.9); font-size:11px; }
+            .sys-message.danger { border-color:var(--danger); color:#fecaca; }
 
             /* Layout */
             #top-bar { height: 45px; background: var(--panel); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 10px; font-weight: bold; overflow-x: auto; white-space: nowrap; }
@@ -533,20 +535,23 @@ const GravityEngine = {
                 let theta = 0.5; // accuracy param
 
                 function calculateForce(node, body) {
-                    if(node.mass === 0) return new Vec3();
-                    let rVec = node.centerOfMass.sub(body.pos);
-                    let rSq = rVec.magSq();
-                    let r = Math.sqrt(rSq);
-                    if(r === 0) return new Vec3();
-
-                    if(node.children === null || (node.box.size / r) < theta) {
-                        let fMag = PhysicsConstants.G * node.mass / rSq;
-                        return rVec.mult(fMag / r);
-                    } else {
-                        let acc = new Vec3();
-                        for(let i=0; i<8; i++) acc = acc.add(calculateForce(node.children[i], body));
-                        return acc;
+                    if (!node || node.mass === 0) return new Vec3();
+                    const containsTarget = node.box.contains(body.pos);
+                    if (node.children === null) {
+                        if (node.body === body) return new Vec3();
+                        const rVec = node.centerOfMass.sub(body.pos);
+                        const rSq = rVec.magSq();
+                        if (!(rSq > 0) || !Number.isFinite(rSq)) return new Vec3();
+                        return rVec.mult(PhysicsConstants.G / Math.pow(rSq,1.5) * node.mass);
                     }
+                    const rVec = node.centerOfMass.sub(body.pos);
+                    const rSq = rVec.magSq(), r = Math.sqrt(rSq);
+                    if (!(r > 0) || !Number.isFinite(r)) return new Vec3();
+                    if (!containsTarget && (node.box.size / r) < theta)
+                        return rVec.mult(PhysicsConstants.G * node.mass / Math.pow(rSq,1.5));
+                    let acc = new Vec3();
+                    for(let i=0;i<8;i++) acc=acc.add(calculateForce(node.children[i],body));
+                    return acc;
                 }
 
                 for(let i=0; i<objects.length; i++) {
@@ -585,7 +590,7 @@ const CollisionEngine = {
                     let objA = objects[i]; let objB = objects[j];
                     let rVec = objB.pos.sub(objA.pos);
                     let dist = rVec.mag();
-                    if(dist < (objA.radius + objB.radius)) {
+                    if (dist <= (objA.radius + objB.radius)) {
                         let newMass = objA.mass + objB.mass;
                         let newPos = (objA.pos.mult(objA.mass).add(objB.pos.mult(objB.mass))).div(newMass);
                         let newVel = (objA.vel.mult(objA.mass).add(objB.vel.mult(objB.mass))).div(newMass);
@@ -597,7 +602,7 @@ const CollisionEngine = {
                         if(type !== "BLACK_HOLE" && newMass > 3.0 * PhysicsConstants.M_sun) type = "BLACK_HOLE";
                         else if(type === "PLANET" && newMass > 0.08 * PhysicsConstants.M_sun) type = "STAR";
 
-                        let merged = new PhysicalBody(Date.now()+"_merged", type, newMass, newRadius, newPos, newVel);
+                        let merged = new PhysicalBody('merge-' + ((globalThis.crypto&&crypto.randomUUID)?crypto.randomUUID():Date.now().toString(36)), type, newMass, newRadius, newPos, newVel);
 
                         // Conservation of internal energy and thermodynamics (Inelastic merger)
                         let keA = 0.5 * objA.mass * objA.vel.magSq();
@@ -771,83 +776,35 @@ const RelativityEngine = {
     }
 
 const QuantumEngine = {
-        // Strict SI 1D Time-Dependent Schrodinger Equation
-        // i * hbar * d(psi)/dt = [ - (hbar^2 / 2m) * d2(psi)/dx2 + V(x) ] * psi
-        solve1DSchrodinger: function(V_array, dx, dt, steps, particleMass) {
-            let N = V_array.length;
-            let psi_re = new Float64Array(N); // Need higher precision for quantum SI scales
-            let psi_im = new Float64Array(N);
-
-            let x0 = N/4, sigma = N/20, norm = 0;
-
-            // Initialize Gaussian wave packet
-            for(let i=0; i<N; i++) {
-                psi_re[i] = Math.exp(-Math.pow(i-x0,2)/(2*sigma*sigma));
-                norm += psi_re[i]*psi_re[i];
-            }
-            norm = Math.sqrt(norm * dx); // Proper spatial integration normalization
-            for(let i=0; i<N; i++) psi_re[i] /= norm;
-
-            let hbar = PhysicsConstants.h_bar;
-            let m = particleMass || 9.10938356e-31; // Default to electron mass
-
-            // Explicit Euler method implementation for TISE
-            // d(psi_re)/dt = (1/hbar) * [ (hbar^2/2m)*d2(psi_im)/dx2 - V(x)*psi_im ]
-            // d(psi_im)/dt = (-1/hbar) * [ (hbar^2/2m)*d2(psi_re)/dx2 - V(x)*psi_re ]
-
-            for(let step=0; step<steps; step++) {
-                let next_re = new Float64Array(N);
-                let next_im = new Float64Array(N);
-
-                // Keep boundary conditions fixed at 0 (Infinite Square Well bounds)
-                for(let i=1; i<N-1; i++) {
-                    let d2_re = (psi_re[i+1] - 2*psi_re[i] + psi_re[i-1]) / (dx*dx);
-                    let d2_im = (psi_im[i+1] - 2*psi_im[i] + psi_im[i-1]) / (dx*dx);
-
-                    let kinetic_re = (hbar * hbar / (2 * m)) * d2_re;
-                    let kinetic_im = (hbar * hbar / (2 * m)) * d2_im;
-
-                    let deriv_re = (1 / hbar) * (kinetic_im - V_array[i] * psi_im[i]);
-                    let deriv_im = (-1 / hbar) * (kinetic_re - V_array[i] * psi_re[i]);
-
-                    next_re[i] = psi_re[i] + deriv_re * dt;
-                    next_im[i] = psi_im[i] + deriv_im * dt;
-                }
-                psi_re = next_re;
-                psi_im = next_im;
-            }
-
-            return {re: psi_re, im: psi_im};
+    // Stable Crank-Nicolson time evolution for the 1D TDSE.
+    solve1DSchrodinger: function(V_array, dx, dt, steps, particleMass) {
+        const N=V_array.length, hbar=PhysicsConstants.h_bar, m=particleMass;
+        if(N<3||!(dx>0)||!(dt>0)||!(m>0)) throw new Error("Invalid quantum grid");
+        let re=new Float64Array(N), im=new Float64Array(N);
+        const x0=N/4, sigma=Math.max(1,N/20);
+        let n2=0; for(let i=1;i<N-1;i++){re[i]=Math.exp(-0.5*((i-x0)/sigma)**2);n2+=re[i]**2;}
+        const n=Math.sqrt(n2*dx); for(let i=0;i<N;i++)re[i]/=n;
+        const A=hbar*hbar/(2*m*dx*dx), alpha=dt/(2*hbar);
+        function solve(dr,di,or,oi,rr,ri){
+            const n=rr.length, cr=new Float64Array(n-1),ci=new Float64Array(n-1),qr=new Float64Array(n),qi=new Float64Array(n),xr=new Float64Array(n),xi=new Float64Array(n);
+            let den=dr[0]**2+di[0]**2; cr[0]=(or[0]*dr[0]+oi[0]*di[0])/den; ci[0]=(oi[0]*dr[0]-or[0]*di[0])/den; qr[0]=(rr[0]*dr[0]+ri[0]*di[0])/den; qi[0]=(ri[0]*dr[0]-rr[0]*di[0])/den;
+            for(let i=1;i<n;i++){const ar=or[i-1],ai=oi[i-1],tr=dr[i]-(ar*cr[i-1]-ai*ci[i-1]),ti=di[i]-(ar*ci[i-1]+ai*cr[i-1]),td=tr*tr+ti*ti;if(!(td>0)||!Number.isFinite(td))throw new Error("Quantum linear solve singular");if(i<n-1){cr[i]=(or[i]*tr+oi[i]*ti)/td;ci[i]=(oi[i]*tr-or[i]*ti)/td;}const br=rr[i]-(ar*qr[i-1]-ai*qi[i-1]),bi=ri[i]-(ar*qi[i-1]+ai*qr[i-1]);qr[i]=(br*tr+bi*ti)/td;qi[i]=(bi*tr-br*ti)/td;}
+            xr[n-1]=qr[n-1];xi[n-1]=qi[n-1];for(let i=n-2;i>=0;i--){xr[i]=qr[i]-(cr[i]*xr[i+1]-ci[i]*xi[i+1]);xi[i]=qi[i]-(cr[i]*xi[i+1]+ci[i]*xr[i+1]);}return {re:xr,im:xi};
         }
+        for(let s=0;s<steps;s++){const n=N-2,dr=new Float64Array(n),di=new Float64Array(n),or=new Float64Array(n-1),oi=new Float64Array(n-1),rr=new Float64Array(n),ri=new Float64Array(n);
+            for(let k=0;k<n;k++){const i=k+1,H=V_array[i]+2*A,hr=H*re[i],hi=H*im[i];dr[k]=1;di[k]=alpha*H;if(k<n-1){or[k]=0;oi[k]=alpha*(-A);}if(i>1){rr[k]+=re[i-1]*(-A);ri[k]+=im[i-1]*(-A);}if(i<N-2){rr[k]+=re[i+1]*(-A);ri[k]+=im[i+1]*(-A);}rr[k]+=re[i]+alpha*hi;ri[k]+=im[i]-alpha*hr;}
+            const z=solve(dr,di,or,oi,rr,ri);for(let k=0;k<n;k++){re[k+1]=z.re[k];im[k+1]=z.im[k];}re[0]=im[0]=re[N-1]=im[N-1]=0;}
+        let norm=0;for(let i=0;i<N;i++)norm+=(re[i]**2+im[i]**2);norm=Math.sqrt(norm*dx);if(!(norm>0)||!Number.isFinite(norm))throw new Error("Quantum normalization failed");for(let i=0;i<N;i++){re[i]/=norm;im[i]/=norm;}return {re,im,norm};
     }
-
+};
 const CosmologyEngine = {
-        // H0 passed in here should be in strict SI units (s^-1)
-        solveFriedmann: function(H0_si, Omega_m, Omega_r, Omega_lambda, t_end, dt, a_initial) {
-            let a = a_initial; // Must not assume a=1 for early universe integration
-            let t = 0.0;
-            let history = [];
-
-            // Integrate forward in time
-            while(t < t_end) {
-                history.push({t: t, a: a});
-                let H_sq = H0_si*H0_si * ( Omega_m*Math.pow(a,-3) + Omega_r*Math.pow(a,-4) + Omega_lambda );
-
-                // If H_sq becomes negative, the universe has collapsed or entered an invalid domain.
-                // Do NOT hide it with Math.max(0). Report failure.
-                if (H_sq < 0) {
-                    console.error("Cosmology Engine Failure: H_sq became negative (Big Crunch or Invalid State).");
-                    break;
-                }
-
-                let H = Math.sqrt(H_sq);
-                a += a * H * dt;
-                t += dt;
-            }
-            return history;
-        }
+    solveFriedmann: function(H0_si, Omega_m, Omega_r, Omega_lambda, t_end, dt, a_initial) {
+        if(!(H0_si>0)||!(dt>0)||!(t_end>=0)||!(a_initial>0)) throw new Error("Invalid Friedmann parameters");
+        let a=a_initial,t=0,history=[];
+        const f=x=>{if(!(x>0)||!Number.isFinite(x))throw new Error("Invalid scale factor");const h2=H0_si*H0_si*(Omega_m*x**-3+Omega_r*x**-4+Omega_lambda);if(!(h2>=0)||!Number.isFinite(h2))throw new Error("Invalid H²");return x*Math.sqrt(h2);};
+        while(t<t_end){history.push({t,a});const h=Math.min(dt,t_end-t),k1=f(a),k2=f(a+h*k1/2),k3=f(a+h*k2/2),k4=f(a+h*k3);a+=h*(k1+2*k2+2*k3+k4)/6;t+=h;if(!Number.isFinite(a)||a<=0)throw new Error("Friedmann integration diverged");}history.push({t,a});return history;
     }
-
+};
 const Integrators = {
         eulerSemiImplicit: function(objects, dt, accels) {
             for(let i=0; i<objects.length; i++) {
@@ -889,7 +846,7 @@ const Integrators = {
     }
 
 const Diagnostics = {
-        initEnergy: 0,
+        initEnergy: null,
         getKineticEnergy: function(objects) { return objects.reduce((sum, o) => sum + 0.5 * o.mass * o.vel.magSq(), 0); },
         getPotentialEnergy: function(objects) {
             let u = 0;
@@ -905,8 +862,9 @@ const Diagnostics = {
         update: function(objects) {
             let totalE = this.getKineticEnergy(objects) + this.getPotentialEnergy(objects);
             let mom = this.getTotalMomentum(objects);
-            if(this.initEnergy === 0 && objects.length > 0) this.initEnergy = totalE;
-            let eErr = this.initEnergy !== 0 ? Math.abs((totalE - this.initEnergy)/this.initEnergy) * 100 : 0;
+            if (this.initEnergy === null && objects.length > 0) this.initEnergy = totalE;
+            const denom = Math.max(Math.abs(this.initEnergy ?? 0), Number.MIN_VALUE);
+            let eErr = this.initEnergy !== null ? Math.abs((totalE-this.initEnergy)/denom)*100 : 0;
 
             document.getElementById('diag-energy').innerText = totalE.toExponential(3) + " J";
             document.getElementById('diag-e-err').innerText = eErr.toFixed(6) + " %";
@@ -1014,10 +972,17 @@ const Labs = {
         current: "GRAVITY",
         loadLab: function(labName) {
             this.current = labName;
-            Engine.objects = []; Diagnostics.initEnergy = 0; Engine.time = 0;
+            Engine.objects = [];
+            Engine.time = 0;
+            Engine.status = "STABLE";
+            Engine.paused = false;
+            Diagnostics.initEnergy = null;
             Engine.activeModels = ["Gravity", "Collision", "Thermodynamics"];
-            document.querySelectorAll('.lab-module').forEach(b => b.classList.remove('active'));
-            try { document.getElementById('btn-lab-'+labName).classList.add('active'); } catch(e) {}
+            const pauseButton = document.getElementById('btn-pause');
+            if (pauseButton) { pauseButton.textContent = "일시정지 (PAUSE)"; pauseButton.setAttribute('aria-pressed','false'); }
+            document.querySelectorAll('.lab-btn').forEach(b => b.classList.remove('active'));
+            const activeButton = document.getElementById('btn-lab-' + labName);
+            if (activeButton) activeButton.classList.add('active');
 
             let info = "";
             if(labName === 'GALAXY') {
@@ -1224,29 +1189,19 @@ const UI = {
             });
         },
         createObject: function() {
-            let type = document.getElementById('type').value;
-            let mass = parseFloat(document.getElementById('mass').value) || 1e24;
-            let rad = parseFloat(document.getElementById('radius').value) || 6e6;
-            let vx = parseFloat(document.getElementById('vel_x').value) || 0;
-            let vy = parseFloat(document.getElementById('vel_y').value) || 0;
-            let vz = parseFloat(document.getElementById('vel_z').value) || 0;
-
-            // Spawn distance from camera center (mocked placement)
-            let dist = 1e8;
-            let spawnPos = new Vec3(
-                dist * Math.sin(camera.rot.y),
-                dist * Math.sin(-camera.rot.x),
-                -dist * Math.cos(camera.rot.y)
-            );
-
-            let vel = new Vec3(vx, vy, vz);
-            let body = new PhysicalBody('body-' + crypto.randomUUID(), type, mass, rad, spawnPos, vel);
-            if (type === 'STAR') body.temperature = 5778;
-
-            Engine.objects.push(body);
-            Diagnostics.initEnergy = 0;
-            this.updateInspector();
+            const type=document.getElementById('type').value;
+            const mass=Number(document.getElementById('mass').value),rad=Number(document.getElementById('radius').value);
+            const vx=Number(document.getElementById('vel_x').value),vy=Number(document.getElementById('vel_y').value),vz=Number(document.getElementById('vel_z').value);
+            if(!Number.isFinite(mass)||mass<=0||!Number.isFinite(rad)||rad<=0||![vx,vy,vz].every(Number.isFinite)){this.setMessage("생성 실패: 유한한 SI 값이 필요합니다.","danger");return false;}
+            const vel=new Vec3(vx,vy,vz);if(vel.magSq()>=PhysicsConstants.c**2){this.setMessage("생성 실패: 광속 이상 속도입니다.","danger");return false;}
+            const d=1e8,pos=new Vec3(d*Math.sin(camera.rot.y),d*Math.sin(-camera.rot.x),-d*Math.cos(camera.rot.y));
+            const id=(globalThis.crypto&&typeof crypto.randomUUID==='function')?crypto.randomUUID():Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
+            const body=new PhysicalBody('body-'+id,type,mass,rad,pos,vel);
+            if(type==='STAR')body.temperature=5778;
+            if(type==='GAS_CLOUD'){body.temperature=100;const mu=0.61,mp=1.67262192369e-27;body.internalEnergy=1.5*(mass/(mu*mp))*PhysicsConstants.k_B*body.temperature;}
+            Engine.objects.push(body);Diagnostics.initEnergy=null;this.updateInspector();return true;
         },
+        setMessage: function(message,kind="info"){const el=document.getElementById('inspector-data');if(el)el.insertAdjacentHTML('afterbegin',`<div class="sys-message ${kind}">${message}</div>`);},
         updateInspector: function() {
             let ins = document.getElementById('inspector-data');
             if(Engine.objects.length === 0) {
@@ -1326,6 +1281,7 @@ const Engine = {
                 if(o.vel.magSq() >= PhysicsConstants.c * PhysicsConstants.c) { this.status = "FAILED"; alert("SUPERLUMINAL VELOCITY DETECTED."); return; }
             }
 
+            if (!Number.isFinite(this.dt) || this.dt <= 0) { this.status="FAILED"; throw new Error("Invalid simulation timestep"); }
             let t_integrator = this.integratorType.toLowerCase();
             if(t_integrator === "euler") {
                 Integrators.eulerSemiImplicit(this.objects, this.dt, this.getAccelerations(this.objects));
@@ -1388,6 +1344,7 @@ function bindControls() {
     const gravity = document.getElementById('sys-gravity');
     const pause = document.getElementById('btn-pause');
     const audit = document.getElementById('btn-audit');
+    const create = document.getElementById('btn-create');
     if (dt) dt.addEventListener('change', () => { if (!Engine.setDt(dt.value)) dt.value = Engine.dt; });
     if (integrator) integrator.addEventListener('change', () => Engine.setIntegrator(integrator.value));
     if (gravity) gravity.addEventListener('change', () => Engine.gravityAlgorithm = gravity.value);
