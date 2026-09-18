@@ -23,9 +23,9 @@ const duplicates = [...new Set(ids.filter((id, i) => ids.indexOf(id) !== i))];
 if (duplicates.length) throw new Error("duplicate DOM ids: " + duplicates.join(", "));
 
 for (const marker of [
-  "class Sim",
+  "const Sim=",
   "class Body",
-  "Velocity",
+  "Velocity-Verlet",
   "PhysicsValidator",
   "AdvancedPhysics",
   "pointerdown",
