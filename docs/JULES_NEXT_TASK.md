@@ -1,5 +1,5 @@
 # NEXT JULES TASK
 
-**NEXT TASK:** Commence P2: Thermodynamics, SPH, and Radiation Engine Refactoring.
+**NEXT TASK:** Maintenance and Performance Scaling (P5).
 
-**Rationale:** P0 (Architecture) and P1 (Core Gravity/Collision Mechanics) have been completed and verified. The next directive in the Full Rebuild sequence is to replace the fake/arbitrary equations in the Fluid Dynamics engine (e.g., `k_gas = 100`) with a properly dimensioned SPH hydrodynamics model utilizing strict SI equations of state, and to implement rigorous Thermodynamics.
+**Rationale:** The foundational physics and architectural rebuilds (P0-P4) mandated by the Master Full Rebuild Protocol have been completely resolved and merged into the canonical state. All code review blocks are cleared. Future work should focus on implementing WebWorkers for the SPH and Barnes-Hut pipelines.

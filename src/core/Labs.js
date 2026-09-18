@@ -3,9 +3,9 @@ const Labs = {
         loadLab: function(labName) {
             this.current = labName;
             Engine.objects = []; Diagnostics.initEnergy = 0; Engine.time = 0;
-            Engine.activeModels = ["Gravity", "Collision"];
-            document.querySelectorAll('.lab-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById('btn-lab-'+labName).classList.add('active');
+            Engine.activeModels = ["Gravity", "Collision", "Thermodynamics"];
+            document.querySelectorAll('.lab-module').forEach(b => b.classList.remove('active'));
+            try { document.getElementById('btn-lab-'+labName).classList.add('active'); } catch(e) {}
 
             let info = "";
             if(labName === 'GALAXY') {
@@ -32,7 +32,7 @@ const Labs = {
             }
             else if(labName === 'SPH_FLUID') {
                 info = "SPH (Smoothed Particle Hydrodynamics) 유체 동역학.";
-                Engine.activeModels.push("Fluid");
+                Engine.activeModels.push("Fluid", "Thermodynamics");
                 for(let i=0; i<50; i++) {
                     Engine.objects.push(new PhysicalBody("G"+i, "GAS_CLOUD", 1e20, 1e5,
                         new Vec3((Math.random()-0.5)*1e6, (Math.random()-0.5)*1e6, 0), new Vec3()));
@@ -41,7 +41,7 @@ const Labs = {
             }
             else if(labName === 'NUCLEAR') {
                 info = "항성 구조 및 핵융합 (PP-Chain Network). 온도와 밀도에 따른 수소 질량 분율 변화 확인.";
-                Engine.activeModels.push("Nuclear");
+                Engine.activeModels.push("Nuclear", "Thermodynamics");
                 let star = new PhysicalBody("Star", "STAR", PhysicsConstants.M_sun, 6.96e8, new Vec3(), new Vec3());
                 Engine.objects.push(star);
                 Engine.dt = 3.15e7 * 1e6; // 1 million years per step to see fusion
@@ -50,15 +50,27 @@ const Labs = {
             else if(labName === 'QUANTUM') {
                 info = "1차원 양자 역학 (슈뢰딩거 방정식). 100 스텝 유한차분법(FD) 시뮬레이션 완료.";
                 let V = new Float32Array(100).fill(0); V[50] = 100;
-                let q_res = QuantumEngine.solve1DSchrodinger(V, 0.1, 0.01, 100);
+                let m_e = 9.109e-31;
+                let q_res = QuantumEngine.solve1DSchrodinger(V, 0.1, 0.01, 100, m_e);
+                info += `<br><br>[QUANTUM STATE]<br>Wavepacket Normalized Integration Complete.<br>Max Probability Amplitude: ${Math.max(...q_res.re).toExponential(3)}`;
             }
             else if(labName === 'COSMOLOGY') {
                 info = "빅뱅 팽창 (프리드만 우주론). 척도 인자 a(t) 진화 확인 완료.";
-                CosmologyEngine.solveFriedmann(70, 0.3, 0.0, 0.7, 1.0, 0.05);
+
+                // H0 = 70 km/s/Mpc must be converted to s^-1.
+                // We use the centralized PhysicsConstants.H0_s value.
+                let history = CosmologyEngine.solveFriedmann(PhysicsConstants.H0_s, 0.3, 0.0, 0.7, PhysicsConstants.yr * 1e9, PhysicsConstants.yr * 1e7, 0.1);
+                Diagnostics.cosmologyHistory = history;
+                let lastScale = history[history.length-1].a;
+                info += `<br><br>[COSMOLOGY STATE]<br>1B Years Integration Complete.<br>Scale Factor a(t=1Byr): ${lastScale.toFixed(4)}`;
+
             }
 
-            document.getElementById('inspector-content').innerHTML = `<b>모듈: ${labName}</b><br><p>${info}</p>
-            <br><i>활성 엔진(Active Engines):</i><br> ${Engine.activeModels.join('<br>')}`;
+            let ins = document.getElementById('inspector-data');
+            if(ins) {
+                ins.innerHTML = `<b>모듈: ${labName}</b><br><p>${info}</p>
+                <br><i>활성 엔진(Active Engines):</i><br> ${Engine.activeModels.join('<br>')}`;
+            }
             document.getElementById('sys-dt').value = Engine.dt;
         }
     }

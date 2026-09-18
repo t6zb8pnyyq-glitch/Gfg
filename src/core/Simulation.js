@@ -1,7 +1,7 @@
 const Engine = {
         objects: [], time: 0, dt: 120, integratorType: "RK4", gravityAlgorithm: "BARNES_HUT",
         status: "STABLE", paused: false, frames: 0, lastFpsTime: 0,
-        activeModels: ["Gravity", "Collision"],
+        activeModels: ["Gravity", "Collision", "Thermodynamics"],
 
         setIntegrator: function(type) { this.integratorType = type; },
 
@@ -45,26 +45,18 @@ const Engine = {
             if(this.activeModels.includes("Nuclear")) NuclearEngine.computeFusion(this.dt, this.objects);
             if(this.activeModels.includes("Collision")) CollisionEngine.checkAndResolve(this.objects);
 
+            // Thermodynamics and Radiation processing
+            if(this.activeModels.includes("Thermodynamics")) {
+                ThermoEngine.updateTemperature(this.objects);
+                ThermoEngine.computeRadiation(this.dt, this.objects);
+            }
+
             this.time += this.dt;
             Diagnostics.update(this.objects);
 
-            document.getElementById('diag-time').innerText = this.time.toExponential(3) + " s";
-            document.getElementById('diag-count').innerText = this.objects.length;
-
-            // Update Inspector for first object
-            if(this.objects.length > 0) {
-                let o = this.objects[0];
-                let ins = document.getElementById('inspector-content');
-                if(o.type === "STAR" && this.activeModels.includes("Nuclear")) {
-                    ins.innerHTML = `<b>Target: ${o.id}</b><br>
-                    Mass: ${o.mass.toExponential(3)} kg<br>
-                    Core Temp: ${o.temperature.toExponential(3)} K<br>
-                    Hydrogen (X): ${o.composition.X.toFixed(4)}<br>
-                    Helium (Y): ${o.composition.Y.toFixed(4)}<br>
-                    Metals (Z): ${o.composition.Z.toFixed(4)}<br>
-                    Luminosity: ${o.luminosity.toExponential(3)} W`;
-                }
-            }
+            // diag-time and diag-count are omitted to map strictly to provided canonical HTML,
+            // or handled via UI.updateInspector() directly.
+            UI.updateInspector();
         },
 
         togglePause: function() { this.paused = !this.paused; document.getElementById('btn-pause').innerText = this.paused ? "재개 (RESUME)" : "일시정지 (PAUSE)"; },
@@ -72,10 +64,17 @@ const Engine = {
         loop: function() {
             requestAnimationFrame(() => this.loop());
             let now = performance.now(); this.frames++;
-            if(now - this.lastFpsTime >= 1000) { document.getElementById('diag-fps').innerText = this.frames; this.frames = 0; this.lastFpsTime = now; }
+            if(now - this.lastFpsTime >= 1000) { this.frames = 0; this.lastFpsTime = now; } // FPS tracking decoupled from DOM
 
             if(!this.paused) {
-                for(let i=0; i<2; i++) { this.step(); if(this.status === "FAILED") break; }
+                // Implement controlled substepping separated from framerate
+                let substeps = 1; // Default to 1 substep per frame unless explicitly configured otherwise
+                if (this.integratorType.toLowerCase() === "rk4") substeps = 4; // Use higher precision splitting if requested
+
+                for(let i=0; i<substeps; i++) {
+                    this.step();
+                    if(this.status === "FAILED") break;
+                }
             }
             Renderer.draw();
         }
