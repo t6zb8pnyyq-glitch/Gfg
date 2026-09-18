@@ -66,7 +66,7 @@ html,body,#layout-container{width:100%;height:100%;min-width:0;min-height:0}
 #creator-panel{grid-column:1;grid-row:2;border-right:1px solid var(--border)}
 #inspector-panel{grid-column:3;grid-row:2;border-left:1px solid var(--border)}
 #control-bar{grid-column:1/-1;grid-row:3;display:flex;align-items:center;gap:6px;min-width:0;overflow-x:auto;padding:5px 7px;background:rgba(10,10,15,.96);border-top:1px solid var(--border);z-index:30;box-sizing:border-box;touch-action:pan-x}
-#control-bar>*{flex:0 0 auto}.model-row{display:flex;align-items:center;gap:6px;padding:4px 0;touch-action:manipulation}.model-row input{width:18px;height:18px;margin:0;flex:0 0 auto}
+#control-bar>*{flex:0 0 auto}
 #control-bar button,#control-bar select,#control-bar input{width:auto;margin:0}
 #validation-modal{position:fixed!important;z-index:10000!important;box-sizing:border-box;overscroll-behavior:contain;touch-action:pan-y}
 #validation-modal button{touch-action:manipulation}
@@ -133,9 +133,9 @@ html,body,#layout-container{width:100%;height:100%;min-width:0;min-height:0}
             <input type="number" id="vel_y" value="0">
             <label>속도 Z (m/s)</label>
             <input type="number" id="vel_z" value="0">
-            <button onclick="UI.createObject()">생성 (CREATE)</button><section class="section"><h3>활성 물리 엔진</h3><label class="model-row"><input type="checkbox" data-model="Gravity" checked onchange="UI.toggleModel('Gravity',this.checked)">중력 / N-body</label><label class="model-row"><input type="checkbox" data-model="Collision" checked onchange="UI.toggleModel('Collision',this.checked)">충돌 / 병합</label><label class="model-row"><input type="checkbox" data-model="Nuclear" checked onchange="UI.toggleModel('Nuclear',this.checked)">핵반응 / 핵융합</label><label class="model-row"><input type="checkbox" data-model="Thermodynamics" checked onchange="UI.toggleModel('Thermodynamics',this.checked)">열역학 / 복사</label><label class="model-row"><input type="checkbox" data-model="Fluid" onchange="UI.toggleModel('Fluid',this.checked)">SPH 유체</label><label class="model-row"><input type="checkbox" data-model="Electromagnetic" onchange="UI.toggleModel('Electromagnetic',this.checked)">전자기력</label><label class="model-row"><input type="checkbox" data-model="Relativity" onchange="UI.toggleModel('Relativity',this.checked)">상대론 보정</label></section>
+            <button onclick="UI.createObject()">생성 (CREATE)</button>
             <hr>
-            <p style="font-size:10px; color:#aaa;">* 빈 캔버스를 한 번 탭/클릭하면 해당 위치에 생성 · 객체를 탭하면 선택 · 드래그하면 카메라 회전</p>
+            <p style="font-size:10px; color:#aaa;">* 모바일: 화면을 더블 탭하여 생성 가능</p>
         </div>
 
         <div id="inspector-panel" class="side-panel">
@@ -1147,3 +1147,11 @@ getAccelerations:function(objs){const a=new Array(objs.length).fill(null).map(()
 step:function(){if(this.status==="FAILED"||this.paused)return;for(const o of this.objects){if(![o.pos.x,o.pos.y,o.pos.z,o.vel.x,o.vel.y,o.vel.z].every(Number.isFinite)){this.status="FAILED";throw new Error("Non-finite state detected");}if(o.vel.magSq()>=PhysicsConstants.c**2){this.status="FAILED";throw new Error("Superluminal velocity detected");}}if(!(this.dt>0&&Number.isFinite(this.dt)&&this.dt>=this.minDt&&this.dt<=this.maxDt)){this.status="FAILED";throw new Error("Invalid timestep");}const t=String(this.integratorType).toLowerCase();if(t==="euler")Integrators.eulerSemiImplicit(this.objects,this.dt,this.getAccelerations(this.objects));else if(t==="verlet")Integrators.verlet(this.objects,this.dt,obs=>this.getAccelerations(obs));else if(t==="rk4")Integrators.rk4(this.objects,this.dt,obs=>this.getAccelerations(obs));else{this.status="FAILED";throw new Error("Unknown integrator: "+this.integratorType);}if(this.activeModels.includes("Fluid"))FluidEngine.computeSPH(this.objects);if(this.activeModels.includes("Nuclear"))NuclearEngine.computeFusion(this.dt,this.objects);if(this.activeModels.includes("Collision"))CollisionEngine.checkAndResolve(this.objects);if(this.activeModels.includes("Thermodynamics")){ThermoEngine.updateTemperature(this.objects);ThermoEngine.computeRadiation(this.dt,this.objects);}if(this.adaptiveDt){let amin=Infinity;for(const o of this.objects){const a=o.acc.mag();if(a>0)amin=Math.min(amin,Math.sqrt(Math.max(o.radius,1)/a));}if(Number.isFinite(amin))this.dt=Math.max(this.minDt,Math.min(this.maxDt,this.safety*amin));}this.time+=this.dt;Diagnostics.update(this.objects);UI.updateInspector();},
 togglePause:function(){if(this.status==="FAILED"){this.status="STABLE";this.paused=false;Diagnostics.begin(this.objects);}else this.paused=!this.paused;this.syncPauseButton();},\nresetFailure:function(){this.status="STABLE";this.paused=false;Diagnostics.begin(this.objects);this.syncPauseButton();},\nsyncPauseButton:function(){const b=document.getElementById("btn-pause");if(b)b.innerText=this.paused?"재개 (RESUME)":"일시정지 (PAUSE)";},\nsetModel:function(name,enabled){const i=this.activeModels.indexOf(name);if(enabled&&i<0)this.activeModels.push(name);if(!enabled&&i>=0)this.activeModels.splice(i,1);},
 loop:function(){requestAnimationFrame(()=>this.loop());if(!this.paused){try{this.step();}catch(e){this.status="FAILED";this.paused=true;this.syncPauseButton();const e=document.getElementById("diag-status");if(e){e.innerText="FAILED";e.className="val fail";}}}Renderer.draw();}};
+
+
+
+window.addEventListener('DOMContentLoaded', () => { UI.init(); Renderer.init(); Labs.loadLab('GRAVITY'); Engine.loop(); });
+
+    </script>
+</body>
+</html>
