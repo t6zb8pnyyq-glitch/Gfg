@@ -1040,7 +1040,7 @@ const Labs = {
 
 const Renderer = {
         canvas: null, ctx: null, cameraRot: {x: 0, y: 0}, cameraPan: {x: 0, y: 0}, scale: 1e-9,
-        isDragging: false, isPanDragging: false, lastMouse: {x: 0, y: 0},
+        isDragging: false, isPanDragging: false, lastMouse: {x: 0, y: 0}, activePointers:new Map(), pinchDistance:0,
 
         init: function() {
             this.canvas = document.getElementById('universe-canvas');
@@ -1053,13 +1053,13 @@ const Renderer = {
             camera.pan = this.cameraPan;
 
             // Tap selects; drag rotates. Pointer capture keeps iOS interactions deterministic.
-            this.canvas.addEventListener('pointerdown',(e)=>{this.isDragging=true;this.dragMoved=false;this.pointerId=e.pointerId;this.lastMouse={x:e.clientX,y:e.clientY};this.downPoint={x:e.clientX,y:e.clientY};this.canvas.setPointerCapture(e.pointerId);});
-            this.canvas.addEventListener('pointermove',(e)=>{if(!this.isDragging||e.pointerId!==this.pointerId)return;const dx=e.clientX-this.lastMouse.x,dy=e.clientY-this.lastMouse.y;if(Math.hypot(e.clientX-this.downPoint.x,e.clientY-this.downPoint.y)>6)this.dragMoved=true;this.cameraRot.y+=dx*0.01;this.cameraRot.x+=dy*0.01;this.lastMouse={x:e.clientX,y:e.clientY};});
-            this.canvas.addEventListener('pointerup',(e)=>{if(e.pointerId!==this.pointerId)return;if(!this.dragMoved)UI.selectAtScreen(e.clientX,e.clientY);this.isDragging=false;try{this.canvas.releasePointerCapture(e.pointerId);}catch(err){}});
-            this.canvas.addEventListener('pointercancel',()=>{this.isDragging=false;});
+            this.canvas.addEventListener('pointerdown',(e)=>{this.activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(this.activePointers.size===2){const p=[...this.activePointers.values()];this.pinchDistance=Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y);this.dragMoved=true;return;}this.isDragging=true;this.dragMoved=false;this.pointerId=e.pointerId;this.lastMouse={x:e.clientX,y:e.clientY};this.downPoint={x:e.clientX,y:e.clientY};this.canvas.setPointerCapture(e.pointerId);});
+            this.canvas.addEventListener('pointermove',(e)=>{if(this.activePointers.has(e.pointerId))this.activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(this.activePointers.size===2){const p=[...this.activePointers.values()],d=Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y);if(this.pinchDistance>0)this.scale*=Math.min(1.25,Math.max(.8,d/this.pinchDistance));this.pinchDistance=d;return;}if(!this.isDragging||e.pointerId!==this.pointerId)return;const dx=e.clientX-this.lastMouse.x,dy=e.clientY-this.lastMouse.y;if(Math.hypot(e.clientX-this.downPoint.x,e.clientY-this.downPoint.y)>6)this.dragMoved=true;this.cameraRot.y+=dx*0.01;this.cameraRot.x+=dy*0.01;this.lastMouse={x:e.clientX,y:e.clientY};});
+            this.canvas.addEventListener('pointerup',(e)=>{const wasSingle=this.activePointers.size===1&&e.pointerId===this.pointerId;if(wasSingle&&!this.dragMoved)UI.selectAtScreen(e.clientX,e.clientY);this.activePointers.delete(e.pointerId);this.pinchDistance=0;this.isDragging=false;try{this.canvas.releasePointerCapture(e.pointerId);}catch(err){}});
+            this.canvas.addEventListener('pointercancel',(e)=>{this.activePointers.delete(e.pointerId);this.isDragging=false;this.pinchDistance=0;});
             this.canvas.addEventListener('wheel', (e) => {
                 e.preventDefault();
-                this.scale *= (e.deltaY > 0 ? 0.9 : 1.1);
+                this.scale = Math.min(1e-2,Math.max(1e-18,this.scale*(e.deltaY>0?0.9:1.1)));
             }, {passive: false});
 
             let lastTap = 0;
