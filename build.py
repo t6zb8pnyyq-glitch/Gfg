@@ -51,7 +51,7 @@ def build_universe_creator():
 <body>
     <div id="layout-container">
         <div id="module-bar">
-            <span class="lab-module active" onclick="Labs.loadLab('SOLAR_SYSTEM')">중력/궤도 역학 (Solar)</span>
+            <span class="lab-module active" onclick="Labs.loadLab('GRAVITY')">중력/궤도 역학 (Solar)</span>
             <span class="lab-module" onclick="Labs.loadLab('GALAXY')">은하 시뮬레이션 (Galaxy)</span>
             <span class="lab-module" onclick="Labs.loadLab('SPH_FLUID')">유체역학/SPH</span>
             <span class="lab-module" onclick="Labs.loadLab('NUCLEAR_STAR')">항성/핵물리학</span>
