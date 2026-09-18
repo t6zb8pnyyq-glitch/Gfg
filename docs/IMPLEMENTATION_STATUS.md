@@ -1,17 +1,39 @@
 # IMPLEMENTATION STATUS
 
-## Current Phase: P4 - Scientific Verification & Final Audit
+## Current phase: Scientific hardening
 
-| Subsystem | Status | Notes |
-| :--- | :--- | :--- |
-| **Architecture (M0)** | VERIFIED | Modules separated. Build process validated without syntax errors. |
-| **Simulation State** | VERIFIED | Unified to canonical `Engine.objects`. UI correctly binds to canonical IDs. Substepping decoupled from FPS. |
-| **Rendering / Input (P3)** | VERIFIED | Eradicated conflicting duplicate `dblclick`, `mouse`, and `pointer` handlers. Canvas properly maps to `universe-canvas` via pointer-events. |
-| **Gravity / Collisions (P1)** | VERIFIED | Octree stripped of illegal perturbations. Inelastic mergers mathematically conserve momentum and derive correct states. |
-| **Thermodynamics (P2)** | VERIFIED | Re-implemented `ThermoEngine.js` calculating absolute temperatures from explicit internal energies and handling Stefan-Boltzmann radiative cooling. |
-| **SPH Fluids (P2)** | VERIFIED | Scrapped fake `k_gas=100` proxies. Rewritten to use strict Monatomic Ideal Gas EOS ($P = (\gamma-1)\rho u$) and explicit kinematic viscosity ($\mu \nabla^2 v$). |
-| **Nuclear Engine (P2)** | VERIFIED | Replaced dimensionally broken temperature approximations with $T_c \sim \frac{GMm_p}{k_B R}$. Fusion yields now correctly augment thermodynamic internal energy pools rather than overriding instantaneous luminosity. |
-| **Periodic Table** | VERIFIED | Updated to include all 118 elements explicitly as demanded by the Full Rebuild spec. |
-| **Quantum Engine** | VERIFIED | Explicit SI derivation implemented. Includes mass ($m_e$), strict $i \hbar \frac{\partial \psi}{\partial t}$ time-evolution, and spatial integration normalization ($\int |\psi|^2 dx = 1$). |
-| **Cosmology** | VERIFIED | Friedmann equation solves strictly $H = \sqrt{H^2}$. Passes $H_0$ in rigorous $s^{-1}$ units without arbitrary fallbacks like `Math.max(0)`. |
-| **Validation / Audit UI (P4)** | VERIFIED | Validator fully refactored to execute analytically controlled, isolated state tests (Kepler Orbits, Momentum conservation, Barnes-Hut convergence) instead of relying on the global simulation context. |
+This repository is **not labelled NASA/ESA-grade**. A subsystem is only promoted to VERIFIED after an executable regression test passes.
+
+| Subsystem | Current status | Evidence / remaining work |
+|---|---|---|
+| Core state/build | IMPLEMENTED | Modular source tree and deterministic build path |
+| Newtonian N-body | IMPLEMENTED | Direct summation + Barnes-Hut; long-duration convergence tests added |
+| Integrators | IMPLEMENTED | RK4 + Velocity Verlet; timestep-convergence test added |
+| Collision/merger | IMPLEMENTED | Linear momentum and rigid-body angular-momentum transfer added |
+| SPH | HARDENED | Kernel density, symmetric pressure force, Monaghan-style artificial viscosity and internal-energy update |
+| EOS/opacity | NEW | Ideal-gas + radiation pressure, mean molecular weight, Kramers/electron-scattering opacity |
+| Nuclear network | REDUCED-ORDER | PP/CNO/triple-alpha analytic rate approximations; not a laboratory/tabulated reaction network |
+| Stellar structure | REDUCED-ORDER | 1D hydrostatic/radiative structure integration; not time-dependent stellar evolution |
+| Radiation transport | REDUCED-ORDER | Grey diffusion and optical-depth primitives; no frequency-dependent transport yet |
+| MHD | REDUCED-ORDER | 1D ideal-MHD conservative state + Rusanov flux; constrained longitudinal field |
+| GR | REDUCED-ORDER | Schwarzschild geodesic primitives exist separately; full 4D numerical spacetime solver is not complete |
+| Quantum | HARDENED | 1D Schrödinger Crank-Nicolson evolution with Dirichlet boundaries and normalization |
+| Cosmology | IMPLEMENTED | Friedmann integration |
+| Verification | HARDENED | Deterministic scientific regression suite; CI workflow added |
+| UI/mobile | HARDENED | Removed invalid global camera dependency and retained pointer-event interaction model |
+
+### Scientific honesty gate
+
+The UI must never display “NASA-grade”, “10/10”, or “all physics verified” merely because the application loads or a subset of tests passes.
+
+The remaining acceptance gate is:
+
+1. analytical-solution agreement;
+2. conservation-law checks;
+3. timestep/grid convergence;
+4. deterministic regression;
+5. cross-module coupling tests;
+6. documented numerical limitations;
+7. repeatable CI/build success.
+
+Until those gates are satisfied, the project is a research-oriented computational sandbox rather than research-grade validated software.
