@@ -205,11 +205,38 @@ this.$("status").textContent="N="+Sim.bodies.length+"\nT="+Sim.time.toExponentia
 }
 };
 const canvas=document.getElementById("canvas");
-canvas.addEventListener("pointerdown",e=>{canvas.setPointerCapture(e.pointerId);const r=canvas.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;let hit=null,best=Infinity;for(const b of Sim.bodies){const px=r.width/2+b.pos.x*Sim.scale,py=r.height/2+b.pos.y*Sim.scale,d=Math.hypot(px-x,py-y);if(d<Math.max(15,b.radius*Sim.scale+8)&&d<best){hit=b;best=d}}if(hit){Sim.selected=hit.id;UI.render()}else{const wx=(x-r.width/2-Sim.panX)/Sim.scale,wy=(y-r.height/2-Sim.panY)/Sim.scale;const type=UI.$("type").value,m=Number(UI.$("mass").value),rad=Number(UI.$("radius").value);if(m>0&&rad>0)Sim.create(type,m,rad,new V(wx,wy,0)),UI.render()}});
-let dragging=false,lastX=0,lastY=0;
-canvas.addEventListener("pointermove",e=>{if(!dragging)return;Sim.panX+=e.clientX-lastX;Sim.panY+=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;UI.draw()});
-canvas.addEventListener("pointerdown",e=>{dragging=true;lastX=e.clientX;lastY=e.clientY});
-canvas.addEventListener("pointerup",()=>dragging=false);canvas.addEventListener("pointercancel",()=>dragging=false);
+let gesture=null;
+canvas.addEventListener("pointerdown",e=>{
+if(e.pointerType==="mouse"&&e.button!==0)return;
+canvas.setPointerCapture?.(e.pointerId);
+const r=canvas.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
+let hit=null,best=Infinity;
+for(const body of Sim.bodies){
+const px=r.width/2+Sim.panX+body.pos.x*Sim.scale,py=r.height/2+Sim.panY+body.pos.y*Sim.scale;
+const d=Math.hypot(px-x,py-y);
+if(d<Math.max(15,body.radius*Sim.scale+8)&&d<best){hit=body;best=d}
+}
+gesture={id:e.pointerId,x:e.clientX,y:e.clientY,moved:false,hit};
+if(hit){Sim.selected=hit.id;UI.render()}
+});
+canvas.addEventListener("pointermove",e=>{
+if(!gesture||e.pointerId!==gesture.id)return;
+const dx=e.clientX-gesture.x,dy=e.clientY-gesture.y;
+if(Math.hypot(dx,dy)>5)gesture.moved=true;
+if(gesture.moved){Sim.panX+=dx;Sim.panY+=dy;gesture.x=e.clientX;gesture.y=e.clientY;UI.draw()}
+});
+canvas.addEventListener("pointerup",e=>{
+if(!gesture||e.pointerId!==gesture.id)return;
+const g=gesture;gesture=null;
+if(g.moved)return;
+if(g.hit)return;
+const r=canvas.getBoundingClientRect();
+const wx=(e.clientX-r.left-r.width/2-Sim.panX)/Sim.scale;
+const wy=(e.clientY-r.top-r.height/2-Sim.panY)/Sim.scale;
+const m=Number(UI.$("mass").value),rad=Number(UI.$("radius").value);
+if(m>0&&rad>0)Sim.create(UI.$("type").value,m,rad,new V(wx,wy,0)),UI.render();
+});
+canvas.addEventListener("pointercancel",()=>gesture=null);
 canvas.addEventListener("wheel",e=>{e.preventDefault();Sim.scale=Math.min(1e-2,Math.max(1e-18,Sim.scale*Math.exp(-e.deltaY*.001)));UI.draw()},{passive:false});
 UI.init();UI.solar();
 function loop(){if(!Sim.paused){try{Sim.step(Number(UI.$("dt").value))}catch(e){UI.fail(e)}}UI.render();requestAnimationFrame(loop)}loop();
