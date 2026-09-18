@@ -23,10 +23,10 @@ const Labs = {
             info="항성 구조 및 핵융합 (PP/CNO 반응률 모델)."; Engine.activeModels=["Nuclear","Thermodynamics"];
             Engine.objects.push(new PhysicalBody("Star","STAR",PhysicsConstants.M_sun,6.96e8,new Vec3(),new Vec3())); Engine.dt=3.15e7*1e6; Renderer.scale=1e-9;
         } else if(labName==="QUANTUM"){
-            info="1차원 시간의존 슈뢰딩거 방정식 (Crank-Nicolson, Dirichlet 경계).";
+            info="1차원 시간의존/고유값 슈뢰딩거 방정식 (Crank-Nicolson + Jacobi eigensolver, Dirichlet 경계).";
             const N=128,V=new Float64Array(N); V[62]=1e-18;V[63]=1e-18;V[64]=1e-18;V[65]=1e-18;V[66]=1e-18;
             const q=QuantumEngine.solve1DSchrodinger(V,1e-10,1e-20,100,9.1093837015e-31);
-            info+="<br><br>[QUANTUM STATE]<br>Norm: "+q.norm.toExponential(6)+"<br>Method: "+q.method;
+            const eig=QuantumEngine.eigenvalues1D(V,1e-10,9.1093837015e-31,4); info+="<br><br>[QUANTUM STATE]<br>Norm: "+q.norm.toExponential(6)+"<br>Eigenvalues: "+eig.map(x=>x.toExponential(4)).join(", ")+" J<br>Method: "+q.method;
         } else if(labName==="MHD"){
             info="1D ideal MHD conservative finite-volume laboratory (Rusanov flux + CFL control)."; Engine.activeModels=[];
             const N=64,dx=1e7,Bx=1e-3,U=[];
@@ -42,9 +42,9 @@ const Labs = {
             const model=StellarStructure.integrate({rho_c:1.6e5,T_c:1.5e7,Mmax:PhysicsConstants.M_sun,dm:PhysicsConstants.M_sun/4000}); Diagnostics.stellarProfile=model.profile;
             info+="<br><br>[STELLAR STATE]<br>Integrated shells: "+model.profile.length+"<br>Enclosed mass: "+model.mass.toExponential(3)+" kg<br>Luminosity: "+model.luminosity.toExponential(3)+" W";
         } else if(labName==="GR"){
-            info="Schwarzschild geodesic laboratory using proper-time equations."; Engine.activeModels=[];
+            info="Schwarzschild timelike + null geodesic laboratory with invariant checks."; Engine.activeModels=[];
             const M=PhysicsConstants.M_sun,r0=10*GRGeodesic.schwarzschildRadius(M),A=1-GRGeodesic.schwarzschildRadius(M)/r0,state=[0,r0,0,1/Math.sqrt(A),0,0.0001];
-            let s=state;for(let i=0;i<100;i++)s=GRGeodesic.rk4(s,1,M);Diagnostics.grState=s;info+="<br><br>[GR STATE]<br>Timelike geodesic integration completed; redshift factor: "+GRGeodesic.redshiftFactor(r0,M).toExponential(6);
+            let s=state;for(let i=0;i<100;i++)s=GRGeodesic.rk4(s,1,M);const nullState=[0,r0,0,1,0,0.01/r0];let ns=nullState;for(let i=0;i<100;i++)ns=GRGeodesic.rk4Null(ns,1,M);Diagnostics.grState={timelike:s,null:ns,nullInvariant:GRGeodesic.nullNormalization(ns,M)};info+="<br><br>[GR STATE]<br>Timelike geodesic integration completed; redshift factor: "+GRGeodesic.redshiftFactor(r0,M).toExponential(6);
         } else if(labName==="COSMOLOGY"){
             info="빅뱅 팽창 (프리드만 우주론).";Engine.activeModels=[];
             const history=CosmologyEngine.solveFriedmann(PhysicsConstants.H0_s,.3,0,.7,PhysicsConstants.yr*1e9,PhysicsConstants.yr*1e7,.1);Diagnostics.cosmologyHistory=history;
