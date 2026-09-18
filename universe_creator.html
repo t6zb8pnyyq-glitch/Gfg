@@ -464,59 +464,20 @@ class BBox {
     }
 
 class OctreeNode {
-        constructor(box) {
-            this.box = box;
-            this.body = null;
-            this.children = null;
-            this.mass = 0;
-            this.centerOfMass = new Vec3();
-        }
-        insert(body) {
-            if(!this.box.contains(body.pos)) return;
-            // To strictly handle identical coordinates without coordinate perturbation,
-            // we accumulate them in the current node without subdividing infinitely.
-            // In a pure Barnes-Hut, if two distinct particles occupy the exact same floating-point coordinate,
-            // we cannot subdivide a bounding box to separate them.
-            if(this.body && this.body.pos.x === body.pos.x && this.body.pos.y === body.pos.y && this.body.pos.z === body.pos.z) {
-                // They occupy the exact same position. Combine mass and COM in this leaf.
-                // We keep a reference to one body, but update the node's total representation.
-                let totalMass = this.mass + body.mass;
-                this.centerOfMass = this.centerOfMass.mult(this.mass).add(body.pos.mult(body.mass)).div(totalMass);
-                this.mass = totalMass;
-                return;
-            }
-
-            if(this.mass === 0) {
-                this.body = body;
-                this.mass = body.mass;
-                this.centerOfMass = body.pos.clone();
-            } else {
-                if(!this.children) this.subdivide();
-                if(this.body) {
-                    this.insertIntoChildren(this.body);
-                    this.body = null; // internal nodes don't hold bodies
-                }
-                this.insertIntoChildren(body);
-                // Update COM
-                let totalMass = this.mass + body.mass;
-                this.centerOfMass = this.centerOfMass.mult(this.mass).add(body.pos.mult(body.mass)).div(totalMass);
-                this.mass = totalMass;
-            }
-        }
-        subdivide() {
-            let s = this.box.size / 2;
-            let x = this.box.x, y = this.box.y, z = this.box.z;
-            this.children = [
-                new OctreeNode(new BBox(x,y,z,s)), new OctreeNode(new BBox(x+s,y,z,s)),
-                new OctreeNode(new BBox(x,y+s,z,s)), new OctreeNode(new BBox(x+s,y+s,z,s)),
-                new OctreeNode(new BBox(x,y,z+s,s)), new OctreeNode(new BBox(x+s,y,z+s,s)),
-                new OctreeNode(new BBox(x,y+s,z+s,s)), new OctreeNode(new BBox(x+s,y+s,z+s,s))
-            ];
-        }
-        insertIntoChildren(body) {
-            for(let i=0; i<8; i++) this.children[i].insert(body);
-        }
-    }
+ constructor(box){this.box=box;this.body=null;this.bodies=[];this.children=null;this.mass=0;this.centerOfMass=new Vec3();}
+ insert(body){
+  if(!this.box.contains(body.pos))return;
+  if(!this.children){
+   if(this.bodies.length===0){this.bodies=[body];this.body=body;this.mass=body.mass;this.centerOfMass=body.pos.clone();return;}
+   let same=true;for(const b of this.bodies){if(b.pos.x!==body.pos.x||b.pos.y!==body.pos.y||b.pos.z!==body.pos.z){same=false;break;}}
+   if(same){const oldMass=this.mass;this.bodies.push(body);this.mass+=body.mass;this.centerOfMass=this.centerOfMass.mult(oldMass).add(body.pos.mult(body.mass)).div(this.mass);return;}
+   const old=this.bodies.slice();this.bodies=[];this.body=null;this.subdivide();for(const b of old)this.insertIntoChildren(b);
+  }
+  this.insertIntoChildren(body);const oldMass=this.mass,newMass=oldMass+body.mass;this.centerOfMass=this.centerOfMass.mult(oldMass).add(body.pos.mult(body.mass)).div(newMass);this.mass=newMass;
+ }
+ subdivide(){const s=this.box.size/2,x=this.box.x,y=this.box.y,z=this.box.z;this.children=[new OctreeNode(new BBox(x,y,z,s)),new OctreeNode(new BBox(x+s,y,z,s)),new OctreeNode(new BBox(x,y+s,z,s)),new OctreeNode(new BBox(x+s,y+s,z,s)),new OctreeNode(new BBox(x,y,z+s,s)),new OctreeNode(new BBox(x+s,y,z+s,s)),new OctreeNode(new BBox(x,y+s,z+s,s)),new OctreeNode(new BBox(x+s,y+s,z+s,s))];}
+ insertIntoChildren(body){for(let i=0;i<8;i++)this.children[i].insert(body);}
+}
 
 const GravityEngine = {
         computeAccelerations: function(objects, useBarnesHut) {
@@ -539,13 +500,7 @@ const GravityEngine = {
                 function calculateForce(node, body) {
                     if (!node || node.mass === 0) return new Vec3();
                     const containsTarget = node.box.contains(body.pos);
-                    if (node.children === null) {
-                        if (node.body === body) return new Vec3();
-                        const rVec = node.centerOfMass.sub(body.pos);
-                        const rSq = rVec.magSq();
-                        if (!(rSq > 0) || !Number.isFinite(rSq)) return new Vec3();
-                        return rVec.mult(PhysicsConstants.G / Math.pow(rSq,1.5) * node.mass);
-                    }
+                    if(node.children===null){let acc=new Vec3();for(const source of node.bodies){if(source===body)continue;const rVec=source.pos.sub(body.pos),rSq=rVec.magSq();if(!(rSq>0)||!Number.isFinite(rSq))continue;acc=acc.add(rVec.mult(PhysicsConstants.G*source.mass/Math.pow(rSq,1.5)));}return acc;}
                     const rVec = node.centerOfMass.sub(body.pos);
                     const rSq = rVec.magSq(), r = Math.sqrt(rSq);
                     if (!(r > 0) || !Number.isFinite(r)) return new Vec3();
@@ -653,61 +608,16 @@ const ElectromagneticEngine = {
     }
 
 const FluidEngine = {
-        h: 1e6, // Smoothing length (m)
-        gamma: 5/3, // Adiabatic index for monatomic ideal gas
-        mu: 0.01, // Artificial dynamic viscosity
-        computeSPH: function(objects) {
-            let gasObjs = objects.filter(o => o.type === "GAS_CLOUD");
-            if(gasObjs.length === 0) return;
-
-            // 1. Compute Density
-            for(let i=0; i<gasObjs.length; i++) {
-                let density = 0;
-                for(let j=0; j<gasObjs.length; j++) {
-                    let r = gasObjs[i].pos.sub(gasObjs[j].pos).mag();
-                    if(r < this.h) {
-                        // Poly6 kernel approx
-                        density += gasObjs[j].mass * Math.pow(this.h*this.h - r*r, 3);
-                    }
-                }
-                gasObjs[i].sph_density = density * (315 / (64 * Math.PI * Math.pow(this.h, 9)));
-                // Equation of State (Ideal Gas P = (gamma - 1) * rho * u)
-                // where u is specific internal energy (internalEnergy / mass)
-                let specificEnergy = gasObjs[i].internalEnergy / gasObjs[i].mass;
-                // Add a small floor to pressure to prevent collapse if internal energy is 0
-                if(specificEnergy <= 0) specificEnergy = 1.0;
-                gasObjs[i].sph_pressure = (this.gamma - 1) * gasObjs[i].sph_density * specificEnergy;
-            }
-
-            // 2. Compute Pressure & Viscosity Forces
-            for(let i=0; i<gasObjs.length; i++) {
-                let pForce = new Vec3();
-                for(let j=0; j<gasObjs.length; j++) {
-                    if(i===j) continue;
-                    let rVec = gasObjs[i].pos.sub(gasObjs[j].pos);
-                    let r = rVec.mag();
-                    if(r > 0 && r < this.h) {
-                        let pTerm = (gasObjs[i].sph_pressure + gasObjs[j].sph_pressure) / (2 * gasObjs[j].sph_density);
-                        let gradKernel = rVec.normalize().mult(-45 / (Math.PI * Math.pow(this.h, 6)) * Math.pow(this.h - r, 2));
-                        pForce = pForce.add(gradKernel.mult(-gasObjs[j].mass * pTerm));
-                    }
-                }
-                // Simple Viscosity term (mu * del^2 v)
-                let vForce = new Vec3();
-                for(let j=0; j<gasObjs.length; j++) {
-                    if(i===j) continue;
-                    let rVec = gasObjs[i].pos.sub(gasObjs[j].pos);
-                    let r = rVec.mag();
-                    if(r > 0 && r < this.h) {
-                        let velDiff = gasObjs[j].vel.sub(gasObjs[i].vel);
-                        let laplacianKernel = (45 / (Math.PI * Math.pow(this.h, 6))) * (this.h - r);
-                        vForce = vForce.add(velDiff.mult(this.mu * gasObjs[j].mass * laplacianKernel / gasObjs[j].sph_density));
-                    }
-                }
-                gasObjs[i].acc = gasObjs[i].acc.add(pForce.add(vForce).div(gasObjs[i].sph_density));
-            }
-        }
-    }
+ h:1e6,gamma:5/3,alphaVisc:1.0,
+ computeAccelerations:function(objects){
+  const gas=objects.filter(o=>o.type==="GAS_CLOUD"),acc=new Map();for(const o of gas)acc.set(o.id,new Vec3());if(!gas.length)return acc;
+  const h=this.h,h2=h*h,kernel=315/(64*Math.PI*Math.pow(h,9));
+  for(const i of gas){let rho=0;for(const j of gas){const r2=i.pos.sub(j.pos).magSq();if(r2<h2)rho+=j.mass*Math.pow(h2-r2,3)*kernel;}i.sph_density=Math.max(rho,Number.MIN_VALUE);const u=Math.max(0,i.internalEnergy/Math.max(i.mass,Number.MIN_VALUE));i.sph_pressure=(this.gamma-1)*i.sph_density*u;}
+  const gradCoeff=-45/(Math.PI*Math.pow(h,6));
+  for(let a=0;a<gas.length;a++){const i=gas[a],ai=acc.get(i);for(let b=a+1;b<gas.length;b++){const j=gas[b],rv=i.pos.sub(j.pos),r=rv.mag();if(!(r>0&&r<h))continue;const grad=rv.div(r).mult(gradCoeff*Math.pow(h-r,2));const fP=grad.mult(-i.mass*j.mass*(i.sph_pressure/(i.sph_density*i.sph_density)+j.sph_pressure/(j.sph_density*j.sph_density)));ai.x+=fP.x/i.mass;ai.y+=fP.y/i.mass;ai.z+=fP.z/i.mass;const aj=acc.get(j);aj.x-=fP.x/j.mass;aj.y-=fP.y/j.mass;aj.z-=fP.z/j.mass;const vij=i.vel.sub(j.vel),vdotr=vij.dot(rv);if(vdotr<0){const cs=Math.sqrt(Math.max(0,this.gamma*Math.max(i.sph_pressure/i.sph_density,j.sph_pressure/j.sph_density))),mu=h*vdotr/(r*r+0.01*h2),rhoij=0.5*(i.sph_density+j.sph_density),Pi=-this.alphaVisc*cs*mu/rhoij,fV=grad.mult(-i.mass*j.mass*Pi);ai.x+=fV.x/i.mass;ai.y+=fV.y/i.mass;ai.z+=fV.z/i.mass;aj.x-=fV.x/j.mass;aj.y-=fV.y/j.mass;aj.z-=fV.z/j.mass;}}}return acc;
+ },
+ updateState:function(objects){this.computeAccelerations(objects);}
+};
 
 const NuclearEngine = {
     // One-zone stellar burning model. Rates are standard analytic educational
@@ -1073,28 +983,11 @@ const Renderer = {
             camera.rot = this.cameraRot;
             camera.pan = this.cameraPan;
 
-            // Unified Pointer Events for Mobile and Desktop
-            this.canvas.addEventListener('pointerdown', (e) => {
-                this.isDragging = true;
-                this.lastMouse = { x: e.clientX, y: e.clientY };
-                this.canvas.setPointerCapture(e.pointerId);
-            });
-
-            window.addEventListener('pointerup', (e) => {
-                this.isDragging = false;
-                try { this.canvas.releasePointerCapture(e.pointerId); } catch(err) {}
-            });
-
-            window.addEventListener('pointermove', (e) => {
-                if (this.isDragging) {
-                    let dx = e.clientX - this.lastMouse.x;
-                    let dy = e.clientY - this.lastMouse.y;
-                    this.cameraRot.y += dx * 0.01;
-                    this.cameraRot.x += dy * 0.01;
-                    this.lastMouse = { x: e.clientX, y: e.clientY };
-                }
-            });
-
+            // Tap selects; drag rotates. Pointer capture keeps iOS interactions deterministic.
+            this.canvas.addEventListener('pointerdown',(e)=>{this.isDragging=true;this.dragMoved=false;this.pointerId=e.pointerId;this.lastMouse={x:e.clientX,y:e.clientY};this.downPoint={x:e.clientX,y:e.clientY};this.canvas.setPointerCapture(e.pointerId);});
+            this.canvas.addEventListener('pointermove',(e)=>{if(!this.isDragging||e.pointerId!==this.pointerId)return;const dx=e.clientX-this.lastMouse.x,dy=e.clientY-this.lastMouse.y;if(Math.hypot(e.clientX-this.downPoint.x,e.clientY-this.downPoint.y)>6)this.dragMoved=true;this.cameraRot.y+=dx*0.01;this.cameraRot.x+=dy*0.01;this.lastMouse={x:e.clientX,y:e.clientY};});
+            this.canvas.addEventListener('pointerup',(e)=>{if(e.pointerId!==this.pointerId)return;if(!this.dragMoved)UI.selectAtScreen(e.clientX,e.clientY);this.isDragging=false;try{this.canvas.releasePointerCapture(e.pointerId);}catch(err){}});
+            this.canvas.addEventListener('pointercancel',()=>{this.isDragging=false;});
             this.canvas.addEventListener('wheel', (e) => {
                 e.preventDefault();
                 this.scale *= (e.deltaY > 0 ? 0.9 : 1.1);
@@ -1124,6 +1017,7 @@ const Renderer = {
             this.canvas.style.height = r.height + 'px';
             this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         },
+        projectObjects:function(){const w=this.canvas.clientWidth||1,h=this.canvas.clientHeight||1,cx=w/2+this.cameraPan.x,cy=h/2+this.cameraPan.y,sx=Math.sin(this.cameraRot.x),cxr=Math.cos(this.cameraRot.x),sy=Math.sin(this.cameraRot.y),cyr=Math.cos(this.cameraRot.y);return Engine.objects.map(o=>{const x1=o.pos.x*cyr-o.pos.z*sy,z1=o.pos.z*cyr+o.pos.x*sy,y2=o.pos.y*cxr-z1*sx,z2=z1*cxr+o.pos.y*sx;return {obj:o,px:cx+x1*this.scale,py:cy+y2*this.scale,pz:z2,pr:Math.max(1.5,o.radius*this.scale)};});},
         draw: function() {
             this.ctx.fillStyle = "#000";
             const cssW = this.canvas.clientWidth || (this.canvas.width / (window.devicePixelRatio || 1));
@@ -1134,14 +1028,7 @@ const Renderer = {
             let sinX = Math.sin(this.cameraRot.x), cosX = Math.cos(this.cameraRot.x);
             let sinY = Math.sin(this.cameraRot.y), cosY = Math.cos(this.cameraRot.y);
 
-            let projObjs = Engine.objects.map(o => {
-                let x1 = o.pos.x * cosY - o.pos.z * sinY;
-                let z1 = o.pos.z * cosY + o.pos.x * sinY;
-                let y2 = o.pos.y * cosX - z1 * sinX;
-                let z2 = z1 * cosX + o.pos.y * sinX;
-                return { obj: o, px: cx + x1 * this.scale, py: cy + y2 * this.scale, pz: z2, pr: Math.max(1.5, o.radius * this.scale) };
-            });
-            projObjs.sort((a,b) => a.pz - b.pz);
+            let projObjs=this.projectObjects();projObjs.sort((a,b)=>a.pz-b.pz);
 
             for(let p of projObjs) {
                 this.ctx.beginPath();
@@ -1152,11 +1039,14 @@ const Renderer = {
                 else if(p.obj.type === "GAS_CLOUD") this.ctx.fillStyle = "rgba(16, 185, 129, 0.5)";
                 else this.ctx.fillStyle = "#aaa";
                 this.ctx.fill();
+                if(window.UI&&p.obj.id===UI.selectedId){this.ctx.beginPath();this.ctx.arc(p.px,p.py,p.pr+4,0,Math.PI*2);this.ctx.strokeStyle="#fff";this.ctx.lineWidth=2;this.ctx.stroke();}
             }
         }
     }
 
 const UI = {
+        selectedId:null,
+        selectAtScreen:function(x,y){const r=Renderer.canvas.getBoundingClientRect(),sx=x-r.left,sy=y-r.top;const hit=Renderer.projectObjects().filter(p=>Math.hypot(p.px-sx,p.py-sy)<=Math.max(10,p.pr*1.5)).sort((a,b)=>b.pz-a.pz)[0];this.selectedId=hit?hit.obj.id:null;this.updateInspector();},
         init: function() {
             const tabs = [
                 ['GRAVITY','중력/궤도'], ['GALAXY','은하'], ['SPH_FLUID','유체/SPH'],
@@ -1214,8 +1104,8 @@ const UI = {
             ins.innerHTML = `<b>Target: ${o.id} (${o.type})</b><br>
             Mass: ${o.mass.toExponential(3)} kg<br>
             Radius: ${o.radius.toExponential(3)} m<br>
-            Temperature: ${o.temperature.toExponential(3)} K<br>
-            Luminosity: ${o.luminosity.toExponential(3)} W`;
+            Temperature: ${(Number.isFinite(o.temperature)?o.temperature:0).toExponential(3)} K<br>
+            Luminosity: ${(Number.isFinite(o.luminosity)?o.luminosity:0).toExponential(3)} W`;
         },
         showAudit: function() {
             let results = Validator.runAllTests(true);
@@ -1245,7 +1135,7 @@ const UI = {
 
 const Engine = {
         objects: [], time: 0, dt: 120, integratorType: "RK4", gravityAlgorithm: "BARNES_HUT",
-        status: "STABLE", paused: false, frames: 0, lastFpsTime: 0,
+        status: "STABLE", paused: false, frames: 0, lastFpsTime: 0, lastUiUpdate: 0,
         activeModels: ["Gravity", "Collision", "Thermodynamics"],
 
         setIntegrator: function(type) { this.integratorType = String(type).toLowerCase(); },
@@ -1268,8 +1158,12 @@ const Engine = {
                 for(let i=0; i<objs.length; i++) accels[i] = accels[i].add(grAcc[i]);
             }
             if(this.activeModels.includes("Electromagnetic")) {
-                let emAcc = ElectromagneticEngine.computeAccelerations(objs);
-                for(let i=0; i<objs.length; i++) accels[i] = accels[i].add(emAcc[i]);
+                let emAcc=ElectromagneticEngine.computeAccelerations(objs);
+                for(let i=0;i<objs.length;i++) accels[i]=accels[i].add(emAcc[i]);
+            }
+            if(this.activeModels.includes("Fluid")){
+                const fl=FluidEngine.computeAccelerations(objs);
+                for(let i=0;i<objs.length;i++){const a=fl.get(objs[i]);if(a)accels[i]=accels[i].add(a);}
             }
             return accels;
         },
@@ -1277,10 +1171,11 @@ const Engine = {
         step: function() {
             if(this.status === "FAILED") return;
 
-            // Safety
-            for(let o of this.objects) {
-                if(isNaN(o.pos.x) || isNaN(o.vel.x)) { this.status = "FAILED"; alert("CATASTROPHIC NUMERICAL INSTABILITY DETECTED (NaN)."); return; }
-                if(o.vel.magSq() >= PhysicsConstants.c * PhysicsConstants.c) { this.status = "FAILED"; alert("SUPERLUMINAL VELOCITY DETECTED."); return; }
+            // Hard numerical validity gate.
+            for(const o of this.objects){
+                const finite=[o.mass,o.radius,o.pos.x,o.pos.y,o.pos.z,o.vel.x,o.vel.y,o.vel.z,o.acc.x,o.acc.y,o.acc.z].every(Number.isFinite);
+                if(!finite||!(o.mass>0)||!(o.radius>0)){this.status="FAILED";throw new Error("Non-finite or invalid body state");}
+                if(o.vel.magSq()>=PhysicsConstants.c**2){this.status="FAILED";throw new Error("Superluminal velocity detected");}
             }
 
             if (!Number.isFinite(this.dt) || this.dt <= 0) { this.status="FAILED"; throw new Error("Invalid simulation timestep"); }
@@ -1293,7 +1188,7 @@ const Engine = {
                 Integrators.rk4(this.objects, this.dt, (obs)=>this.getAccelerations(obs));
             }
 
-            if(this.activeModels.includes("Fluid")) FluidEngine.computeSPH(this.objects);
+
             if(this.activeModels.includes("Nuclear")) NuclearEngine.computeFusion(this.dt, this.objects);
             if(this.activeModels.includes("Collision")) CollisionEngine.checkAndResolve(this.objects);
 
@@ -1305,10 +1200,8 @@ const Engine = {
 
             this.time += this.dt;
             Diagnostics.update(this.objects);
-
-            // diag-time and diag-count are omitted to map strictly to provided canonical HTML,
-            // or handled via UI.updateInspector() directly.
-            UI.updateInspector();
+            const nowUi=performance.now();
+            if(nowUi-this.lastUiUpdate>=125){this.lastUiUpdate=nowUi;UI.updateInspector();}
         },
 
         togglePause: function() {
