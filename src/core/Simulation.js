@@ -1,7 +1,7 @@
 const Engine = {
     objects: [], time: 0, dt: 120, integratorType: "RK4", gravityAlgorithm: "BARNES_HUT",
     status: "STABLE", paused: false, frames: 0, lastFpsTime: 0, adaptiveDt: false, minDt: 1e-6, maxDt: 1e12, safety: 0.2,
-    activeModels: ["Gravity", "Collision", "Thermodynamics"],
+    activeModels: ["Gravity", "Collision"],
     setIntegrator: function(type) { this.integratorType = String(type).toUpperCase(); },
     getAccelerations: function(objs) {
         const accels = new Array(objs.length).fill(null).map(() => new Vec3());
