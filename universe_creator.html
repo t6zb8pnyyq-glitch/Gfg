@@ -39,7 +39,7 @@ h2,h3{margin:3px 0 14px}h3{font-size:15px}label{display:block;margin:10px 0 5px;
 <h3>창조주 — 객체 생성</h3>
 <label>객체</label><select id="type"><option value="STAR">항성</option><option value="PLANET">행성</option><option value="MOON">위성</option><option value="BLACK_HOLE">블랙홀</option></select>
 <label>질량 (kg)</label><input id="mass" type="number" value="5.9722e24" step="any">
-<label>반지름 (m)</label><input id="radius" type="number" value="6371000" step="any">
+<label>반지름 (m)</label><input id="radius" type="number" value="6371000" step="any"><label>전하 (C)</label><input id="charge" type="number" value="0" step="any"><label>온도 (K)</label><input id="temperature" type="number" value="288" min="0" step="any">
 <div class="hint">행성/위성은 기준 천체가 있으면 위치를 기준으로 원형 궤도 속도를 자동 계산한다. 초기속도를 임의로 입력하지 않는다.</div>
 <button id="create" style="width:100%">현재 위치에 생성</button>
 <button id="clear" style="width:100%;margin-top:7px">전체 삭제</button>
@@ -57,7 +57,7 @@ h2,h3{margin:3px 0 14px}h3{font-size:15px}label{display:block;margin:10px 0 5px;
 </div>
 <script>
 "use strict";
-const G=6.67430e-11,C=299792458,AU=149597870700,MS=1.98847e30,ME=5.9722e24,RE=6371000;
+const G=6.67430e-11,C=299792458,AU=149597870700,MS=1.98847e30,ME=5.9722e24,RE=6371000,EPS0=8.8541878128e-12,KE=1/(4*Math.PI*EPS0);
 class V{
 constructor(x=0,y=0,z=0){this.x=x;this.y=y;this.z=z}
 add(v){return new V(this.x+v.x,this.y+v.y,this.z+v.z)}
@@ -69,8 +69,8 @@ mag2(){return this.dot(this)} mag(){return Math.sqrt(this.mag2())}
 unit(){const m=this.mag();return m>0?this.mul(1/m):new V()}
 }
 class Body{
-constructor(type,mass,radius,pos,vel){this.id=crypto.randomUUID();this.type=type;this.mass=mass;this.radius=radius;this.pos=pos;this.vel=vel;this.acc=new V()}
-clone(){return new Body(this.type,this.mass,this.radius,new V(this.pos.x,this.pos.y,this.pos.z),new V(this.vel.x,this.vel.y,this.vel.z))}
+constructor(type,mass,radius,pos,vel,charge=0,temperature=0){this.id=crypto.randomUUID();this.type=type;this.mass=mass;this.radius=radius;this.pos=pos;this.vel=vel;this.acc=new V();this.charge=Number.isFinite(charge)?charge:0;this.temperature=Number.isFinite(temperature)?Math.max(0,temperature):0}
+clone(){return new Body(this.type,this.mass,this.radius,new V(this.pos.x,this.pos.y,this.pos.z),new V(this.vel.x,this.vel.y,this.vel.z),this.charge,this.temperature)}
 }
 
 /* --- PHYSICS LAB CORE: modular reduced-order models --- */
@@ -118,10 +118,10 @@ const PhysicsLab={
 
 const LIMITS={MAX_DT:86400*365,MAX_BODIES:2000,MAX_SPEED:299792458*(1-1e-12),MAX_REL_DRIFT:1e-5};
 const PhysicsValidator={
-finiteBody(b){return [b.mass,b.radius,b.pos.x,b.pos.y,b.pos.z,b.vel.x,b.vel.y,b.vel.z,b.acc.x,b.acc.y,b.acc.z].every(Number.isFinite)&&b.mass>0&&b.radius>0},
+finiteBody(b){return [b.mass,b.radius,b.charge,b.temperature,b.pos.x,b.pos.y,b.pos.z,b.vel.x,b.vel.y,b.vel.z,b.acc.x,b.acc.y,b.acc.z].every(Number.isFinite)&&b.mass>0&&b.radius>0&&b.temperature>=0},
 finiteSystem(bodies){return bodies.every(this.finiteBody)},
 momentum(bodies){return bodies.reduce((p,b)=>p.add(b.vel.mul(b.mass)),new V())},
-energy(bodies){let K=0,U=0;for(let i=0;i<bodies.length;i++){K+=.5*bodies[i].mass*bodies[i].vel.mag2();for(let j=i+1;j<bodies.length;j++){const d=bodies[i].pos.sub(bodies[j].pos).mag();if(d>0)U-=G*bodies[i].mass*bodies[j].mass/d}}return K+U},
+energy(bodies){let K=0,U=0;for(let i=0;i<bodies.length;i++){K+=.5*bodies[i].mass*bodies[i].vel.mag2();for(let j=i+1;j<bodies.length;j++){const d=bodies[i].pos.sub(bodies[j].pos).mag();if(d>0){U-=G*bodies[i].mass*bodies[j].mass/d;U+=KE*bodies[i].charge*bodies[j].charge/d}}}return K+U},
 angularMomentum(bodies){return bodies.reduce((L,b)=>L.add(b.pos.cross(b.vel.mul(b.mass))),new V())},
 snapshot(bodies){return {P:this.momentum(bodies),E:this.energy(bodies),L:this.angularMomentum(bodies)}},
 relative(a,b){return Math.abs(a-b)/Math.max(1,Math.abs(a),Math.abs(b))},
@@ -158,7 +158,8 @@ const a=b.map(()=>new V());
 for(let i=0;i<b.length;i++)for(let j=i+1;j<b.length;j++){
 const r=b[j].pos.sub(b[i].pos),r2=r.mag2();if(!(r2>0))continue;
 const inv=1/Math.sqrt(r2),k=G*inv/r2;
-a[i]=a[i].add(r.mul(k*b[j].mass));a[j]=a[j].add(r.mul(-k*b[i].mass));
+const electric=KE*b[i].charge*b[j].charge*inv*inv,gravityForce=r.mul(k),electricForce=r.mul(electric*inv);
+a[i]=a[i].add(gravityForce.mul(b[j].mass/b[i].mass)).add(electricForce.mul(1/b[i].mass));a[j]=a[j].add(gravityForce.mul(-b[i].mass/b[j].mass)).add(electricForce.mul(-1/b[j].mass));
 }return a},
 step(dt){
 if(!Number.isFinite(dt)||dt<=0||dt>LIMITS.MAX_DT)throw new Error("INVALID_DT");
@@ -188,19 +189,20 @@ if(a.pos.sub(b.pos).mag()>r)continue;
 const M=a.mass+b.mass,p=a.pos.mul(a.mass).add(b.pos.mul(b.mass)).mul(1/M),v=a.vel.mul(a.mass).add(b.vel.mul(b.mass)).mul(1/M);
 let type=a.mass>=b.mass?a.type:b.type;if(type!=="BLACK_HOLE"&&M>=3*MS)type="BLACK_HOLE";
 const R=type==="BLACK_HOLE"?2*G*M/(C*C):Math.cbrt(a.radius**3+b.radius**3);
-add.push(new Body(type,M,R,p,v));remove.add(i);remove.add(j)}
+const q=a.charge+b.charge,T=(a.temperature*a.mass+b.temperature*b.mass)/M;
+add.push(new Body(type,M,R,p,v,q,T));remove.add(i);remove.add(j)}
 if(remove.size)this.bodies=this.bodies.filter((_,i)=>!remove.has(i)).concat(add)},
 primary(){return this.bodies.filter(b=>b.type==="STAR"||b.type==="BLACK_HOLE").sort((a,b)=>b.mass-a.mass)[0]||null},
 orbitVelocity(pos,center){const r=pos.sub(center.pos),d=r.mag();if(!(d>0))return new V();const speed=Math.sqrt(G*(center.mass)/d);let n=Math.abs(r.z/d)<.9?new V(0,0,1):new V(0,1,0);return center.vel.add(n.cross(r).unit().mul(speed))},
-create(type,mass,radius,pos=null){
+create(type,mass,radius,pos=null,charge=0,temperature=0){
 const center=this.primary();if(!pos){if(center)pos=center.pos.add(new V(Math.max(AU,10*(center.radius+radius)),0,0));else pos=new V()}
 const vel=center?this.orbitVelocity(pos,center):new V();
-const b=new Body(type,mass,radius,pos,vel);this.bodies.push(b);this.selected=b.id;this.paused=false;return b}
+const b=new Body(type,mass,radius,pos,vel,charge,temperature);this.bodies.push(b);this.selected=b.id;this.paused=false;return b}
 };
 const UI={
 $:(id)=>document.getElementById(id),
 init(){
-this.$("create").onclick=()=>{const type=this.$("type").value,m=Number(this.$("mass").value),r=Number(this.$("radius").value);if(m>0&&r>0){Sim.create(type,m,r);this.render()}};
+this.$("create").onclick=()=>{const type=this.$("type").value,m=Number(this.$("mass").value),r=Number(this.$("radius").value),q=Number(this.$("charge").value),T=Number(this.$("temperature").value);if(m>0&&r>0&&Number.isFinite(q)&&T>=0){Sim.create(type,m,r,null,q,T);this.render()}};
 this.$("clear").onclick=()=>{Sim.bodies=[];Sim.time=0;Sim.selected=null;Sim.paused=true;this.render()};
 this.$("newSystem").onclick=()=>this.solar();
 this.$("lab").onclick=()=>this.lab();
@@ -254,7 +256,7 @@ const b=Sim.bodies.find(x=>x.id===Sim.selected);this.$("count").textContent=Sim.
 let E=0,P=new V();for(const x of Sim.bodies){E+=.5*x.mass*x.vel.mag2();P=P.add(x.vel.mul(x.mass));}
 for(let i=0;i<Sim.bodies.length;i++)for(let j=i+1;j<Sim.bodies.length;j++){const d=Sim.bodies[i].pos.sub(Sim.bodies[j].pos).mag();if(d>0)E-=G*Sim.bodies[i].mass*Sim.bodies[j].mass/d}
 this.$("energy").textContent=E.toExponential(6)+" J";this.$("momentum").textContent=P.mag().toExponential(6)+" kg·m/s";
-this.$("info").innerHTML=b?"<b>"+b.type+"</b><br>mass "+b.mass.toExponential(6)+" kg<br>radius "+b.radius.toExponential(6)+" m<br>r "+b.pos.mag().toExponential(6)+" m<br>v "+b.vel.mag().toExponential(6)+" m/s":"객체를 선택하세요.";
+this.$("info").innerHTML=b?"<b>"+b.type+"</b><br>mass "+b.mass.toExponential(6)+" kg<br>radius "+b.radius.toExponential(6)+" m<br>charge "+b.charge.toExponential(6)+" C<br>T "+b.temperature.toExponential(6)+" K<br>r "+b.pos.mag().toExponential(6)+" m<br>v "+b.vel.mag().toExponential(6)+" m/s":"객체를 선택하세요.";
 if(this.$("state").textContent.startsWith("FAILED"))return;this.$("state").textContent="STABLE";this.$("state").className="ok"},
 draw(){
 const c=this.$("canvas"),ctx=c.getContext("2d"),r=c.parentElement.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2);c.width=Math.max(1,Math.round(r.width*d));c.height=Math.max(1,Math.round(r.height*d));ctx.setTransform(d,0,0,d,0,0);ctx.fillStyle="#010204";ctx.fillRect(0,0,r.width,r.height);
@@ -294,8 +296,8 @@ if(g.hit)return;
 const r=canvas.getBoundingClientRect();
 const wx=(e.clientX-r.left-r.width/2-Sim.panX)/Sim.scale;
 const wy=(e.clientY-r.top-r.height/2-Sim.panY)/Sim.scale;
-const m=Number(UI.$("mass").value),rad=Number(UI.$("radius").value);
-if(m>0&&rad>0)Sim.create(UI.$("type").value,m,rad,new V(wx,wy,0)),UI.render();
+const m=Number(UI.$("mass").value),rad=Number(UI.$("radius").value),q=Number(UI.$("charge").value),T=Number(UI.$("temperature").value);
+if(m>0&&rad>0&&Number.isFinite(q)&&T>=0)Sim.create(UI.$("type").value,m,rad,new V(wx,wy,0),q,T),UI.render();
 });
 canvas.addEventListener("pointercancel",()=>gesture=null);
 canvas.addEventListener("wheel",e=>{e.preventDefault();Sim.scale=Math.min(1e-2,Math.max(1e-18,Sim.scale*Math.exp(-e.deltaY*.001)));UI.draw()},{passive:false});
