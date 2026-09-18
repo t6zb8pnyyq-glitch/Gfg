@@ -1552,6 +1552,14 @@ const Validator={
             const e0=Diagnostics.getKineticEnergy([A,B])+Diagnostics.getPotentialEnergy([A,B]);
             return Validator._assert(this.name,Number.isFinite(maxErr)&&steps<100000,{error:maxErr,tolerance:"finite error and converged step count"});
         }},
+        {name:"Astronomy Engine ephemeris adapter",run(){
+            if(typeof EphemerisEngine==="undefined" || !EphemerisEngine.available()) return Validator._assert(this.name,false,{error:Infinity,tolerance:"provider available"});
+            const s=EphemerisEngine.solarSystem(0);
+            const finite=s.length===10&&s.every(x=>[x.pos.x,x.pos.y,x.pos.z,x.vel.x,x.vel.y,x.vel.z].every(Number.isFinite));
+            const earth=s.find(x=>x.name==="Earth");
+            const range=earth ? Math.abs(earth.pos.mag()/PhysicsConstants.AU-1) : Infinity;
+            return Validator._assert(this.name,finite&&range<.03,{error:Math.max(finite?0:1,range),tolerance:"finite 10-body state; Earth radius within 3% of 1 AU"});
+        }},
     ],
     runAllTests(returnResults=false){const results=[];for(const test of this.tests){try{results.push(test.run())}catch(e){results.push({name:test.name,status:"FAIL",error:Infinity,tolerance:"exception: "+e.message})}}return returnResults?results:results.every(r=>r.status==="PASS");}
 };
