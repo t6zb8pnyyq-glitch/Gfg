@@ -1163,6 +1163,7 @@ const UI = {
             const id=(globalThis.crypto&&typeof crypto.randomUUID==='function')?crypto.randomUUID():Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
             const body=new PhysicalBody('body-'+id,type,mass,rad,pos,vel);
             if(type==='STAR'){body.temperature=1.57e7;body.surfaceTemperature=5778;}
+            if(type==='BLACK_HOLE'){body.radius=2*PhysicsConstants.G*mass/(PhysicsConstants.c**2);body.updateDensity();body.temperature=2.73;body.surfaceTemperature=2.73;}
             if(type==='GAS_CLOUD'){body.temperature=100;const mu=0.61,mp=1.67262192369e-27;body.internalEnergy=1.5*(mass/(mu*mp))*PhysicsConstants.k_B*body.temperature;}
             Engine.objects.push(body);Diagnostics.initEnergy=null;this.updateInspector();return true;
         },
