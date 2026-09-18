@@ -57,6 +57,28 @@ const EphemerisEngine = {
         return Math.abs(r - expected) / expected;
     },
 
+    seedSolarSystem(objects, seconds=0) {
+        if(!this.available()) throw new Error("Astronomy Engine unavailable");
+        const specs=[
+            ["Sun","STAR",PhysicsConstants.M_sun,6.957e8],
+            ["Mercury","PLANET",3.3011e23,2.4397e6],
+            ["Venus","PLANET",4.8675e24,6.0518e6],
+            ["Earth","PLANET",5.9722e24,6.371e6],
+            ["Mars","PLANET",6.4171e23,3.3895e6],
+            ["Jupiter","PLANET",1.8982e27,6.9911e7],
+            ["Saturn","PLANET",5.6834e26,5.8232e7],
+            ["Uranus","PLANET",8.6810e25,2.5362e7],
+            ["Neptune","PLANET",1.02413e26,2.4622e7],
+            ["Pluto","PLANET",1.303e22,1.1883e6]
+        ];
+        objects.length=0;
+        for(const [name,type,mass,radius] of specs){
+            const s=this.barycentricState(name,seconds);
+            objects.push(new PhysicalBody(name,type,mass,radius,s.pos,s.vel));
+        }
+        return objects;
+    },
+
     status() {
         return {
             available: this.available(),
