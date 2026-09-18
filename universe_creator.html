@@ -708,6 +708,22 @@ const RadioactiveDecayEngine = {
     }
 };
 
+const StellarStructureEngine = {
+    solvePolytrope:function(M,R,n=3,N=800){
+        if(!(M>0)||!(R>0)||!(n>0)||N<20)throw new Error("Invalid polytrope parameters");
+        const h=12/N,deriv=(x,y,z)=>[z,-2*z/x-Math.pow(Math.max(y,0),n)];
+        let x=1e-6,y=1-x*x/6,z=-x/3,prevX=x,prevY=y,xi1=null;
+        for(let k=0;k<N;k++){const d=h,k1=deriv(x,y,z),k2=deriv(x+d/2,y+k1[0]*d/2,z+k1[1]*d/2),k3=deriv(x+d/2,y+k2[0]*d/2,z+k2[1]*d/2),k4=deriv(x+d,y+k3[0]*d,z+k3[1]*d),ny=y+d*(k1[0]+2*k2[0]+2*k3[0]+k4[0])/6,nz=z+d*(k1[1]+2*k2[1]+2*k3[1]+k4[1])/6,nx=x+d;if(ny<=0){xi1=prevX+(0-prevY)*(nx-prevX)/(ny-prevY);break;}prevX=nx;prevY=ny;x=nx;y=ny;z=nz;}
+        if(!xi1)throw new Error("Lane-Emden zero not found");
+        const a=R/xi1,dx=xi1/N,th=new Float64Array(N+1),dv=new Float64Array(N+1);th[0]=1;dv[0]=0;
+        x=1e-7;y=1-x*x/6;z=-x/3;
+        for(let i=1;i<=N;i++){const k1=deriv(x,y,z),k2=deriv(x+dx/2,y+k1[0]*dx/2,z+k1[1]*dx/2),k3=deriv(x+dx/2,y+k2[0]*dx/2,z+k2[1]*dx/2),k4=deriv(x+dx,y+k3[0]*dx,z+k3[1]*dx);y+=dx*(k1[0]+2*k2[0]+2*k3[0]+k4[0])/6;z+=dx*(k1[1]+2*k2[1]+2*k3[1]+k4[1])/6;x=i*dx;th[i]=Math.max(0,y);dv[i]=z;}
+        const rhoC=M/(4*Math.PI*a**3*Math.max(1e-300,-xi1**2*dv[N])),profile=[];let P=0;
+        for(let i=N;i>=0;i--){const r=a*i*dx,rho=rhoC*th[i]**n,dr=a*dx;if(i<N){const menc=4*Math.PI*rhoC*a**3*Math.max(0,-(i+1)*dx*(i+1)*dx*dv[i+1]);P+=PhysicsConstants.G*menc*rho*dr/Math.max(r*r,1);}profile.push({r,rho,pressure:P,temperature:rho>0?P*.61*1.67262192369e-27/(rho*PhysicsConstants.k_B):0});}
+        profile.reverse();return{xi1,a,rhoC,centralPressure:profile[0].pressure,centralTemperature:profile[0].temperature,profile};
+    }
+};
+
 const NuclearEngine = {
     // One-zone stellar burning model. Rates are standard analytic educational
     // approximations, not a full stellar-evolution reaction network.
@@ -1026,9 +1042,11 @@ const Labs = {
                 Engine.dt = 1; Renderer.scale = 1e-4;
             }
             else if(labName === 'NUCLEAR') {
-                info = "항성 구조 및 핵융합 (PP-Chain Network). 온도와 밀도에 따른 수소 질량 분율 변화 확인.";
+                info = "항성 구조 및 핵융합 (PP-Chain Network). Lane–Emden n=3 구조 + PP-chain 근사. 중심 온도/밀도와 수소 질량분율 변화 확인.";
                 Engine.activeModels.push("Nuclear", "Thermodynamics");
                 let star = new PhysicalBody("Star", "STAR", PhysicsConstants.M_sun, 6.96e8, new Vec3(), new Vec3());
+                const structure=StellarStructureEngine.solvePolytrope(star.mass,star.radius,3,800);
+                star.temperature=structure.centralTemperature;star.surfaceTemperature=5778;star.structure=structure;
                 Engine.objects.push(star);
                 Engine.dt = 3.15e7 * 1e6; // 1 million years per step to see fusion
                 Renderer.scale = 1e-9;
