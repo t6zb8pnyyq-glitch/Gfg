@@ -788,7 +788,7 @@ const GRGeodesic={
  rk4(s,dt,M){const add=(a,b,f)=>a.map((x,i)=>x+f*b[i]),k1=this.derivatives(s,M),k2=this.derivatives(add(s,k1,dt/2),M),k3=this.derivatives(add(s,k2,dt/2),M),k4=this.derivatives(add(s,k3,dt),M);return s.map((x,i)=>x+dt*(k1[i]+2*k2[i]+2*k3[i]+k4[i])/6)}
 };
 
-const StellarStructure={G:PhysicsConstants.G,integrate({rho_c,T_c,Mmax=PhysicsConstants.M_sun,dm=Mmax/4000,composition={X:.73,Y:.25,Z:.02}}={}){if(!(rho_c>0&&T_c>0&&dm>0))throw new Error("Invalid stellar central conditions");const p=[],a=4*PhysicsConstants.sigma_sb/PhysicsConstants.c;let m=dm,r=Math.cbrt(3*dm/(4*Math.PI*rho_c)),rho=rho_c,T=T_c,P=EOS.pressure(rho,T,composition),L=0;for(let k=0;k<100000&&m<=Mmax;k++,m+=dm){const rate=NuclearNetwork.rates(rho,T,composition),eps=rate.pp+rate.cno+rate.tripleAlpha;L+=eps*dm;const kap=EOS.opacity(rho,T,composition);p.push({m,r,rho,T,P,L,opacity:kap});const dPdm=-this.G*m/(4*Math.PI*r**4),drdm=1/(4*Math.PI*r*r*rho),dTdm=-3*kap*L/(64*Math.PI*Math.PI*a*PhysicsConstants.c*r**4*Math.max(T,1)**3);P+=dPdm*dm;r+=drdm*dm;T=Math.max(2.73,T+dTdm*dm);if(P<=0||!Number.isFinite(P)||r<=0||!Number.isFinite(T))break;const mu=EOS.meanMolecularWeight(composition,true);rho=Math.max(1e-20,P*mu*EOS.atomicMassUnit/(PhysicsConstants.k_B*T))}return{profile:p,mass:p.length?p[p.length-1].m:0,luminosty:L}}};
+const StellarStructure={G:PhysicsConstants.G,integrate({rho_c,T_c,Mmax=PhysicsConstants.M_sun,dm=Mmax/4000,composition={X:.73,Y:.25,Z:.02}}={}){if(!(rho_c>0&&T_c>0&&dm>0))throw new Error("Invalid stellar central conditions");const p=[],a=4*PhysicsConstants.sigma_sb/PhysicsConstants.c;let m=dm,r=Math.cbrt(3*dm/(4*Math.PI*rho_c)),rho=rho_c,T=T_c,P=EOS.pressure(rho,T,composition),L=0;for(let k=0;k<100000&&m<=Mmax;k++,m+=dm){const rate=NuclearNetwork.rates(rho,T,composition),eps=rate.pp+rate.cno+rate.tripleAlpha;L+=eps*dm;const kap=EOS.opacity(rho,T,composition);p.push({m,r,rho,T,P,L,opacity:kap});const dPdm=-this.G*m/(4*Math.PI*r**4),drdm=1/(4*Math.PI*r*r*rho),dTdm=-3*kap*L/(64*Math.PI*Math.PI*a*PhysicsConstants.c*r**4*Math.max(T,1)**3);P+=dPdm*dm;r+=drdm*dm;T=Math.max(2.73,T+dTdm*dm);if(P<=0||!Number.isFinite(P)||r<=0||!Number.isFinite(T))break;const mu=EOS.meanMolecularWeight(composition,true);rho=Math.max(1e-20,P*mu*EOS.atomicMassUnit/(PhysicsConstants.k_B*T))}return{profile:p,mass:p.length?p[p.length-1].m:0,luminosity:L}}};
 
 const NuclearEngine={computeFusion(dt,objs){if(!(dt>=0))throw new Error("Negative nuclear timestep");for(const o of objs){if(o.type!=="STAR"||!o.composition)continue;const rho=o.density>0?o.density:Math.max(1e-20,o.mass/(4*Math.PI*Math.max(o.radius,1)**3/3));const Tc=o.temperature>0?o.temperature:PhysicsConstants.G*o.mass*1.67262192369e-27/(PhysicsConstants.k_B*Math.max(o.radius,1));o.temperature=Tc;const rates=NuclearNetwork.rates(rho,Tc,o.composition),q=0.007*PhysicsConstants.c**2,dx=Math.min(o.composition.X,Math.max(0,(rates.pp+rates.cno)*dt/q));o.composition.X-=dx;o.composition.Y+=dx;o.internalEnergy=(o.internalEnergy||0)+dx*o.mass*q;const dy=Math.min(o.composition.Y,Math.max(0,rates.tripleAlpha*dt/(0.006*PhysicsConstants.c**2)));o.composition.Y-=dy;o.composition.Z+=dy;o.internalEnergy+=dy*o.mass*0.006*PhysicsConstants.c**2}}};
 
@@ -1108,7 +1108,25 @@ const Validator = {
             return Validator._assert(this.name,finite,{error:finite?0:1,tolerance:"all finite, rho>0"});
         }},
         {name:"Radiation optical-depth positivity", run(){const tau=RadiationTransport.opticalDepth(.34,1e-4,1e7);return Validator._assert(this.name,tau>=0,{error:tau,tolerance:">=0"});}},
-        {name:"Schwarzschild redshift analytic check", run(){const M=PhysicsConstants.M_sun,r=10*GRGeodesic.schwarzschildRadius(M),z=1/GRGeodesic.redshiftFactor(r,M)-1,expected=1/Math.sqrt(.9)-1;return Validator._assert(this.name,Math.abs(z-expected)<1e-14,{error:Math.abs(z-expected),tolerance:"<1e-14"});}},        {name:"SPH density symmetry", run(){
+        {name:"Schwarzschild redshift analytic check", run(){const M=PhysicsConstants.M_sun,r=10*GRGeodesic.schwarzschildRadius(M),z=1/GRGeodesic.redshiftFactor(r,M)-1,expected=1/Math.sqrt(.9)-1;return Validator._assert(this.name,Math.abs(z-expected)<1e-14,{error:Math.abs(z-expected),tolerance:"<1e-14"});}},        {name:"Cosmology matter-only analytic scaling", run(){
+            const H0=PhysicsConstants.H0_s, history=CosmologyEngine.solveFriedmann(H0,1,0,0,PhysicsConstants.yr*1e9,PhysicsConstants.yr*1e7,1);
+            const t=history[history.length-1].t, a=history[history.length-1].a;
+            const expected=Math.pow(1+1.5*H0*t,2/3);
+            const e=Math.abs(a-expected)/Math.max(Math.abs(expected),1e-300);
+            return Validator._assert(this.name,e<2e-5,{error:e,tolerance:"<2e-5"});
+        }},
+        {name:"Radiation diffusion manufactured linear profile", run(){
+            const T=new Float64Array([100,200,300,400]),rho=new Float64Array(4).fill(1),k=new Float64Array(4).fill(1);
+            const out=RadiationTransport.stepGreyDiffusion(T,rho,k,1,1e-6);
+            const e=Math.max(...out.map((v,i)=>Math.abs(v-T[i])));
+            return Validator._assert(this.name,e<1e-8,{error:e,tolerance:"<1e-8"});
+        }},
+        {name:"Stellar hydrostatic profile finite", run(){
+            const m=StellarStructure.integrate({rho_c:1.6e5,T_c:1.5e7,Mmax:PhysicsConstants.M_sun,dm:PhysicsConstants.M_sun/2000});
+            const finite=m.profile.length>10&&m.profile.every(x=>[x.m,x.r,x.rho,x.T,x.P].every(Number.isFinite)&&x.r>0&&x.rho>0&&x.T>0);
+            return Validator._assert(this.name,finite,{error:finite?0:1,tolerance:"all profile state finite and positive"});
+        }},
+        {name:"SPH density symmetry", run(){
             const a=new PhysicalBody("a","GAS_CLOUD",1,1,new Vec3(-1,0,0),new Vec3());
             const b=new PhysicalBody("b","GAS_CLOUD",1,1,new Vec3(1,0,0),new Vec3());
             FluidEngine.h=4; FluidEngine.computeState([a,b]);
@@ -1212,7 +1230,7 @@ const Labs = {
                 Engine.activeModels = [];
                 const model=StellarStructure.integrate({rho_c:1.6e5,T_c:1.5e7,Mmax:PhysicsConstants.M_sun,dm:PhysicsConstants.M_sun/4000});
                 Diagnostics.stellarProfile=model.profile;
-                info += "<br><br>[STELLAR STATE]<br>Integrated shells: "+model.profile.length+"<br>Enclosed mass: "+model.mass.toExponential(3)+" kg";
+                info += "<br><br>[STELLAR STATE]<br>Integrated shells: "+model.profile.length+"<br>Enclosed mass: "+model.mass.toExponential(3)+" kg<br>Luminosity: "+model.luminosity.toExponential(3)+" W";
             }
             else if(labName === 'GR') {
                 info = "Schwarzschild geodesic laboratory using proper-time equations.";
