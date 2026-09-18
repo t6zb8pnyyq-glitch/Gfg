@@ -71,6 +71,50 @@ class Body{
 constructor(type,mass,radius,pos,vel){this.id=crypto.randomUUID();this.type=type;this.mass=mass;this.radius=radius;this.pos=pos;this.vel=vel;this.acc=new V()}
 clone(){return new Body(this.type,this.mass,this.radius,new V(this.pos.x,this.pos.y,this.pos.z),new V(this.vel.x,this.vel.y,this.vel.z))}
 }
+
+/* --- PHYSICS LAB CORE: modular reduced-order models --- */
+const PhysicsLab={
+  EOS:{
+    idealGasPressure(rho,T,mu=0.61){if(!(rho>=0&&T>=0&&mu>0))throw new Error("Invalid EOS state");return rho*1.380649e-23*T/(mu*1.67262192369e-27)},
+    radiationPressure(T){if(!(T>=0))throw new Error("Invalid temperature");return 7.5657e-16*T**4/3},
+    soundSpeed(rho,T,mu=0.61,gamma=5/3){return Math.sqrt(gamma*this.idealGasPressure(rho,T,mu)/Math.max(rho,1e-300))}
+  },
+  Nuclear:{
+    ppEnergyRate(rho,T,X){const T6=Math.max(T,1)/1e6;return Math.max(0,2.4e-4*rho*X*X*T6**(-2/3)*Math.exp(-33.8*T6**(-1/3)))},
+    tripleAlphaRate(rho,T,Y){const T8=Math.max(T,1)/1e8;return Math.max(0,5.1e4*(rho/1e5)**2*Y**3*T8**-3*Math.exp(-44.027/T8))}
+  },
+  Radiation:{
+    opticalDepth(kappa,rho,length){if(!(kappa>=0&&rho>=0&&length>=0))throw new Error("Invalid radiation state");return kappa*rho*length},
+    diffusionFlux(Tgrad,kappa,rho){const a=7.5657e-16,c=299792458;return -4*a*c*Math.max(0,Tgrad)/(3*Math.max(kappa*rho,1e-300))}
+  },
+  GR:{
+    schwarzschildRadius(M){return 2*G*M/(C*C)},
+    gravitationalRedshift(M,r){const rs=this.schwarzschildRadius(M);if(!(r>rs))return Infinity;return 1/Math.sqrt(1-rs/r)-1}
+  },
+  Quantum:{
+    deBroglieWavelength(m,v){if(!(m>0&&v>0))throw new Error("Invalid quantum state");return 6.62607015e-34/(m*v)},
+    harmonicGroundEnergy(m,omega){if(!(m>0&&omega>0))throw new Error("Invalid oscillator");return .5*1.054571817e-34*omega}
+  },
+  Cosmology:{
+    criticalDensity(H){return 3*H*H/(8*Math.PI*G)},
+    matterScaleFactor(a0,t,t0,H0){if(!(a0>0&&H0>0))throw new Error("Invalid cosmology state");return a0*Math.pow(t/t0,2/3)}
+  },
+  MHD:{
+    alfvenSpeed(B,rho){if(!(rho>0))throw new Error("Invalid MHD density");return Math.abs(B)/Math.sqrt(4*Math.PI*1.25663706212e-6*rho)},
+    fastMagnetosonicSpeed(cs,ca){return Math.sqrt(Math.max(0,cs*cs+ca*ca))}
+  },
+  validate(){
+    const tests=[
+      ["EOS finite",Number.isFinite(this.EOS.idealGasPressure(1,1e6))],
+      ["GR radius finite",Number.isFinite(this.GR.schwarzschildRadius(MS))],
+      ["Quantum positive",this.Quantum.harmonicGroundEnergy(1,1)>0],
+      ["Cosmology finite",Number.isFinite(this.Cosmology.criticalDensity(2.2e-18))],
+      ["MHD finite",Number.isFinite(this.MHD.alfvenSpeed(1e-3,1))]
+    ];
+    return {pass:tests.filter(x=>x[1]).length,total:tests.length,tests};
+  }
+};
+
 const Sim={
 bodies:[],time:0,paused:true,scale:1e-9,panX:0,panY:0,rot:0,selected:null,
 accel(b){
