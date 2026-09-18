@@ -1342,6 +1342,26 @@ const Integrators = {
         }
     },
 
+    leapfrogKDK: function(objects, dt, getAccelsFn) {
+        if(!(dt>0)||!Number.isFinite(dt)) throw new Error("Invalid leapfrog timestep");
+        const a0=getAccelsFn(objects);
+        for(let i=0;i<objects.length;i++) objects[i].vel=objects[i].vel.add(a0[i].mult(0.5*dt));
+        for(let i=0;i<objects.length;i++) objects[i].pos=objects[i].pos.add(objects[i].vel.mult(dt));
+        const a1=getAccelsFn(objects);
+        for(let i=0;i<objects.length;i++){ objects[i].vel=objects[i].vel.add(a1[i].mult(0.5*dt)); objects[i].acc=a1[i]; }
+    },
+
+    yoshida4: function(objects, dt, getAccelsFn) {
+        if(!(dt>0)||!Number.isFinite(dt)) throw new Error("Invalid Yoshida timestep");
+        // Forest-Ruth/Yoshida fourth-order symmetric composition:
+        // S4(h)=S2(w1 h) S2(w0 h) S2(w1 h),
+        // w1=1/(2-2^(1/3)), w0=-2^(1/3)/(2-2^(1/3)).
+        // It is symplectic for separable autonomous Hamiltonians.
+        const q=Math.cbrt(2), w1=1/(2-q), w0=-q/(2-q);
+        const sub=(h)=>this.leapfrogKDK(objects,h,getAccelsFn);
+        sub(w1*dt); sub(w0*dt); sub(w1*dt);
+    },
+
     rk4Step: function(objects, dt, getAccelsFn) {
         const base=objects.map(o=>o.clone());
         const k1_v=getAccelsFn(base), k1_x=base.map(o=>o.vel.clone());
@@ -1754,7 +1774,7 @@ const Engine={
             if(!(this.dt>0&&Number.isFinite(this.dt)&&this.dt>=this.minDt&&this.dt<=this.maxDt))throw new Error("잘못된 timestep");
             const t=String(this.integratorType).toLowerCase();
             if(t==="euler"){ this._acceptedDt=this.dt; Integrators.eulerSemiImplicit(this.objects,this.dt,this.getAccelerations(this.objects)); }
-            else if(t==="verlet"){ this._acceptedDt=this.dt; Integrators.verlet(this.objects,this.dt,obs=>this.getAccelerations(obs)); }
+            else if(t==="verlet"){ this._acceptedDt=this.dt; Integrators.verlet(this.objects,this.dt,obs=>this.getAccelerations(obs)); }\n            else if(t==="leapfrog"){ this._acceptedDt=this.dt; Integrators.leapfrogKDK(this.objects,this.dt,obs=>this.getAccelerations(obs)); }\n            else if(t==="yoshida4"){ this._acceptedDt=this.dt; Integrators.yoshida4(this.objects,this.dt,obs=>this.getAccelerations(obs)); }
             else if(t==="rk4"){
                 if(this.adaptiveDt){
                     const r=Integrators.rk4Adaptive(this.objects,this.dt,obs=>this.getAccelerations(obs),this.adaptiveTolerance,this.minDt,this.maxAdaptiveAttempts);
