@@ -8,5 +8,16 @@ const GRGeodesic={
   const Ap=rs/(r*r);
   return[ut,ur,up,-Ap/(A)*ut*ur,-(A*Ap/2)*ut*ut+(Ap/(2*A))*ur*ur+A*r*up*up,-2*ur*up/r];
  },
- rk4(s,dt,M){const add=(a,b,f)=>a.map((x,i)=>x+f*b[i]),k1=this.derivatives(s,M),k2=this.derivatives(add(s,k1,dt/2),M),k3=this.derivatives(add(s,k2,dt/2),M),k4=this.derivatives(add(s,k3,dt),M);return s.map((x,i)=>x+dt*(k1[i]+2*k2[i]+2*k3[i]+k4[i])/6)}
+ rk4(s,dt,M){const add=(a,b,f)=>a.map((x,i)=>x+f*b[i]),k1=this.derivatives(s,M),k2=this.derivatives(add(s,k1,dt/2),M),k3=this.derivatives(add(s,k2,dt/2),M),k4=this.derivatives(add(s,k3,dt),M);return s.map((x,i)=>x+dt*(k1[i]+2*k2[i]+2*k3[i]+k4[i])/6)},
+ nullNormalization(s,M){
+  const [t,r,phi,ut,ur,up]=s,rs=this.schwarzschildRadius(M),A=1-rs/r;
+  if(!(A>0&&r>rs))throw new Error("Invalid Schwarzschild radius");
+  return -A*ut*ut+(ur*ur/A)+r*r*up*up;
+ },
+ nullDerivatives(s,M){
+  const [t,r,phi,ut,ur,up]=s,rs=this.schwarzschildRadius(M),A=1-rs/r,Ap=rs/(r*r);
+  if(!(r>rs))throw new Error("Null geodesic reached horizon");
+  return [ut,ur,up,-Ap/A*ut*ur,-A*Ap/2*ut*ut+Ap/(2*A)*ur*ur+A*r*up*up,-2*ur*up/r];
+ },
+ rk4Null(s,dt,M){const add=(a,b,f)=>a.map((x,i)=>x+f*b[i]),k1=this.nullDerivatives(s,M),k2=this.nullDerivatives(add(s,k1,dt/2),M),k3=this.nullDerivatives(add(s,k2,dt/2),M),k4=this.nullDerivatives(add(s,k3,dt),M);return s.map((x,i)=>x+dt*(k1[i]+2*k2[i]+2*k3[i]+k4[i])/6)}
 };
