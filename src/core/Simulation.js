@@ -6,4 +6,4 @@ togglePause:function(){if(this.status==="FAILED"){this.status="STABLE";this.paus
 resetFailure:function(){this.status="STABLE";this.paused=false;Diagnostics.begin(this.objects);this.syncPauseButton();},
 syncPauseButton:function(){const b=document.getElementById("btn-pause");if(b)b.innerText=this.paused?"재개 (RESUME)":"일시정지 (PAUSE)";},
 setModel:function(name,enabled){const i=this.activeModels.indexOf(name);if(enabled&&i<0)this.activeModels.push(name);if(!enabled&&i>=0)this.activeModels.splice(i,1);},
-loop:function(){requestAnimationFrame(()=>this.loop());if(!this.paused){try{this.step();}catch(e){this.status="FAILED";this.paused=true;this.syncPauseButton();const e=document.getElementById("diag-status");if(e){e.innerText="FAILED";e.className="val fail";}}}Renderer.draw();}};
+loop:function(){requestAnimationFrame(()=>this.loop());if(!this.paused){try{this.step();}catch(e){this.status="FAILED";this.paused=true;this.syncPauseButton();const statusEl=document.getElementById("diag-status");if(statusEl){statusEl.innerText="FAILED";statusEl.className="val fail";}}}Renderer.draw();}};
