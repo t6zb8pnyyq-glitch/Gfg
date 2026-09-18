@@ -62,14 +62,10 @@ const QuantumEngine = {
             const dr=new Float64Array(N),di=new Float64Array(N);
             for(let i=1;i<N-1;i++){
                 const hdiag=2*t+V_array[i];
-                ar[i]=0; ai[i]=-dt*(-t)/(2*hbar);
+                ar[i]=0; ai[i]=-dt*t/(2*hbar);
                 br[i]=1; bi[i]=dt*hdiag/(2*hbar);
-                cr[i]=0; ci[i]=-dt*(-t)/(2*hbar);
-                const oldR=(1-dt*hdiag*0/(2*hbar))*re[i];
-                const oldI=(1-dt*hdiag/(2*hbar))*im[i];
-                const off=dt*(-t)/(2*hbar);
-                dr[i]=oldR + off*im[i-1] + off*im[i+1];
-                di[i]=oldI - off*re[i-1] - off*re[i+1];
+                cr[i]=0; ci[i]=-dt*t/(2*hbar);
+                // RHS is assembled directly below from the Hermitian Hamiltonian.
             }
             // Correct RHS directly from H: psi - i*dt/(2hbar) H psi.
             for(let i=1;i<N-1;i++){
