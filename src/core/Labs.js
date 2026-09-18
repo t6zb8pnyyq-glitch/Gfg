@@ -45,6 +45,17 @@ const Labs = {
             info="Schwarzschild timelike + null geodesic laboratory with invariant checks."; Engine.activeModels=[];
             const M=PhysicsConstants.M_sun,r0=10*GRGeodesic.schwarzschildRadius(M),A=1-GRGeodesic.schwarzschildRadius(M)/r0,state=[0,r0,0,1/Math.sqrt(A),0,0.0001];
             let s=state;for(let i=0;i<100;i++)s=GRGeodesic.rk4(s,1,M);const nullState=[0,r0,0,1/(1-GRGeodesic.schwarzschildRadius(M)/r0),1,0];let ns=nullState;for(let i=0;i<100;i++)ns=GRGeodesic.rk4Null(ns,1,M);Diagnostics.grState={timelike:s,null:ns,nullInvariant:GRGeodesic.nullNormalization(ns,M)};info+="<br><br>[GR STATE]<br>Timelike geodesic integration completed; redshift factor: "+GRGeodesic.redshiftFactor(r0,M).toExponential(6);
+        } else if(labName==="EPHEMERIS"){
+            Engine.activeModels=[];
+            const available=EphemerisEngine.available();
+            info="검증된 태양계 천체력 기준 모듈. Astronomy Engine의 J2000 barycentric 상태벡터를 SI 단위로 변환합니다.";
+            if(available){
+                const states=EphemerisEngine.solarSystem(Engine.time);
+                Diagnostics.ephemerisState=states;
+                info+="<br><br>[EPHEMERIS STATE]<br>Provider: Astronomy Engine<br>Reference: J2000 / barycentric<br>Earth r: "+states.find(s=>s.name==="Earth").pos.mag().toExponential(6)+" m<br>Earth v: "+states.find(s=>s.name==="Earth").vel.mag().toExponential(6)+" m/s<br>Bodies: "+states.length;
+            }else{
+                info+="<br><br>[EPHEMERIS STATE]<br>외부 런타임 의존성 없이 동작하도록 vendored bundle을 포함해야 합니다. 현재 provider unavailable.";
+            }
         } else if(labName==="COSMOLOGY"){
             info="빅뱅 팽창 (프리드만 우주론).";Engine.activeModels=[];
             const history=CosmologyEngine.solveFriedmann(PhysicsConstants.H0_s,.3,0,.7,PhysicsConstants.yr*1e9,PhysicsConstants.yr*1e7,.1);Diagnostics.cosmologyHistory=history;
