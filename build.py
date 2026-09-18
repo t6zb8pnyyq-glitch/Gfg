@@ -12,6 +12,7 @@ MODULES_ORDER = [
     "src/physics/ElectromagneticEngine.js",
     "src/physics/FluidEngine.js",
     "src/physics/EOS.js",
+    "src/physics/ThermodynamicsEngine.js",
     "src/physics/NuclearNetwork.js",
     "src/physics/RadiationTransport.js",
     "src/physics/MHD1D.js",
