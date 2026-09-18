@@ -2,5 +2,9 @@
   "dependencies": {
     "acorn": "^8.18.0",
     "playwright": "^1.63.0"
+  },
+  "scripts": {
+    "test": "node tests/scientific.js",
+    "build": "python3 build.py"
   }
 }
