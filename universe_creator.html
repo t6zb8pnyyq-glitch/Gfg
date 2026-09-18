@@ -126,6 +126,29 @@ relative(a,b){return Math.abs(a-b)/Math.max(1,Math.abs(a),Math.abs(b))},
 vectorRelative(a,b){return this.relative(a.mag(),b.mag())},
 transition(before,after){if(!this.finiteSystem(after))throw new Error("NON_FINITE_STATE");return {energy:this.relative(before.E,after.E),momentum:this.vectorRelative(before.P,after.P),angularMomentum:this.vectorRelative(before.L,after.L)}}
 };
+const AdvancedPhysics={
+  rocheLimit(Mprimary,Msecondary,radius){if(!(Mprimary>0&&Msecondary>0&&radius>0))throw new Error("INVALID_ROCHE_INPUT");return 2.44*radius*Math.cbrt(Mprimary/Msecondary)},
+  escapeVelocity(M,r){if(!(M>0&&r>0))throw new Error("INVALID_ESCAPE_INPUT");return Math.sqrt(2*G*M/r)},
+  orbitalPeriod(M,r){if(!(M>0&&r>0))throw new Error("INVALID_ORBIT_INPUT");return 2*Math.PI*Math.sqrt(r**3/(G*M))},
+  hillRadius(Mprimary,Msecondary,a){if(!(Mprimary>0&&Msecondary>0&&a>0))throw new Error("INVALID_HILL_INPUT");return a*Math.cbrt(Msecondary/(3*Mprimary))},
+  luminosityBlackbody(radius,T){const sigma=5.670374419e-8;if(!(radius>=0&&T>=0))throw new Error("INVALID_STAR_INPUT");return 4*Math.PI*radius*radius*sigma*T**4},
+  schwarzschild(M){return 2*G*M/(C*C)},
+  tidalAcceleration(M,rho,r){return 2*G*M*rho/r**3},
+  relativisticBeta(v){return Math.abs(v)/C},
+  lorentzGamma(v){const b=this.relativisticBeta(v);if(b>=1)throw new Error("SUPERLUMINAL");return 1/Math.sqrt(1-b*b)}
+};
+const IntegratorSuite={
+  velocityVerlet(bodies,dt,accel){
+    const old=bodies.map(b=>b.acc.clone());
+    for(const b of bodies)b.vel=b.vel.add(b.acc.mul(.5*dt)),b.pos=b.pos.add(b.vel.mul(dt));
+    accel(bodies);
+    for(let i=0;i<bodies.length;i++)bodies[i].vel=bodies[i].vel.add(bodies[i].acc.add(old[i]).mul(.5*dt));
+  },
+  euler(bodies,dt,accel){
+    for(const b of bodies)b.vel=b.vel.add(b.acc.mul(dt)),b.pos=b.pos.add(b.vel.mul(dt));
+    accel(bodies);
+  }
+};
 const Sim={
 bodies:[],time:0,paused:true,scale:1e-9,panX:0,panY:0,rot:0,selected:null,
 accel(b){
@@ -182,6 +205,13 @@ const q=PhysicsLab.validate();
 const p=Sim.bodies;
 const rows=q.tests.map(t=>"<div>"+(t[1]?"✓ ":"✗ ")+t[0]+"</div>").join("");
 const astrophysics=p.map(b=>{
+const primary=p.filter(x=>x!==b).sort((a,c)=>c.mass-a.mass)[0];
+const r=primary?b.pos.sub(primary.pos).mag():0;
+const rho=b.mass/Math.max((4*Math.PI/3)*b.radius**3,1e-300);
+const orbit=primary&&r>0?AdvancedPhysics.orbitalPeriod(primary.mass,r):NaN;
+const hill=primary&&r>0?AdvancedPhysics.hillRadius(primary.mass,b.mass,r):NaN;
+const escape=AdvancedPhysics.escapeVelocity(b.mass,b.radius);
+
 const rho=b.mass/Math.max((4*Math.PI/3)*Math.pow(b.radius,3),1e-300);
 const T=b.type==="STAR"?5.8e3:288;
 const pressure=PhysicsLab.EOS.idealGasPressure(rho,T);
@@ -190,7 +220,10 @@ const redshift=rs<b.radius?PhysicsLab.GR.gravitationalRedshift(b.mass,b.radius):
 return "<hr><b>"+b.type+" "+b.id.slice(0,8)+"</b><br>ρ = "+rho.toExponential(3)+" kg/m³"+
 "<br>P<sub>gas</sub> = "+pressure.toExponential(3)+" Pa"+
 "<br>R<sub>s</sub> = "+rs.toExponential(3)+" m"+
-"<br>z<sub>grav</sub> = "+(Number.isFinite(redshift)?redshift.toExponential(3):"inside Rₛ")+"";
+"<br>z<sub>grav</sub> = "+(Number.isFinite(redshift)?redshift.toExponential(3):"inside Rₛ")+
+"<br>v<sub>esc</sub> = "+escape.toExponential(3)+" m/s"+
+"<br>P<sub>orb</sub> = "+(Number.isFinite(orbit)?orbit.toExponential(3):"—")+" s"+
+"<br>Hill = "+(Number.isFinite(hill)?hill.toExponential(3):"—")+" m";
 }).join("");
 this.$("info").innerHTML="<b>Physics Lab</b><br>검증 "+q.pass+"/"+q.total+"<hr>"+rows+
 "<br><br><b>현재 우주 상태의 파생 물리량</b>"+astrophysics+
