@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>UNIVERSE CREATOR — Integrated Physics Laboratory</title>
+<style>
+:root{--bg:#05070b;--panel:#0c1119ee;--panel2:#111925;--line:#263448;--text:#e7edf5;--muted:#8796aa;--accent:#69b9ff;--ok:#49d69a;--warn:#f1bd5b;--bad:#ff6677}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#020307;color:var(--text);font:13px -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
+button,input,select{font:inherit;color:inherit;background:var(--panel2);border:1px solid var(--line);border-radius:8px}
+button{min-height:40px;padding:0 12px;font-weight:700;cursor:pointer}
+input,select{width:100%;min-height:40px;padding:0 9px}
+button:active{transform:translateY(1px)}
+#app{height:100%;display:grid;grid-template-columns:285px minmax(0,1fr) 300px;grid-template-rows:54px minmax(0,1fr) 58px}
+#top,#bottom{display:flex;align-items:center;gap:7px;padding:7px 9px;background:#080c12f5;z-index:50;overflow:auto}
+#top{grid-column:1/-1;border-bottom:1px solid var(--line)}
+#bottom{grid-column:1/-1;border-top:1px solid var(--line)}
+#view{position:relative;grid-column:2;grid-row:2;overflow:hidden;background:#010204}
+canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
+.panel{padding:13px;overflow:auto;background:var(--panel);z-index:60;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+#creator{grid-column:1;grid-row:2;border-right:1px solid var(--line)}
+#inspector{grid-column:3;grid-row:2;border-left:1px solid var(--line)}
+h2,h3{margin:3px 0 13px}h3{font-size:15px}
+label{display:block;margin:9px 0 5px;color:var(--muted);font-size:11px;font-weight:700}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.hint{padding:9px;margin:9px 0;background:#101824;border:1px solid var(--line);border-radius:8px;color:var(--muted);font-size:11px;line-height:1.5}
+.badge{padding:5px 8px;border:1px solid var(--line);border-radius:7px;color:var(--muted);white-space:nowrap}
+#status{position:absolute;left:10px;top:10px;pointer-events:none;color:#b4c2d6;font:11px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre}
+#toast{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);z-index:100;background:#101824ee;border:1px solid var(--line);border-radius:9px;padding:9px 12px;opacity:0;pointer-events:none;transition:.15s}
+#toast.show{opacity:1}
+#labPanel{display:none;position:absolute;right:10px;top:10px;width:min(92vw,430px);max-height:calc(100% - 20px);overflow:auto;z-index:70;background:#0b1018f7;border:1px solid var(--line);border-radius:12px;padding:13px;box-shadow:0 18px 70px #000b}
+#labOut{font:11px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;color:#b9c6d8}
+.section{border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:6px 0}.kv div{padding:6px 7px;background:#0e151f;border-radius:6px}.muted{color:var(--muted)}.ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}
+.mobile{display:none}
+@media(max-width:1000px){
+ #app{grid-template-columns:1fr;grid-template-rows:50px minmax(0,1fr) 56px}
+ #view{grid-column:1}
+ .panel{position:absolute;top:50px;bottom:56px;width:min(88vw,350px);transition:transform .16s;box-shadow:0 18px 60px #000b}
+ #creator{left:0;border-right:1px solid var(--line)}#inspector{right:0;border-left:1px solid var(--line)}
+ #creator[data-open="false"]{transform:translateX(-105%)}#inspector[data-open="false"]{transform:translateX(105%)}
+ .mobile{display:block}
+}
+@media(max-width:600px){button,input,select{font-size:16px}.row{grid-template-columns:1fr}.badge{display:none}}
+</style>
+</head>
+<body>
+<div id="app">
+<header id="top">
+<button class="mobile" id="creatorBtn">생성</button>
+<button class="mobile" id="inspectorBtn">진단</button>
+<button id="solarBtn">기본 태양계</button>
+<button id="labBtn">연구실</button>
+<span class="badge">SI · Newtonian N-body · Coulomb · Verification</span>
+</header>
+
+<aside id="creator" class="panel" data-open="true">
+<h3>창조주 — 초기조건</h3>
+<label>객체 종류</label>
+<select id="type"><option value="STAR">항성</option><option value="PLANET">행성</option><option value="MOON">위성</option><option value="BLACK_HOLE">블랙홀</option><option value="ASTEROID">소행성</option></select>
+<label>질량 (kg)</label><input id="mass" type="number" value="5.9722e24" step="any">
+<label>반지름 (m)</label><input id="radius" type="number" value="6371000" step="any">
+<label>전하 (C)</label><input id="charge" type="number" value="0" step="any">
+<label>온도 (K)</label><input id="temperature" type="number" value="288" min="0" step="any">
+<label>거리 — 선택 (AU)</label><input id="distance" type="number" value="1" min="0" step="any">
+<div class="hint">행성·위성은 중심 천체가 존재하면 질량과 거리로부터 2체 원형궤도 속도를 자동 계산한다. 일반 N-body에서는 고유한 '원형속도'가 존재하지 않으므로 그 사실을 표시한다.</div>
+<div class="row"><button id="create">생성</button><button id="clear">전체 삭제</button></div>
+<div class="section"><b>수치 설정</b>
+<label>적분기</label><select id="solver"><option value="verlet">Velocity Verlet</option><option value="rk4">RK4</option><option value="euler">Semi-implicit Euler</option></select>
+<label>dt (s)</label><input id="dt" type="number" value="3600" min="1e-9" step="any">
+<label>최대 substep</label><input id="maxSub" type="number" value="128" min="1" step="1">
+</div>
+</aside>
+
+<main id="view"><canvas id="canvas"></canvas><div id="status"></div><div id="toast"></div>
+<div id="labPanel"><div style="display:flex;justify-content:space-between;align-items:center"><h3>통합 연구실</h3><button id="labClose">닫기</button></div><div id="labOut"></div></div>
+</main>
+
+<aside id="inspector" class="panel" data-open="false">
+<h3>물리 진단</h3><div id="selectedInfo" class="muted">객체를 선택하세요.</div>
+<div class="section"><div class="kv"><div>객체 수<br><b id="count">0</b></div><div>시간<br><b id="simTime">0 s</b></div><div>총 에너지<br><b id="energy">0 J</b></div><div>운동량<br><b id="momentum">0</b></div></div></div>
+<div class="section"><b>보존량 기준</b><div id="diagnostics" class="muted">초기 상태를 생성하면 기준값을 설정합니다.</div></div>
+</aside>
+
+<footer id="bottom">
+<button id="pause">RESUME</button><button id="step">STEP</button><button id="reset">VIEW RESET</button>
+<span class="badge" id="stateBadge">READY</span>
+</footer>
+</div>
+
+<script>
+"use strict";
+const CONST={G:6.67430e-11,C:299792458,KE:8.9875517923e9,AU:149597870700,MS:1.98847e30,ME:5.9722e24,RE:6371000};
+const LIMIT={MAX_BODIES:1000,MAX_DT:CONST.C*CONST.C/CONST.G,MAX_SPEED:CONST.C*(1-1e-12),MAX_POS:1e32};
+class V{
+ constructor(x=0,y=0,z=0){this.x=x;this.y=y;this.z=z}
+ add(v){return new V(this.x+v.x,this.y+v.y,this.z+v.z)}
+ sub(v){return new V(this.x-v.x,this.y-v.y,this.z-v.z)}
+ mul(k){return new V(this.x*k,this.y*k,this.z*k)}
+ dot(v){return this.x*v.x+this.y*v.y+this.z*v.z}
+ cross(v){return new V(this.y*v.z-this.z*v.y,this.z*v.x-this.x*v.z,this.x*v.y-this.y*v.x)}
+ mag2(){return this.dot(this)} mag(){return Math.sqrt(this.mag2())}
+ unit(){const m=this.mag();return m>0?this.mul(1/m):new V()}
+ clone(){return new V(this.x,this.y,this.z)}
+}
+class Body{
+ constructor(type,mass,radius,pos,vel,charge=0,temperature=0){this.id=(crypto.randomUUID?crypto.randomUUID():String(Math.random()));this.type=type;this.mass=mass;this.radius=radius;this.pos=pos;this.vel=vel;this.acc=new V();this.charge=charge;this.temperature=temperature}
+}
+const Physics={
+ accel(bodies){
+  const a=bodies.map(()=>new V());
+  for(let i=0;i<bodies.length;i++)for(let j=i+1;j<bodies.length;j++){
+   const r=bodies[j].pos.sub(bodies[i].pos),r2=r.mag2();if(!(r2>0))continue;
+   const inv=1/Math.sqrt(r2),grav=CONST.G*inv*inv,ef=CONST.KE*bodies[i].charge*bodies[j].charge*inv*inv;
+   a[i]=a[i].add(r.mul(grav*bodies[j].mass*inv/bodies[i].mass)).add(r.mul(ef*inv/bodies[i].mass));
+   a[j]=a[j].add(r.mul(-grav*bodies[i].mass*inv/bodies[j].mass)).add(r.mul(-ef*inv/bodies[j].mass));
+  }
+  return a;
+ },
+ energy(b){
+  let K=0,U=0;
+  for(let i=0;i<b.length;i++){K+=.5*b[i].mass*b[i].vel.mag2();for(let j=i+1;j<b.length;j++){const r=b[i].pos.sub(b[j].pos).mag();if(r>0)U-=CONST.G*b[i].mass*b[j].mass/r,U+=CONST.KE*b[i].charge*b[j].charge/r}}
+  return K+U;
+ },
+ momentum(b){return b.reduce((p,x)=>p.add(x.vel.mul(x.mass)),new V())},
+ angular(b){return b.reduce((l,x)=>l.add(x.pos.cross(x.vel.mul(x.mass))),new V())},
+ validate(b){
+  if(b.length>LIMIT.MAX_BODIES)throw Error("MAX_BODIES");
+  for(const x of b){if(!(x.mass>0&&x.radius>0)||![x.mass,x.radius,x.charge,x.temperature].every(Number.isFinite))throw Error("INVALID_BODY");if(![x.pos.x,x.pos.y,x.pos.z,x.vel.x,x.vel.y,x.vel.z].every(Number.isFinite))throw Error("NONFINITE");if(x.vel.mag()>=LIMIT.MAX_SPEED)throw Error("SUPERLUMINAL");if(x.pos.mag()>LIMIT.MAX_POS)throw Error("POSITION_LIMIT")}
+ },
+ merge(b){
+  const dead=new Set(),out=[];
+  for(let i=0;i<b.length;i++)for(let j=i+1;j<b.length;j++){if(dead.has(i)||dead.has(j))continue;const a=b[i],c=b[j];if(a.pos.sub(c.pos).mag()>a.radius+c.radius)continue;
+   const m=a.mass+c.mass,p=a.pos.mul(a.mass).add(c.pos.mul(c.mass)).mul(1/m),v=a.vel.mul(a.mass).add(c.vel.mul(c.mass)).mul(1/m);
+   let type=a.mass>=c.mass?a.type:c.type;if(m>=3*CONST.MS)type="BLACK_HOLE";
+   const r=type==="BLACK_HOLE"?2*CONST.G*m/(CONST.C*CONST.C):Math.cbrt(a.radius**3+c.radius**3);
+   out.push(new Body(type,m,r,p,v,a.charge+c.charge,(a.temperature*a.mass+c.temperature*c.mass)/m));dead.add(i);dead.add(j);
+  }
+  if(dead.size)return b.filter((_,i)=>!dead.has(i)).concat(out);
+  return b;
+ }
+ circularVelocity(body,center){const r=body.pos.sub(center.pos),d=r.mag();if(!(d>0))return center.vel.clone();return center.vel.add(new V(0,0,1).cross(r).unit().mul(Math.sqrt(CONST.G*(center.mass+body.mass)/d)))}
+};
+const Sim={bodies:[],time:0,running:false,scale:1e-9,panX:0,panY:0,selected:null,base:null,lastDiag:null,
+ snapshot(){return {E:Physics.energy(this.bodies),P:Physics.momentum(this.bodies),L:Physics.angular(this.bodies)}},
+ step(dt){
+  if(!Number.isFinite(dt)||dt<=0||dt>LIMIT.MAX_DT)throw Error("INVALID_DT");
+  Physics.validate(this.bodies);
+  if(!this.bodies.length){this.time+=dt;return}
+  const n=Math.max(1,Math.ceil(dt/Math.max(dt,1))),h=dt/n;
+  for(let s=0;s<n;s++){
+   const a0=Physics.accel(this.bodies);
+   if(UI.solver==="verlet"){
+    for(let i=0;i<this.bodies.length;i++){const x=this.bodies[i];x.vel=x.vel.add(a0[i].mul(.5*h));x.pos=x.pos.add(x.vel.mul(h))}
+    const a1=Physics.accel(this.bodies);for(let i=0;i<this.bodies.length;i++)this.bodies[i].vel=this.bodies[i].vel.add(a1[i].mul(.5*h));
+   }else if(UI.solver==="rk4"){this.rk4(h)}else{for(let i=0;i<this.bodies.length;i++){this.bodies[i].vel=this.bodies[i].vel.add(a0[i].mul(h));this.bodies[i].pos=this.bodies[i].pos.add(this.bodies[i].vel.mul(h))}}
+   Physics.validate(this.bodies);this.bodies=Physics.merge(this.bodies);this.time+=h;
+  }
+  const after=this.snapshot();if(this.base)this.lastDiag={dE:rel(after.E,this.base.E),dP:relV(after.P,this.base.P),dL:relV(after.L,this.base.L)};
+ },
+ rk4(h){
+  const b=this.bodies,n=b.length,s=b.map(x=>({p:x.pos.clone(),v:x.vel.clone()}));
+  const evalK=(factor,ks)=>{for(let i=0;i<n;i++){b[i].pos=s[i].p.add(ks[i].p.mul(factor));b[i].vel=s[i].v.add(ks[i].v.mul(factor))}return Physics.accel(b)};
+  const a0=Physics.accel(b),k1=b.map((x,i)=>({p:x.vel.clone(),v:a0[i].clone()}));
+  const a1=evalK(h/2,k1),k2=b.map((x,i)=>({p:x.vel.clone(),v:a1[i].clone()}));
+  const a2=evalK(h/2,k2),k3=b.map((x,i)=>({p:x.vel.clone(),v:a2[i].clone()}));
+  const a3=evalK(h,k3),k4=b.map((x,i)=>({p:x.vel.clone(),v:a3[i].clone()}));
+  for(let i=0;i<n;i++){b[i].pos=s[i].p.add(k1[i].p.add(k2[i].p.mul(2)).add(k3[i].p.mul(2)).add(k4[i].p).mul(h/6));b[i].vel=s[i].v.add(k1[i].v.add(k2[i].v.mul(2)).add(k3[i].v.mul(2)).add(k4[i].v).mul(h/6))}
+ },
+ primary(){return this.bodies.filter(x=>x.type==="STAR"||x.type==="BLACK_HOLE").sort((a,b)=>b.mass-a.mass)[0]||null}
+};
+function rel(a,b){return Math.abs(a-b)/Math.max(1,Math.abs(a),Math.abs(b))}
+function relV(a,b){return a.sub(b).mag()/Math.max(1,a.mag(),b.mag())}
+const UI={
+ solver:"verlet", $:id=>document.getElementById(id),
+ toast(s){const e=this.$("toast");e.textContent=s;e.classList.add("show");clearTimeout(this.tt);this.tt=setTimeout(()=>e.classList.remove("show"),1400)},
+ render(){draw();inspect();},
+ create(){
+  const type=this.$("type").value,m=Number(this.$("mass").value),r=Number(this.$("radius").value),q=Number(this.$("charge").value),T=Number(this.$("temperature").value),d=Number(this.$("distance").value)*CONST.AU;
+  if(!(m>0&&r>0&&T>=0&&[m,r,q,T,d].every(Number.isFinite)))return this.toast("입력값 오류");
+  const p=Sim.primary(),pos=p?p.pos.add(new V(d||Math.max(CONST.AU,10*(p.radius+r)),0,0)):new V(),v=p?Physics.circularVelocity({pos,vel:new V()},p):new V();
+  const b=new Body(type,m,r,pos,v,q,T);Sim.bodies.push(b);Sim.selected=b.id;if(!Sim.base)Sim.base=Sim.snapshot();Sim.running=true;this.render();this.toast("생성 완료");
+ },
+ solar(){
+  Sim.bodies=[];Sim.time=0;Sim.panX=0;Sim.panY=0;Sim.scale=1e-9;Sim.selected=null;
+  const sun=new Body("STAR",CONST.MS,6.9634e8,new V(),new V(),0,5772),earth=new Body("PLANET",CONST.ME,CONST.RE,new V(CONST.AU,0,0),new V(0,Math.sqrt(CONST.G*(CONST.MS+CONST.ME)/CONST.AU),0),0,288);
+  Sim.bodies=[sun,earth];Sim.selected=earth.id;Sim.base=Sim.snapshot();Sim.running=false;this.render();this.toast("태양–지구 2체 기준계 생성");
+ },
+ clear(){Sim.bodies=[];Sim.time=0;Sim.running=false;Sim.selected=null;Sim.base=null;Sim.lastDiag=null;this.render()},
+ inspect(){
+  this.$("count").textContent=Sim.bodies.length;this.$("simTime").textContent=Sim.time.toExponential(5)+" s";this.$("energy").textContent=Physics.energy(Sim.bodies).toExponential(5)+" J";this.$("momentum").textContent=Physics.momentum(Sim.bodies).mag().toExponential(5);
+  const b=Sim.bodies.find(x=>x.id===Sim.selected);this.$("selectedInfo").innerHTML=b?"<b>"+b.type+"</b><br>m = "+b.mass.toExponential(5)+" kg<br>r = "+b.radius.toExponential(5)+" m<br>q = "+b.charge.toExponential(5)+" C<br>T = "+b.temperature.toExponential(5)+" K<br>v = "+b.vel.mag().toExponential(5)+" m/s":"객체를 선택하세요.";
+  const d=Sim.lastDiag;this.$("diagnostics").innerHTML=d?"ΔE/E = "+d.dE.toExponential(3)+"<br>ΔP/P = "+d.dP.toExponential(3)+"<br>ΔL/L = "+d.dL.toExponential(3):"초기 상태를 생성하면 기준값을 설정합니다.";
+  this.$("pause").textContent=Sim.running?"PAUSE":"RESUME";this.$("stateBadge").textContent=Sim.running?"RUNNING":"PAUSED";
+ },
+ lab(){
+  const b=Sim.bodies,p=Sim.primary(),tests=[];
+  const add=(n,f)=>{try{tests.push("PASS  "+n+"  "+f())}catch(e){tests.push("FAIL  "+n+"  "+e.message)}};
+  add("Constants",()=>CONST.G.toExponential(6));
+  add("Schwarzschild(Msun)",()=>{const r=2*CONST.G*CONST.MS/CONST.C**2;if(Math.abs(r-2953.25)>10)throw Error("residual");return r.toFixed(3)+" m"});
+  add("Momentum finite",()=>String(Physics.momentum(b).mag()));
+  add("Energy finite",()=>{const e=Physics.energy(b);if(!Number.isFinite(e))throw Error("nonfinite");return e.toExponential(4)});
+  add("Circular-orbit formula",()=>p?Math.sqrt(CONST.G*p.mass/Math.max(CONST.AU,1)).toExponential(4)+" m/s":"no primary");
+  const q=1.380649e-23, h=1.054571817e-34;
+  const extra="\nDerived diagnostics\n"+"EOS ideal-gas P(rho=1,T=1e6,mu=.61) = "+(q*1e6/(.61*1.67262192369e-27)).toExponential(4)+" Pa\n"+"Radiation pressure T=1e7 K = "+(7.5657e-16*1e28/3).toExponential(4)+" Pa\n"+"Quantum E0(omega=1) = "+(.5*h).toExponential(4)+" J";
+  this.$("labOut").textContent=tests.join("\n")+extra;this.$("labPanel").style.display="block";
+ },
+ init(){
+  this.$("create").onclick=()=>this.create();this.$("clear").onclick=()=>this.clear();this.$("solarBtn").onclick=()=>this.solar();this.$("labBtn").onclick=()=>this.lab();this.$("labClose").onclick=()=>this.$("labPanel").style.display="none";
+  this.$("pause").onclick=()=>{Sim.running=!Sim.running;this.inspect()};this.$("step").onclick=()=>{try{Sim.step(Number(this.$("dt").value));this.render()}catch(e){Sim.running=false;this.toast("HALT: "+e.message);this.render()}};
+  this.$("reset").onclick=()=>{Sim.scale=1e-9;Sim.panX=0;Sim.panY=0;draw()};
+  this.$("solver").onchange=e=>this.solver=e.target.value;this.$("creatorBtn").onclick=()=>panel("creator");this.$("inspectorBtn").onclick=()=>panel("inspector");
+ }
+};
+function panel(id){document.getElementById("creator").dataset.open=id==="creator"?"true":"false";document.getElementById("inspector").dataset.open=id==="inspector"?"true":"false"}
+const canvas=document.getElementById("canvas"),ctx=canvas.getContext("2d");
+let gesture={active:false,moved:false,x:0,y:0,px:0,py:0};
+function resize(){const r=canvas.parentElement.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2);canvas.width=Math.max(1,Math.round(r.width*d));canvas.height=Math.max(1,Math.round(r.height*d));canvas.style.width=r.width+"px";canvas.style.height=r.height+"px";draw()}
+function project(p){return {x:p.x*Sim.scale+canvas.clientWidth/2+Sim.panX,y:p.y*Sim.scale+canvas.clientHeight/2+Sim.panY}}
+function draw(){
+ const w=canvas.clientWidth,h=canvas.clientHeight,d=Math.min(devicePixelRatio||1,2);ctx.setTransform(d,0,0,d,0,0);ctx.clearRect(0,0,w,h);
+ ctx.fillStyle="#010204";ctx.fillRect(0,0,w,h);
+ const grid=80;ctx.strokeStyle="#101722";ctx.lineWidth=1;for(let x=(w/2+Sim.panX)%grid;x<w;x+=grid){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke()}for(let y=(h/2+Sim.panY)%grid;y<h;y+=grid){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke()}
+ const arr=Sim.bodies.map(b=>({b,p:project(b.pos)})).sort((a,b)=>a.b.pos.z-b.b.pos.z);
+ for(const o of arr){const b=o.b,rr=Math.max(3,Math.min(32,b.radius*Sim.scale*4));ctx.beginPath();ctx.arc(o.p.x,o.p.y,rr,0,Math.PI*2);ctx.fillStyle=b.type==="STAR"?"#ffd45a":b.type==="BLACK_HOLE"?"#000":b.type==="MOON"?"#bfc7d0":b.type==="ASTEROID"?"#82786e":"#4caef4";ctx.fill();ctx.strokeStyle=b.id===Sim.selected?"#fff":"#263448";ctx.lineWidth=b.id===Sim.selected?2:1;ctx.stroke()}
+ document.getElementById("status").textContent="N="+Sim.bodies.length+" | t="+Sim.time.toExponential(4)+" s | solver="+UI.solver+" | dt="+Number(document.getElementById("dt").value).toExponential(3)+" s";
+}
+canvas.addEventListener("pointerdown",e=>{canvas.setPointerCapture(e.pointerId);gesture={active:true,moved:false,x:e.clientX,y:e.clientY,px:e.clientX,py:e.clientY}});
+canvas.addEventListener("pointermove",e=>{if(!gesture.active)return;const dx=e.clientX-gesture.px,dy=e.clientY-gesture.py;if(Math.hypot(e.clientX-gesture.x,e.clientY-gesture.y)>5)gesture.moved=true;if(gesture.moved){Sim.panX+=dx;Sim.panY+=dy;draw()}gesture.px=e.clientX;gesture.py=e.clientY});
+canvas.addEventListener("pointerup",e=>{if(!gesture.active)return;try{canvas.releasePointerCapture(e.pointerId)}catch(_){}if(!gesture.moved){let best=null,bd=18;for(const b of Sim.bodies){const p=project(b.pos),d=Math.hypot(p.x-e.offsetX,p.y-e.offsetY);if(d<bd){bd=d;best=b}}if(best){Sim.selected=best.id;UI.render();panel("inspector")}else UI.create()}gesture.active=false});
+canvas.addEventListener("pointercancel",()=>gesture.active=false);
+window.addEventListener("resize",resize);
+function loop(){if(Sim.running){try{Sim.step(Number(document.getElementById("dt").value))}catch(e){Sim.running=false;UI.toast("HALT: "+e.message)}}UI.render();requestAnimationFrame(loop)}
+UI.init();resize();UI.solar();requestAnimationFrame(loop);
+</script>
+</body>
+</html>
