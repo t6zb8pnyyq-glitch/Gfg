@@ -142,7 +142,15 @@ def build_universe_creator():
     js = ""
     for mod in MODULES_ORDER:
         with open(mod, "r") as f:
-            js += f.read() + "\n\n"
+            src = f.read()
+        if mod == "vendor/astronomy-engine.min.js":
+            # Astronomy Engine's distributed bundle is CommonJS-compatible and
+            # expects a global `exports` object. CodePen runs the artifact as
+            # a browser script, so provide an isolated CommonJS shim and publish
+            # the resulting API as window.Astronomy.
+            js += "(function(global){\\nvar exports = {};\\n" + src + "\\n" + "global.Astronomy = exports;\\n})(window);\\n\\n"
+        else:
+            js += src + "\\n\\n"
 
     init_call = "\nwindow.addEventListener('DOMContentLoaded', () => { UI.init(); Renderer.init(); Labs.loadLab('GRAVITY'); Engine.loop(); });\n"
 
@@ -155,6 +163,15 @@ def build_universe_creator():
     artifact = html_header + css + html_mid + js + init_call + html_footer
     if "<script src=" in artifact or "<link " in artifact:
         raise RuntimeError("Standalone CodePen artifact contains an external runtime dependency")
+    # The standalone browser artifact must never depend on an ambient CommonJS
+    # `exports` binding. The only allowed occurrence is inside the explicit
+    # Astronomy Engine compatibility shim above.
+    if "exports =" not in artifact:
+        raise RuntimeError("Astronomy Engine browser compatibility shim missing")
+    import re
+    cleaned = re.sub(r"\\(function\\(global\\).*?global\\.Astronomy = exports;\\n\\}\\)\\(window\\);", "", artifact, flags=re.S)
+    if "exports." in cleaned or "module.exports" in cleaned or "require(" in cleaned:
+        raise RuntimeError("CommonJS runtime dependency leaked into standalone artifact")
     if artifact.count("<html") != 1 or artifact.count("</html>") != 1:
         raise RuntimeError("Invalid standalone HTML document")
     if artifact.count("<script>") != 1:
