@@ -44,7 +44,7 @@ const Labs = {
         } else if(labName==="GR"){
             info="Schwarzschild timelike + null geodesic laboratory with invariant checks."; Engine.activeModels=[];
             const M=PhysicsConstants.M_sun,r0=10*GRGeodesic.schwarzschildRadius(M),A=1-GRGeodesic.schwarzschildRadius(M)/r0,state=[0,r0,0,1/Math.sqrt(A),0,0.0001];
-            let s=state;for(let i=0;i<100;i++)s=GRGeodesic.rk4(s,1,M);const nullState=[0,r0,0,1,0,0.01/r0];let ns=nullState;for(let i=0;i<100;i++)ns=GRGeodesic.rk4Null(ns,1,M);Diagnostics.grState={timelike:s,null:ns,nullInvariant:GRGeodesic.nullNormalization(ns,M)};info+="<br><br>[GR STATE]<br>Timelike geodesic integration completed; redshift factor: "+GRGeodesic.redshiftFactor(r0,M).toExponential(6);
+            let s=state;for(let i=0;i<100;i++)s=GRGeodesic.rk4(s,1,M);const nullState=[0,r0,0,1/(1-GRGeodesic.schwarzschildRadius(M)/r0),1,0];let ns=nullState;for(let i=0;i<100;i++)ns=GRGeodesic.rk4Null(ns,1,M);Diagnostics.grState={timelike:s,null:ns,nullInvariant:GRGeodesic.nullNormalization(ns,M)};info+="<br><br>[GR STATE]<br>Timelike geodesic integration completed; redshift factor: "+GRGeodesic.redshiftFactor(r0,M).toExponential(6);
         } else if(labName==="COSMOLOGY"){
             info="빅뱅 팽창 (프리드만 우주론).";Engine.activeModels=[];
             const history=CosmologyEngine.solveFriedmann(PhysicsConstants.H0_s,.3,0,.7,PhysicsConstants.yr*1e9,PhysicsConstants.yr*1e7,.1);Diagnostics.cosmologyHistory=history;
