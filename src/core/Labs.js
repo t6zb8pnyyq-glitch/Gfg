@@ -54,6 +54,45 @@ const Labs = {
                 let q_res = QuantumEngine.solve1DSchrodinger(V, 0.1, 0.01, 100, m_e);
                 info += `<br><br>[QUANTUM STATE]<br>Wavepacket Normalized Integration Complete.<br>Max Probability Amplitude: ${Math.max(...q_res.re).toExponential(3)}`;
             }
+            else if(labName === 'MHD') {
+                info = "1D ideal MHD conservative finite-volume laboratory (Rusanov flux).";
+                Engine.activeModels = [];
+                const N=64, dx=1e7, Bx=1e-3;
+                const U=[];
+                for(let i=0;i<N;i++){
+                    const left=i<N/2, rho=left?1e-6:1.25e-6, p=left?1e5:1e4, vx=left?0:0, By=left?1e-3: -1e-3;
+                    const E=p/(5/3-1)+0.5*rho*vx*vx+0.5*(Bx*Bx+By*By)/PhysicsConstants.mu_0;
+                    const u=[rho,rho*vx,0,0,E,By,0]; u.Bx=Bx; U.push(u);
+                }
+                const evolved=MHD1D.step(U,dx,100, Bx);
+                Diagnostics.mhdState=evolved;
+                info += "<br><br>[MHD STATE]<br>64-cell conservative update completed.";
+            }
+            else if(labName === 'RADIATION') {
+                info = "Grey radiative diffusion laboratory with optical-depth diagnostics.";
+                Engine.activeModels = [];
+                const N=64,T=new Float64Array(N),rho=new Float64Array(N),k=new Float64Array(N);
+                for(let i=0;i<N;i++){T[i]=300+7000*Math.exp(-((i-N/2)/(N/6))**2);rho[i]=1e-4;k[i]=0.34;}
+                const out=RadiationTransport.stepGreyDiffusion(T,rho,k,1e7,10);
+                Diagnostics.radiationTemperature=out;
+                info += "<br><br>[RADIATION STATE]<br>Grey diffusion step completed.";
+            }
+            else if(labName === 'STELLAR') {
+                info = "1D hydrostatic stellar structure (EOS + opacity + analytic reaction-rate source terms).";
+                Engine.activeModels = [];
+                const model=StellarStructure.integrate({rho_c:1.6e5,T_c:1.5e7,Mmax:PhysicsConstants.M_sun,dm:PhysicsConstants.M_sun/4000});
+                Diagnostics.stellarProfile=model.profile;
+                info += "<br><br>[STELLAR STATE]<br>Integrated shells: "+model.profile.length+"<br>Enclosed mass: "+model.mass.toExponential(3)+" kg";
+            }
+            else if(labName === 'GR') {
+                info = "Schwarzschild geodesic laboratory using proper-time equations.";
+                Engine.activeModels = [];
+                const M=PhysicsConstants.M_sun, r0=10*GRGeodesic.schwarzschildRadius(M);
+                const state=[0,r0,0,PhysicsConstants.c,0,0.0001];
+                let s=state; for(let i=0;i<100;i++) s=GRGeodesic.rk4(s,0.01,M);
+                Diagnostics.grState=s;
+                info += "<br><br>[GR STATE]<br>Geodesic integration completed; redshift factor: "+GRGeodesic.redshiftFactor(r0,M).toExponential(6);
+            }
             else if(labName === 'COSMOLOGY') {
                 info = "빅뱅 팽창 (프리드만 우주론). 척도 인자 a(t) 진화 확인 완료.";
 
