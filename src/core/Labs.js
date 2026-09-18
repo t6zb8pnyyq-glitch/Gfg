@@ -2,7 +2,7 @@ const Labs = {
     current:"GRAVITY",
     loadLab:function(labName){
         this.current=labName; Engine.objects=[]; Diagnostics.initEnergy=null; Diagnostics.initialMomentum=null; Diagnostics.initialAngularMomentum=null; Engine.time=0; Engine.status="STABLE"; Engine.paused=false;
-        Engine.activeModels=["Gravity","Collision","Thermodynamics"];
+        Engine.activeModels=["Gravity","Collision","Nuclear","Thermodynamics"];
         document.querySelectorAll(".lab-module").forEach(b=>b.classList.remove("active"));
         try{document.getElementById("btn-lab-"+labName).classList.add("active")}catch(e){}
         let info="";
