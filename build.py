@@ -131,11 +131,7 @@ def build_universe_creator():
     </div>
 
     <script>
-    let canvas, ctx;
-    let isDragging = false;
-    let lastMouse = {x:0, y:0};
-    let camera = { distance: 1e9, rot: {x: 0, y: 0} };
-"""
+    """
 
     js = ""
     for mod in MODULES_ORDER:
