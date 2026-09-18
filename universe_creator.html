@@ -108,13 +108,7 @@
 </head>
 <body>
     <div id="layout-container">
-        <div id="module-bar">
-            <span class="lab-module active" onclick="Labs.loadLab('SOLAR_SYSTEM')">중력/궤도 역학 (Solar)</span>
-            <span class="lab-module" onclick="Labs.loadLab('GALAXY')">은하 시뮬레이션 (Galaxy)</span>
-            <span class="lab-module" onclick="Labs.loadLab('SPH_FLUID')">유체역학/SPH</span>
-            <span class="lab-module" onclick="Labs.loadLab('NUCLEAR_STAR')">항성/핵물리학</span>
-            <span class="lab-module" onclick="Labs.loadLab('QUANTUM_RELATIVITY')">양자/상대성 (Test)</span>
-        </div>
+        <div id="module-bar" aria-label="물리 실험 모듈"></div>
 
         <div id="viewport-container">
             <canvas id="universe-canvas"></canvas>
@@ -183,7 +177,7 @@
         <button id="btn-close-audit" type="button" style="float:right;background:var(--danger);width:auto;">닫기</button>
         <h2>과학적 검증 프레임워크 결과</h2>
         <div id="validation-results"></div>
-        <button onclick="document.getElementById('validation-modal').style.display='none'" style="margin-top:20px;">닫기</button>
+        
     </div>
 
     <script>
