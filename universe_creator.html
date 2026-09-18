@@ -911,13 +911,13 @@ const Labs = {
             else if(labName === 'MULTISTAR') {
                 info="계층형 4중항성 N-body 실험. 두 개의 내부 쌍성계가 공전하는 초기조건.";
                 Engine.gravityAlgorithm="DIRECT"; document.getElementById('sys-gravity').value="DIRECT";
-                const M=PhysicsConstants.M_sun,Rin=1.5*PhysicsConstants.AU,Rout=12*PhysicsConstants.AU;
-                const vIn=Math.sqrt(PhysicsConstants.G*M/(2*Rin)),vOut=Math.sqrt(PhysicsConstants.G*(4*M)/(2*Rout));
+                const M=PhysicsConstants.M_sun,Rin=1.0*PhysicsConstants.AU,Rout=30*PhysicsConstants.AU;
+                const vIn=Math.sqrt(PhysicsConstants.G*M/(2*Rin)),vOut=Math.sqrt(PhysicsConstants.G*M/Rout);
                 const pair1=[new Vec3(-Rin,0,0),new Vec3(Rin,0,0)],pair2=[new Vec3(Rout-Rin,0,0),new Vec3(Rout+Rin,0,0)];
-                Engine.objects.push(new PhysicalBody("A1","STAR",M,6.96e8,pair1[0],new Vec3(0,-vIn,0)));
-                Engine.objects.push(new PhysicalBody("A2","STAR",M,6.96e8,pair1[1],new Vec3(0,vIn,0)));
-                Engine.objects.push(new PhysicalBody("B1","STAR",M,6.96e8,pair2[0],new Vec3(0,vOut,0)));
-                Engine.objects.push(new PhysicalBody("B2","STAR",M,6.96e8,pair2[1],new Vec3(0,-vOut,0)));
+                Engine.objects.push(new PhysicalBody("A1","STAR",M,6.96e8,pair1[0],new Vec3(0,-vIn-vOut,0)));
+                Engine.objects.push(new PhysicalBody("A2","STAR",M,6.96e8,pair1[1],new Vec3(0,vIn-vOut,0)));
+                Engine.objects.push(new PhysicalBody("B1","STAR",M,6.96e8,pair2[0],new Vec3(0,vIn+vOut,0)));
+                Engine.objects.push(new PhysicalBody("B2","STAR",M,6.96e8,pair2[1],new Vec3(0,-vIn+vOut,0)));
                 Engine.dt=21600;Renderer.scale=2e-11;
             }
             else if(labName === 'BLACKHOLE') {
