@@ -22,8 +22,8 @@ const Engine={
             this.validateState();
             if(!(this.dt>0&&Number.isFinite(this.dt)&&this.dt>=this.minDt&&this.dt<=this.maxDt))throw new Error("잘못된 timestep");
             const t=String(this.integratorType).toLowerCase();
-            if(t==="euler")Integrators.eulerSemiImplicit(this.objects,this.dt,this.getAccelerations(this.objects));
-            else if(t==="verlet")Integrators.verlet(this.objects,this.dt,obs=>this.getAccelerations(obs));
+            if(t==="euler"){ this._acceptedDt=this.dt; Integrators.eulerSemiImplicit(this.objects,this.dt,this.getAccelerations(this.objects)); }
+            else if(t==="verlet"){ this._acceptedDt=this.dt; Integrators.verlet(this.objects,this.dt,obs=>this.getAccelerations(obs)); }
             else if(t==="rk4"){
                 if(this.adaptiveDt){
                     const r=Integrators.rk4Adaptive(this.objects,this.dt,obs=>this.getAccelerations(obs),this.adaptiveTolerance,this.minDt,this.maxAdaptiveAttempts);
@@ -38,9 +38,9 @@ const Engine={
             }
             else throw new Error("알 수 없는 integrator: "+this.integratorType);
             if(this.activeModels.includes("Fluid"))FluidEngine.computeSPH(this.objects);
-            if(this.activeModels.includes("Nuclear"))NuclearEngine.computeFusion(this.dt,this.objects);
+            if(this.activeModels.includes("Nuclear"))NuclearEngine.computeFusion(this._acceptedDt||this.dt,this.objects);
             if(this.activeModels.includes("Collision"))CollisionEngine.checkAndResolve(this.objects);
-            if(this.activeModels.includes("Thermodynamics")){ThermoEngine.updateTemperature(this.objects);ThermoEngine.computeRadiation(this.dt,this.objects);}
+            if(this.activeModels.includes("Thermodynamics")){ThermoEngine.updateTemperature(this.objects);ThermoEngine.computeRadiation(this._acceptedDt||this.dt,this.objects);}
             this.validateState();
             this.time+=this._acceptedDt||this.dt;
             Diagnostics.update(this.objects);UI.updateInspector();
