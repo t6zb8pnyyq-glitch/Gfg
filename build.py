@@ -52,6 +52,8 @@ def build_universe_creator():
 <body>
     <div id="layout-container" style="touch-action:manipulation;">
         <div id="module-bar">
+            <button type="button" class="mobile-drawer-btn" onclick="UI.togglePanel('creator')">생성기</button>
+            <button type="button" class="mobile-drawer-btn" onclick="UI.togglePanel('inspector')">진단</button>
             <button type="button" id="btn-lab-GRAVITY" class="lab-module active" onclick="Labs.loadLab('GRAVITY')">중력/궤도</button>
             <button type="button" id="btn-lab-GALAXY" class="lab-module" onclick="Labs.loadLab('GALAXY')">은하 N-body</button>
             <button type="button" id="btn-lab-SPH_FLUID" class="lab-module" onclick="Labs.loadLab('SPH_FLUID')">SPH 유체</button>
