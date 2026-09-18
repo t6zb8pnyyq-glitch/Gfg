@@ -1,6 +1,6 @@
 const UI = {
         init: function() {
-            let tabs = ['GRAVITY', 'GALAXY', 'SPH_FLUID', 'NUCLEAR', 'QUANTUM', 'COSMOLOGY'];
+            let tabs = ['GRAVITY', 'MULTISTAR', 'GALAXY', 'BLACKHOLE', 'SPH_FLUID', 'MHD', 'RADIATION', 'NUCLEAR', 'STELLAR', 'GR', 'QUANTUM', 'COSMOLOGY'];
             let html = "";
             for(let t of tabs) { html += `<button id="btn-lab-${t}" class="lab-btn" onclick="Labs.loadLab('${t}')">${t}</button>`; }
             document.getElementById('module-bar').innerHTML = html;
