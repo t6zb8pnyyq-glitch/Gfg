@@ -504,65 +504,30 @@ class OctreeNode {
     }
 
 const GravityEngine = {
-        computeAccelerations: function(objects, useBarnesHut) {
-            let accels = new Array(objects.length).fill(null).map(() => new Vec3());
-
-            if(useBarnesHut && objects.length > 50) {
-                // Barnes-Hut O(N log N)
-                let min = new Vec3(Infinity, Infinity, Infinity);
-                let max = new Vec3(-Infinity, -Infinity, -Infinity);
-                for(let o of objects) {
-                    min.x = Math.min(min.x, o.pos.x); min.y = Math.min(min.y, o.pos.y); min.z = Math.min(min.z, o.pos.z);
-                    max.x = Math.max(max.x, o.pos.x); max.y = Math.max(max.y, o.pos.y); max.z = Math.max(max.z, o.pos.z);
+    computeAccelerations:function(objects,useBarnesHut){
+        const accels=new Array(objects.length).fill(null).map(()=>new Vec3());
+        if(useBarnesHut&&objects.length>50){
+            let min=new Vec3(Infinity,Infinity,Infinity),max=new Vec3(-Infinity,-Infinity,-Infinity);
+            for(const o of objects){min.x=Math.min(min.x,o.pos.x);min.y=Math.min(min.y,o.pos.y);min.z=Math.min(min.z,o.pos.z);max.x=Math.max(max.x,o.pos.x);max.y=Math.max(max.y,o.pos.y);max.z=Math.max(max.z,o.pos.z)}
+            const size=Math.max(max.x-min.x,max.y-min.y,max.z-min.z)+1,root=new OctreeNode(new BBox(min.x,min.y,min.z,size)),theta=.5;
+            for(const o of objects)root.insert(o);
+            function force(node,body){
+                if(node.mass===0)return new Vec3();
+                if(!node.children&&node.body===body)return new Vec3();
+                const rv=node.centerOfMass.sub(body.pos),r2=rv.magSq();if(r2===0)return new Vec3();
+                const r=Math.sqrt(r2);
+                if(!node.children||(!node.box.contains(body.pos)&&(node.box.size/r)<theta)){
+                    const f=PhysicsConstants.G*node.mass/r2;return rv.mult(f/r);
                 }
-                let size = Math.max(max.x - min.x, max.y - min.y, max.z - min.z) + 1;
-                let root = new OctreeNode(new BBox(min.x, min.y, min.z, size));
-                for(let o of objects) root.insert(o);
-
-                let theta = 0.5; // accuracy param
-
-                function calculateForce(node, body) {
-                    if(node.mass === 0) return new Vec3();
-                    let rVec = node.centerOfMass.sub(body.pos);
-                    let rSq = rVec.magSq();
-                    let r = Math.sqrt(rSq);
-                    if(r === 0) return new Vec3();
-
-                    if(node.children === null || (node.box.size / r) < theta) {
-                        let fMag = PhysicsConstants.G * node.mass / rSq;
-                        return rVec.mult(fMag / r);
-                    } else {
-                        let acc = new Vec3();
-                        for(let i=0; i<8; i++) acc = acc.add(calculateForce(node.children[i], body));
-                        return acc;
-                    }
-                }
-
-                for(let i=0; i<objects.length; i++) {
-                    accels[i] = calculateForce(root, objects[i]);
-                }
-
-            } else {
-                // Direct O(N^2)
-                for(let i=0; i<objects.length; i++) {
-                    for(let j=i+1; j<objects.length; j++) {
-                        let rVec = objects[j].pos.sub(objects[i].pos);
-                        let rSq = rVec.magSq();
-                        if(rSq === 0) continue;
-                        let r = Math.sqrt(rSq);
-                        let fMag = PhysicsConstants.G / rSq;
-
-                        let a_i = rVec.mult(fMag * objects[j].mass / r);
-                        let a_j = rVec.mult(-fMag * objects[i].mass / r);
-
-                        accels[i] = accels[i].add(a_i);
-                        accels[j] = accels[j].add(a_j);
-                    }
-                }
+                let a=new Vec3();for(const child of node.children)a=a.add(force(child,body));return a;
             }
-            return accels;
+            for(let i=0;i<objects.length;i++)accels[i]=force(root,objects[i]);
+        }else{
+            for(let i=0;i<objects.length;i++)for(let j=i+1;j<objects.length;j++){const rv=objects[j].pos.sub(objects[i].pos),r2=rv.magSq();if(r2===0)continue;const r=Math.sqrt(r2),f=PhysicsConstants.G/r2,ai=rv.mult(f*objects[j].mass/r),aj=rv.mult(-f*objects[i].mass/r);accels[i]=accels[i].add(ai);accels[j]=accels[j].add(aj)}
         }
+        return accels;
     }
+};
 
 const CollisionEngine = {
     checkAndResolve(objects) {
@@ -854,91 +819,23 @@ const RelativityEngine = {
         }
     }
 
-const QuantumEngine = {
-    _solveTridiagonalComplex(aRe, aIm, bRe, bIm, cRe, cIm, dRe, dIm) {
-        const n = dRe.length;
-        const cr = new Float64Array(n), ci = new Float64Array(n);
-        const dr = new Float64Array(n), di = new Float64Array(n);
-        const den = (x,y) => x*x + y*y;
-        const div = (xr,xi,yr,yi) => {
-            const q = den(yr,yi);
-            return [(xr*yr+xi*yi)/q, (xi*yr-xr*yi)/q];
-        };
-        [cr[0],ci[0]] = div(cRe[0],cIm[0],bRe[0],bIm[0]);
-        [dr[0],di[0]] = div(dRe[0],dIm[0],bRe[0],bIm[0]);
-        for(let i=1;i<n;i++){
-            const pr=aRe[i]*cr[i-1]-aIm[i]*ci[i-1];
-            const pi=aRe[i]*ci[i-1]+aIm[i]*cr[i-1];
-            const br=bRe[i]-pr, bi=bIm[i]-pi;
-            const qr=aRe[i]*dr[i-1]-aIm[i]*di[i-1];
-            const qi=aRe[i]*di[i-1]+aIm[i]*dr[i-1];
-            const rr=dRe[i]-qr, ri=dIm[i]-qi;
-            [cr[i],ci[i]]=i<n-1?div(cRe[i],cIm[i],br,bi):[0,0];
-            [dr[i],di[i]]=div(rr,ri,br,bi);
-        }
-        const xr=new Float64Array(n),xi=new Float64Array(n);
-        xr[n-1]=dr[n-1];xi[n-1]=di[n-1];
-        for(let i=n-2;i>=0;i--){
-            const pr=cr[i]*xr[i+1]-ci[i]*xi[i+1];
-            const pi=cr[i]*xi[i+1]+ci[i]*xr[i+1];
-            xr[i]=dr[i]-pr;xi[i]=di[i]-pi;
-        }
-        return {re:xr,im:xi};
+const QuantumEngine={
+    _solveTridiagonalComplex(aRe,aIm,bRe,bIm,cRe,cIm,dRe,dIm){
+        const n=dRe.length,cr=new Float64Array(n),ci=new Float64Array(n),dr=new Float64Array(n),di=new Float64Array(n),den=(x,y)=>x*x+y*y,div=(xr,xi,yr,yi)=>{const q=den(yr,yi);if(q===0)throw new Error("Singular complex tridiagonal pivot");return[(xr*yr+xi*yi)/q,(xi*yr-xr*yi)/q]};
+        cr[0]=n>1?div(cRe[0],cIm[0],bRe[0],bIm[0])[0]:0;ci[0]=n>1?div(cRe[0],cIm[0],bRe[0],bIm[0])[1]:0;[dr[0],di[0]]=div(dRe[0],dIm[0],bRe[0],bIm[0]);
+        for(let i=1;i<n;i++){const pr=aRe[i]*cr[i-1]-aIm[i]*ci[i-1],pi=aRe[i]*ci[i-1]+aIm[i]*cr[i-1],br=bRe[i]-pr,bi=bIm[i]-pi,qr=aRe[i]*dr[i-1]-aIm[i]*di[i-1],qi=aRe[i]*di[i-1]+aIm[i]*dr[i-1],rr=dRe[i]-qr,ri=dIm[i]-qi;if(i<n-1)[cr[i],ci[i]]=div(cRe[i],cIm[i],br,bi);[dr[i],di[i]]=div(rr,ri,br,bi)}
+        const xr=new Float64Array(n),xi=new Float64Array(n);xr[n-1]=dr[n-1];xi[n-1]=di[n-1];for(let i=n-2;i>=0;i--){const pr=cr[i]*xr[i+1]-ci[i]*xi[i+1],pi=cr[i]*xi[i+1]+ci[i]*xr[i+1];xr[i]=dr[i]-pr;xi[i]=di[i]-pi}return{re:xr,im:xi};
     },
-
-    normalize(re, im, dx) {
-        let norm=0;
-        for(let i=0;i<re.length;i++) norm += re[i]*re[i]+im[i]*im[i];
-        norm=Math.sqrt(norm*dx);
-        if(!Number.isFinite(norm)||norm===0) throw new Error("Quantum normalization failed");
-        for(let i=0;i<re.length;i++){re[i]/=norm;im[i]/=norm;}
-    },
-
-    norm(re, im, dx) {
-        let n=0; for(let i=0;i<re.length;i++) n+=re[i]*re[i]+im[i]*im[i];
-        return n*dx;
-    },
-
-    solve1DSchrodinger(V_array, dx, dt, steps, particleMass) {
-        const N=V_array.length;
-        if(N<3||!(dx>0)||!(dt>0)||!(steps>=0)||!(particleMass>0)) throw new Error("Invalid quantum solver parameters");
-        const hbar=PhysicsConstants.h_bar, m=particleMass;
-        const re=new Float64Array(N), im=new Float64Array(N);
-        const x0=(N-1)*0.25, sigma=Math.max(2,N/20);
-        for(let i=1;i<N-1;i++) re[i]=Math.exp(-Math.pow(i-x0,2)/(2*sigma*sigma));
-        this.normalize(re,im,dx);
-
-        // Crank-Nicolson: (I + i dt H / 2hbar) psi(n+1) =
-        // (I - i dt H / 2hbar) psi(n), unconditionally stable for Hermitian H.
-        const t=hbar*hbar/(2*m*dx*dx);
-        for(let step=0;step<steps;step++){
-            const ar=new Float64Array(N),ai=new Float64Array(N);
-            const br=new Float64Array(N),bi=new Float64Array(N);
-            const cr=new Float64Array(N),ci=new Float64Array(N);
-            const dr=new Float64Array(N),di=new Float64Array(N);
-            for(let i=1;i<N-1;i++){
-                const hdiag=2*t+V_array[i];
-                ar[i]=0; ai[i]=-dt*t/(2*hbar);
-                br[i]=1; bi[i]=dt*hdiag/(2*hbar);
-                cr[i]=0; ci[i]=-dt*t/(2*hbar);
-                // RHS is assembled directly below from the Hermitian Hamiltonian.
-            }
-            // Correct RHS directly from H: psi - i*dt/(2hbar) H psi.
-            for(let i=1;i<N-1;i++){
-                const hR=-t*re[i-1]+(2*t+V_array[i])*re[i]-t*re[i+1];
-                const hI=-t*im[i-1]+(2*t+V_array[i])*im[i]-t*im[i+1];
-                dr[i]=re[i]+dt*hI/(2*hbar);
-                di[i]=im[i]-dt*hR/(2*hbar);
-            }
-            const sol=this._solveTridiagonalComplex(ar,ai,br,bi,cr,ci,dr,di);
-            re.set(sol.re);im.set(sol.im);
-            re[0]=re[N-1]=im[0]=im[N-1]=0;
-            this.normalize(re,im,dx);
-        }
-        return {re,im,norm:this.norm(re,im,dx),method:"Crank-Nicolson",boundary:"Dirichlet psi=0"};
+    normalize(re,im,dx){let n=0;for(let i=0;i<re.length;i++)n+=re[i]*re[i]+im[i]*im[i];n=Math.sqrt(n*dx);if(!Number.isFinite(n)||n===0)throw new Error("Quantum normalization failed");for(let i=0;i<re.length;i++){re[i]/=n;im[i]/=n}},
+    norm(re,im,dx){let n=0;for(let i=0;i<re.length;i++)n+=re[i]*re[i]+im[i]*im[i];return n*dx},
+    solve1DSchrodinger(V,dx,dt,steps,m){
+        const N=V.length;if(N<3||!(dx>0)||!(dt>0)||!(steps>=0)||!(m>0)||!V.every(Number.isFinite))throw new Error("Invalid quantum solver parameters");
+        const h=PhysicsConstants.h_bar,re=new Float64Array(N),im=new Float64Array(N),x0=(N-1)*.25,sigma=Math.max(2,N/20);for(let i=1;i<N-1;i++)re[i]=Math.exp(-Math.pow(i-x0,2)/(2*sigma*sigma));this.normalize(re,im,dx);
+        const n=N-2,t=h*h/(2*m*dx*dx),ar=new Float64Array(n),ai=new Float64Array(n),br=new Float64Array(n),bi=new Float64Array(n),cr=new Float64Array(n),ci=new Float64Array(n),dr=new Float64Array(n),di=new Float64Array(n);
+        for(let step=0;step<steps;step++){for(let j=0;j<n;j++){const i=j+1,H=2*t+V[i];ar[j]=0;ai[j]=dt*t/(2*h);br[j]=1;bi[j]=dt*H/(2*h);cr[j]=0;ci[j]=dt*t/(2*h);const hr=-t*re[i-1]+H*re[i]-t*re[i+1],hi=-t*im[i-1]+H*im[i]-t*im[i+1];dr[j]=re[i]+dt*hi/(2*h);di[j]=im[i]-dt*hr/(2*h)}const sol=this._solveTridiagonalComplex(ar,ai,br,bi,cr,ci,dr,di);re.fill(0);im.fill(0);for(let j=0;j<n;j++){re[j+1]=sol.re[j];im[j+1]=sol.im[j]}this.normalize(re,im,dx)}
+        return{re,im,norm:this.norm(re,im,dx),method:"Crank-Nicolson",boundary:"Dirichlet psi=0"};
     }
 };
-
 
 const CosmologyEngine={derivative(a,H0,Om,Or,Ol){if(!(a>0))throw new Error("Scale factor must be positive");const E2=Om*a**-3+Or*a**-4+Ol;if(E2<0)throw new Error("Friedmann H^2 became negative");return a*H0*Math.sqrt(E2)},solveFriedmann(H0_si,Omega_m,Omega_r,Omega_lambda,t_end,dt,a_initial=1){if(!(H0_si>0&&t_end>=0&&dt>0&&a_initial>0))throw new Error("Invalid Friedmann parameters");const h=(a)=>this.derivative(a,H0_si,Omega_m,Omega_r,Omega_lambda);let a=a_initial,t=0,history=[];while(t<=t_end){history.push({t,a});if(t+dt>t_end)break;const k1=h(a),k2=h(a+dt*k1/2),k3=h(a+dt*k2/2),k4=h(a+dt*k3);a+=dt*(k1+2*k2+2*k3+k4)/6;if(!(a>0&&Number.isFinite(a)))throw new Error("Friedmann integration diverged");t+=dt}return history}};
 
