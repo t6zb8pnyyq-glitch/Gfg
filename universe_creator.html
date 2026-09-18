@@ -1382,7 +1382,7 @@ const Integrators = {
     },
 
     leapfrogKDK: function(objects, dt, getAccelsFn) {
-        if(!(dt>0)||!Number.isFinite(dt)) throw new Error("Invalid leapfrog timestep");
+        if(!(dt!==0)||!Number.isFinite(dt)) throw new Error("Invalid leapfrog timestep");
         const a0=getAccelsFn(objects);
         for(let i=0;i<objects.length;i++) objects[i].vel=objects[i].vel.add(a0[i].mult(0.5*dt));
         for(let i=0;i<objects.length;i++) objects[i].pos=objects[i].pos.add(objects[i].vel.mult(dt));
