@@ -43,7 +43,7 @@ h2,h3{margin:3px 0 14px}h3{font-size:15px}label{display:block;margin:10px 0 5px;
 <button id="create" style="width:100%">현재 위치에 생성</button>
 <button id="clear" style="width:100%;margin-top:7px">전체 삭제</button>
 </aside>
-<aside id="inspector" class="panel" data-open="false">
+<section class="panel" id="diagnosticsPanel"><h3>검증</h3><div id="diag"></div></section><aside id="inspector" class="panel" data-open="false">
 <h3>물리 진단</h3><div id="info">객체를 선택하세요.</div>
 <hr>
 <div>객체 수: <b id="count">0</b></div>
@@ -115,7 +115,7 @@ const PhysicsLab={
   }
 };
 
-const PhysicsValidator={
+const LIMITS={MAX_DT:86400*365,MAX_BODIES:2000,MAX_SPEED:299792458*(1-1e-12),MAX_REL_DRIFT:1e-5};\nconst PhysicsValidator={
 finiteBody(b){return [b.mass,b.radius,b.pos.x,b.pos.y,b.pos.z,b.vel.x,b.vel.y,b.vel.z,b.acc.x,b.acc.y,b.acc.z].every(Number.isFinite)&&b.mass>0&&b.radius>0},
 finiteSystem(bodies){return bodies.every(this.finiteBody)},
 momentum(bodies){return bodies.reduce((p,b)=>p.add(b.vel.mul(b.mass)),new V())},
@@ -136,8 +136,8 @@ const inv=1/Math.sqrt(r2),k=G*inv/r2;
 a[i]=a[i].add(r.mul(k*b[j].mass));a[j]=a[j].add(r.mul(-k*b[i].mass));
 }return a},
 step(dt){
-if(!Number.isFinite(dt)||dt<=0)throw new Error("INVALID_DT");
-if(!PhysicsValidator.finiteSystem(this.bodies))throw new Error("INVALID_STATE");
+if(!Number.isFinite(dt)||dt<=0||dt>LIMITS.MAX_DT)throw new Error("INVALID_DT");
+if(this.bodies.length>LIMITS.MAX_BODIES)throw new Error("MAX_BODIES_EXCEEDED");\nif(!PhysicsValidator.finiteSystem(this.bodies))throw new Error("INVALID_STATE");\nfor(const b of this.bodies)if(b.vel.mag()>=LIMITS.MAX_SPEED)throw new Error("SUPERLUMINAL_STATE");
 const before=PhysicsValidator.snapshot(this.bodies);
 if(!(dt>0&&Number.isFinite(dt)))throw new Error("dt must be positive and finite");
 const a0=this.accel(this.bodies);
@@ -255,7 +255,13 @@ if(m>0&&rad>0)Sim.create(UI.$("type").value,m,rad,new V(wx,wy,0)),UI.render();
 canvas.addEventListener("pointercancel",()=>gesture=null);
 canvas.addEventListener("wheel",e=>{e.preventDefault();Sim.scale=Math.min(1e-2,Math.max(1e-18,Sim.scale*Math.exp(-e.deltaY*.001)));UI.draw()},{passive:false});
 UI.init();UI.solar();
-function loop(){if(!Sim.paused){try{Sim.step(Number(UI.$("dt").value))}catch(e){UI.fail(e)}}UI.render();requestAnimationFrame(loop)}loop();
+function loop(){if(!Sim.paused){try{Sim.step(Number(UI.$("dt").value))}catch(e){UI.fail(e)}}UI.render();
+const d=Sim.lastDiagnostics;
+if(d){
+const el=UI.$("diag");
+if(el)el.innerHTML="ΔE "+d.energy.toExponential(3)+"<br>ΔP "+d.momentum.toExponential(3)+"<br>ΔL "+d.angularMomentum.toExponential(3);
+}
+requestAnimationFrame(loop)}loop();
 </script>
 </body>
 </html>
