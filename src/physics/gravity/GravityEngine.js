@@ -4,7 +4,7 @@ const GravityEngine = {
         if(useBarnesHut&&objects.length>50){
             let min=new Vec3(Infinity,Infinity,Infinity),max=new Vec3(-Infinity,-Infinity,-Infinity);
             for(const o of objects){min.x=Math.min(min.x,o.pos.x);min.y=Math.min(min.y,o.pos.y);min.z=Math.min(min.z,o.pos.z);max.x=Math.max(max.x,o.pos.x);max.y=Math.max(max.y,o.pos.y);max.z=Math.max(max.z,o.pos.z)}
-            const size=Math.max(max.x-min.x,max.y-min.y,max.z-min.z)+1,root=new OctreeNode(new BBox(min.x,min.y,min.z,size)),theta=.5;
+            const size=Math.max(max.x-min.x,max.y-min.y,max.z-min.z)+1,root=new OctreeNode(new BBox(min.x,min.y,min.z,size)),theta=.2;
             for(const o of objects)root.insert(o);
             function force(node,body){
                 if(node.mass===0)return new Vec3();
