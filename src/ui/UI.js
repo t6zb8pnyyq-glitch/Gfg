@@ -16,9 +16,9 @@ const UI = {
             // Spawn distance from camera center (mocked placement)
             let dist = 1e8;
             let spawnPos = new Vec3(
-                dist * Math.sin(camera.rot.y),
-                dist * Math.sin(-camera.rot.x),
-                -dist * Math.cos(camera.rot.y)
+                dist * Math.sin(Renderer.cameraRot.y),
+                dist * Math.sin(-Renderer.cameraRot.x),
+                -dist * Math.cos(Renderer.cameraRot.y)
             );
 
             let vel = new Vec3(vx, vy, vz);
@@ -60,7 +60,7 @@ const UI = {
                 </li>`;
             }
             html += "</ul>";
-            if(allPass && results.length > 0) html += "<div style='color:#10b981; margin-top:10px;'>모든 검증을 통과했습니다. (NASA-Grade 10/10)</div>";
+            if(allPass && results.length > 0) html += "<div style='color:#10b981; margin-top:10px;'>현재 등록된 검증 항목을 모두 통과했습니다.</div>";
             else html += "<div style='color:#f59e0b; margin-top:10px;'>시스템이 불완전하거나 검증 중입니다. (INCOMPLETE)</div>";
 
             document.getElementById('validation-results').innerHTML = html;
