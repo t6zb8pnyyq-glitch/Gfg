@@ -28,7 +28,7 @@ const Validator={
         {name:"Kepler angular momentum conservation",run(){const x=Validator._twoBody(1800,10);const M=PhysicsConstants.M_sun,m=PhysicsConstants.M_earth,r=PhysicsConstants.AU,mu=PhysicsConstants.G*(M+m),vc=Math.sqrt(mu/r),A=new PhysicalBody("S","STAR",M,6.96e8,new Vec3(-r*m/(M+m),0,0),new Vec3(0,-vc*m/(M+m),0)),B=new PhysicalBody("P","PLANET",m,6.371e6,new Vec3(r-r*m/(M+m),0,0),new Vec3(0,vc-vc*m/(M+m),0)),o=[A,B],L0=Diagnostics.getAngularMomentum(o);for(let k=0;k<Math.ceil(10*2*Math.PI*Math.sqrt(r**3/mu)/1800);k++)Integrators.verlet(o,1800,z=>GravityEngine.computeAccelerations(z,false));const e=Diagnostics.getAngularMomentum(o).sub(L0).mag()/Math.max(L0.mag(),1);return Validator._assert(this.name,e<1e-10,{error:e,tolerance:"<1e-10"});}},
         {name:"MHD total mass conservation",run(){const Bx=1e-3,U=[];for(let i=0;i<24;i++){const rho=1+(i%5)*.01,p=1e5,By=1e-3,E=p/(5/3-1)+.5*(Bx*Bx+By*By)/PhysicsConstants.mu_0;U.push([rho,0,0,0,E,By,0]);}const dt=.2*MHD1D.cflDt(U,1,Bx),out=MHD1D.step(U,1,dt,Bx),a=U.reduce((s,u)=>s+u[0],0),b=out.reduce((s,u)=>s+u[0],0),e=Math.abs(a-b)/a;return Validator._assert(this.name,e<1e-14,{error:e,tolerance:"<1e-14"});}},
         {name:"Nuclear hydrogen-burning composition conservation",run(){const o=new PhysicalBody("star","STAR",PhysicsConstants.M_sun,6.96e8,new Vec3(),new Vec3());o.temperature=1.5e7;const before=o.composition.X+o.composition.Y+o.composition.Z;NuclearEngine.computeFusion(1e10,[o]);const after=o.composition.X+o.composition.Y+o.composition.Z;return Validator._assert(this.name,Math.abs(after-before)<1e-12,{error:Math.abs(after-before),tolerance:"<1e-12"});}},
-        {name:"SPH density symmetry",run(){const a=new PhysicalBody("a","GAS_CLOUD",1,1,new Vec3(-1,0,0),new Vec3()),b=new PhysicalBody("b","GAS_CLOUD",1,1,new Vec3(1,0,0),new Vec3());FluidEngine.h=4;FluidEngine.computeState([a,b]);const e=Math.abs(a.sph_density-b.sph_density)/Math.max(a.sph_density,b.sph_density);return Validator._assert(this.name,e<1e-14,{error:e,tolerance:"<1e-14"});}}
+        {name:"SPH density symmetry",run(){const a=new PhysicalBody("a","GAS_CLOUD",1,1,new Vec3(-1,0,0),new Vec3()),b=new PhysicalBody("b","GAS_CLOUD",1,1,new Vec3(1,0,0),new Vec3());FluidEngine.h=4;FluidEngine.computeState([a,b]);const e=Math.abs(a.sph_density-b.sph_density)/Math.max(a.sph_density,b.sph_density);return Validator._assert(this.name,e<1e-14,{error:e,tolerance:"<1e-14"});}},
         {name:"Adaptive RK4 finite-error control",run(){
             const M=PhysicsConstants.M_sun,m=PhysicsConstants.M_earth,r=PhysicsConstants.AU,mu=PhysicsConstants.G*(M+m),vc=Math.sqrt(mu/r),cr=r*m/(M+m),cv=vc*m/(M+m);
             const A=new PhysicalBody("S","STAR",M,6.96e8,new Vec3(-cr,0,0),new Vec3(0,-cv,0));
@@ -42,7 +42,6 @@ const Validator={
                 maxErr=Math.max(maxErr,q.error);t+=q.acceptedDt;steps++;
                 if(steps>100000) throw new Error("adaptive RK4 step limit");
             }
-            const e0=Diagnostics.getKineticEnergy([A,B])+Diagnostics.getPotentialEnergy([A,B]);
             return Validator._assert(this.name,Number.isFinite(maxErr)&&steps<100000,{error:maxErr,tolerance:"finite error and converged step count"});
         }},
         {name:"Astronomy Engine ephemeris adapter",run(){
