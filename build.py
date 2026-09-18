@@ -148,7 +148,7 @@ def build_universe_creator():
             # expects a global `exports` object. CodePen runs the artifact as
             # a browser script, so provide an isolated CommonJS shim and publish
             # the resulting API as window.Astronomy.
-            js += "(function(global){\\nvar exports = {};\\n" + src + "\\n" + "global.Astronomy = exports;\\n})(window);\\n\\n"
+            js += "(function(global){\nvar exports = {};\n" + src + "\n" + "global.Astronomy = exports;\n})(window);\n\n"
         else:
             js += src + "\\n\\n"
 
@@ -169,7 +169,7 @@ def build_universe_creator():
     if "exports =" not in artifact:
         raise RuntimeError("Astronomy Engine browser compatibility shim missing")
     import re
-    cleaned = re.sub(r"\\(function\\(global\\).*?global\\.Astronomy = exports;\\n\\}\\)\\(window\\);", "", artifact, flags=re.S)
+    cleaned = re.sub(r"\(function\(global\).*?global\.Astronomy = exports;\n\}\)\(window\);", "", artifact, flags=re.S)
     if "exports." in cleaned or "module.exports" in cleaned or "require(" in cleaned:
         raise RuntimeError("CommonJS runtime dependency leaked into standalone artifact")
     if artifact.count("<html") != 1 or artifact.count("</html>") != 1:
