@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Universe Creator</title>
+<style>
+:root{--bg:#05070b;--panel:#0d121a;--panel2:#121a25;--line:#273548;--text:#e7edf5;--muted:#8493a7;--accent:#62b9ff;--ok:#48d597;--warn:#f0bd5c;--danger:#ff6575}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font:13px -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
+button,input,select{font:inherit;color:inherit;border:1px solid var(--line);background:var(--panel2);border-radius:8px}
+button{min-height:40px;padding:0 12px;font-weight:700;cursor:pointer}button:active{transform:translateY(1px)}
+input,select{min-height:40px;padding:0 9px;width:100%}
+#app{height:100%;display:grid;grid-template-columns:280px minmax(0,1fr) 280px;grid-template-rows:54px minmax(0,1fr) 58px}
+#top,#bottom{display:flex;align-items:center;gap:7px;overflow:auto;padding:7px 9px;background:#080c12f2;border-color:var(--line);z-index:20;touch-action:pan-x}
+#top{grid-column:1/-1;border-bottom:1px solid var(--line)}#bottom{grid-column:1/-1;border-top:1px solid var(--line)}
+#view{position:relative;grid-column:2;grid-row:2;overflow:hidden;background:#010204}
+canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
+.panel{padding:14px;overflow:auto;background:#0b1018f5;z-index:30;touch-action:pan-y}
+#creator{grid-column:1;grid-row:2;border-right:1px solid var(--line)}#inspector{grid-column:3;grid-row:2;border-left:1px solid var(--line)}
+h2,h3{margin:3px 0 14px}h3{font-size:15px}label{display:block;margin:10px 0 5px;color:var(--muted);font-size:11px;font-weight:700}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:7px}.hint{color:var(--muted);font-size:11px;line-height:1.5;padding:9px;background:#111925;border:1px solid var(--line);border-radius:8px;margin:10px 0}
+#status{position:absolute;top:10px;left:10px;pointer-events:none;color:#aebbd0;font:11px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre}
+.badge{padding:5px 8px;border:1px solid var(--line);border-radius:7px;color:var(--muted);white-space:nowrap}.ok{color:var(--ok)}.warn{color:var(--warn)}.danger{color:var(--danger)}
+.mobile{display:none}
+@media(max-width:1000px){
+#app{grid-template-columns:1fr;grid-template-rows:50px minmax(0,1fr) 56px}
+#view{grid-column:1}.panel{position:absolute;top:50px;bottom:56px;width:min(86vw,340px);transition:transform .18s;box-shadow:0 15px 50px #0008}.panel[data-open="false"]{transform:translateX(-105%)}#inspector[data-open="false"]{transform:translateX(105%)}#creator{left:0;border-right:1px solid var(--line)}#inspector{right:0;border-left:1px solid var(--line)}.mobile{display:block}
+}
+@media(max-width:600px){button,input,select{font-size:16px}#top,#bottom{gap:5px}.row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="app">
+<header id="top"><button class="mobile" id="creatorBtn">생성기</button><button class="mobile" id="inspectorBtn">진단</button><button id="newSystem">기본 태양계</button><span class="badge">SI / Newtonian N-body</span></header>
+<main id="view"><canvas id="canvas"></canvas><div id="status"></div></main>
+<aside id="creator" class="panel" data-open="true">
+<h3>창조주 — 객체 생성</h3>
+<label>객체</label><select id="type"><option value="STAR">항성</option><option value="PLANET">행성</option><option value="MOON">위성</option><option value="BLACK_HOLE">블랙홀</option></select>
+<label>질량 (kg)</label><input id="mass" type="number" value="5.9722e24" step="any">
+<label>반지름 (m)</label><input id="radius" type="number" value="6371000" step="any">
+<div class="hint">행성/위성은 기준 천체가 있으면 위치를 기준으로 원형 궤도 속도를 자동 계산한다. 초기속도를 임의로 입력하지 않는다.</div>
+<button id="create" style="width:100%">현재 위치에 생성</button>
+<button id="clear" style="width:100%;margin-top:7px">전체 삭제</button>
+</aside>
+<aside id="inspector" class="panel" data-open="false">
+<h3>물리 진단</h3><div id="info">객체를 선택하세요.</div>
+<hr>
+<div>객체 수: <b id="count">0</b></div>
+<div>시간: <b id="simTime">0 s</b></div>
+<div>에너지: <b id="energy">0 J</b></div>
+<div>운동량: <b id="momentum">0 kg·m/s</b></div>
+<div>상태: <b id="state" class="ok">STABLE</b></div>
+</aside>
+<footer id="bottom"><button id="pause">PAUSE</button><button id="step">STEP</button><label style="margin:0;color:var(--muted)">dt</label><input id="dt" type="number" value="3600" step="any" style="width:100px"><button id="resetView">VIEW RESET</button></footer>
+</div>
+<script>
+"use strict";
+const G=6.67430e-11,C=299792458,AU=149597870700,MS=1.98847e30,ME=5.9722e24,RE=6371000;
+class V{
+constructor(x=0,y=0,z=0){this.x=x;this.y=y;this.z=z}
+add(v){return new V(this.x+v.x,this.y+v.y,this.z+v.z)}
+sub(v){return new V(this.x-v.x,this.y-v.y,this.z-v.z)}
+mul(k){return new V(this.x*k,this.y*k,this.z*k)}
+dot(v){return this.x*v.x+this.y*v.y+this.z*v.z}
+cross(v){return new V(this.y*v.z-this.z*v.y,this.z*v.x-this.x*v.z,this.x*v.y-this.y*v.x)}
+mag2(){return this.dot(this)} mag(){return Math.sqrt(this.mag2())}
+unit(){const m=this.mag();return m>0?this.mul(1/m):new V()}
+}
+class Body{
+constructor(type,mass,radius,pos,vel){this.id=crypto.randomUUID();this.type=type;this.mass=mass;this.radius=radius;this.pos=pos;this.vel=vel;this.acc=new V()}
+clone(){return new Body(this.type,this.mass,this.radius,new V(this.pos.x,this.pos.y,this.pos.z),new V(this.vel.x,this.vel.y,this.vel.z))}
+}
+const Sim={
+bodies:[],time:0,paused:true,scale:1e-9,panX:0,panY:0,rot:0,selected:null,
+accel(b){
+const a=b.map(()=>new V());
+for(let i=0;i<b.length;i++)for(let j=i+1;j<b.length;j++){
+const r=b[j].pos.sub(b[i].pos),r2=r.mag2();if(!(r2>0))continue;
+const inv=1/Math.sqrt(r2),k=G*inv/r2;
+a[i]=a[i].add(r.mul(k*b[j].mass));a[j]=a[j].add(r.mul(-k*b[i].mass));
+}return a},
+step(dt){
+if(!(dt>0&&Number.isFinite(dt)))throw new Error("dt must be positive and finite");
+const a0=this.accel(this.bodies);
+for(let i=0;i<this.bodies.length;i++){const b=this.bodies[i];b.pos=b.pos.add(b.vel.mul(dt)).add(a0[i].mul(.5*dt*dt))}
+const a1=this.accel(this.bodies);
+for(let i=0;i<this.bodies.length;i++){const b=this.bodies[i];b.vel=b.vel.add(a0[i].add(a1[i]).mul(.5*dt));b.acc=a1[i];if(b.vel.mag()>=C)throw new Error("velocity reached c")}
+this.time+=dt;this.collide()},
+collide(){
+const remove=new Set(),add=[];
+for(let i=0;i<this.bodies.length;i++)for(let j=i+1;j<this.bodies.length;j++){
+if(remove.has(i)||remove.has(j))continue;const a=this.bodies[i],b=this.bodies[j],r=a.radius+b.radius;
+if(a.pos.sub(b.pos).mag()>r)continue;
+const M=a.mass+b.mass,p=a.pos.mul(a.mass).add(b.pos.mul(b.mass)).mul(1/M),v=a.vel.mul(a.mass).add(b.vel.mul(b.mass)).mul(1/M);
+let type=a.mass>=b.mass?a.type:b.type;if(type!=="BLACK_HOLE"&&M>=3*MS)type="BLACK_HOLE";
+const R=type==="BLACK_HOLE"?2*G*M/(C*C):Math.cbrt(a.radius**3+b.radius**3);
+add.push(new Body(type,M,R,p,v));remove.add(i);remove.add(j)}
+if(remove.size)this.bodies=this.bodies.filter((_,i)=>!remove.has(i)).concat(add)},
+primary(){return this.bodies.filter(b=>b.type==="STAR"||b.type==="BLACK_HOLE").sort((a,b)=>b.mass-a.mass)[0]||null},
+orbitVelocity(pos,center){const r=pos.sub(center.pos),d=r.mag();if(!(d>0))return new V();const speed=Math.sqrt(G*(center.mass)/d);let n=Math.abs(r.z/d)<.9?new V(0,0,1):new V(0,1,0);return center.vel.add(n.cross(r).unit().mul(speed))},
+create(type,mass,radius,pos=null){
+const center=this.primary();if(!pos){if(center)pos=center.pos.add(new V(Math.max(AU,10*(center.radius+radius)),0,0));else pos=new V()}
+const vel=center?this.orbitVelocity(pos,center):new V();
+const b=new Body(type,mass,radius,pos,vel);this.bodies.push(b);this.selected=b.id;this.paused=false;return b}
+};
+const UI={
+$:(id)=>document.getElementById(id),
+init(){
+this.$("create").onclick=()=>{const type=this.$("type").value,m=Number(this.$("mass").value),r=Number(this.$("radius").value);if(m>0&&r>0){Sim.create(type,m,r);this.render()}};
+this.$("clear").onclick=()=>{Sim.bodies=[];Sim.time=0;Sim.selected=null;Sim.paused=true;this.render()};
+this.$("newSystem").onclick=()=>this.solar();
+this.$("pause").onclick=()=>{Sim.paused=!Sim.paused;this.sync()};
+this.$("step").onclick=()=>{try{Sim.step(Number(this.$("dt").value))}catch(e){this.fail(e)}this.render()};
+this.$("resetView").onclick=()=>{Sim.scale=1e-9;Sim.panX=0;Sim.panY=0;Sim.rot=0};
+this.$("creatorBtn").onclick=()=>this.panel("creator");this.$("inspectorBtn").onclick=()=>this.panel("inspector");
+},
+panel(id){for(const x of ["creator","inspector"])this.$(x).dataset.open=x===id?"true":"false"},
+solar(){
+Sim.bodies=[];Sim.time=0;Sim.paused=false;
+const sun=new Body("STAR",MS,6.9634e8,new V(),new V());Sim.bodies.push(sun);
+const earth=new Body("PLANET",ME,RE,new V(AU,0,0),new V(0,Math.sqrt(G*MS/AU),0));Sim.bodies.push(earth);Sim.selected=earth.id;this.render()},
+sync(){this.$("pause").textContent=Sim.paused?"RESUME":"PAUSE"},
+fail(e){Sim.paused=true;this.$("state").textContent="FAILED: "+e.message;this.$("state").className="danger"},
+render(){
+this.sync();this.draw();this.inspect();
+},
+inspect(){
+const b=Sim.bodies.find(x=>x.id===Sim.selected);this.$("count").textContent=Sim.bodies.length;this.$("simTime").textContent=Sim.time.toExponential(6)+" s";
+let E=0,P=new V();for(const x of Sim.bodies){E+=.5*x.mass*x.vel.mag2();P=P.add(x.vel.mul(x.mass));}
+for(let i=0;i<Sim.bodies.length;i++)for(let j=i+1;j<Sim.bodies.length;j++){const d=Sim.bodies[i].pos.sub(Sim.bodies[j].pos).mag();if(d>0)E-=G*Sim.bodies[i].mass*Sim.bodies[j].mass/d}
+this.$("energy").textContent=E.toExponential(6)+" J";this.$("momentum").textContent=P.mag().toExponential(6)+" kg·m/s";
+this.$("info").innerHTML=b?"<b>"+b.type+"</b><br>mass "+b.mass.toExponential(6)+" kg<br>radius "+b.radius.toExponential(6)+" m<br>r "+b.pos.mag().toExponential(6)+" m<br>v "+b.vel.mag().toExponential(6)+" m/s":"객체를 선택하세요.";
+if(this.$("state").textContent.startsWith("FAILED"))return;this.$("state").textContent="STABLE";this.$("state").className="ok"},
+draw(){
+const c=this.$("canvas"),ctx=c.getContext("2d"),r=c.parentElement.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2);c.width=Math.max(1,Math.round(r.width*d));c.height=Math.max(1,Math.round(r.height*d));ctx.setTransform(d,0,0,d,0,0);ctx.fillStyle="#010204";ctx.fillRect(0,0,r.width,r.height);
+const cx=r.width/2+Sim.panX,cy=r.height/2+Sim.panY;
+for(const b of [...Sim.bodies].sort((a,b)=>a.pos.z-b.pos.z)){const x=cx+b.pos.x*Sim.scale,y=cy+b.pos.y*Sim.scale,rr=Math.max(3,Math.min(28,b.radius*Sim.scale));ctx.beginPath();ctx.arc(x,y,rr,0,Math.PI*2);ctx.fillStyle=b.type==="STAR"?"#ffd45a":b.type==="BLACK_HOLE"?"#000":"#48aef5";ctx.fill();if(b.type==="BLACK_HOLE"){ctx.strokeStyle="#fff";ctx.stroke()}if(b.id===Sim.selected){ctx.beginPath();ctx.arc(x,y,Math.max(9,rr+5),0,Math.PI*2);ctx.strokeStyle="#fff";ctx.stroke()}}
+this.$("status").textContent="N="+Sim.bodies.length+"\nT="+Sim.time.toExponential(4)+" s\nSCALE="+Sim.scale.toExponential(3)+" m/px";
+}
+};
+const canvas=document.getElementById("canvas");
+canvas.addEventListener("pointerdown",e=>{canvas.setPointerCapture(e.pointerId);const r=canvas.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;let hit=null,best=Infinity;for(const b of Sim.bodies){const px=r.width/2+b.pos.x*Sim.scale,py=r.height/2+b.pos.y*Sim.scale,d=Math.hypot(px-x,py-y);if(d<Math.max(15,b.radius*Sim.scale+8)&&d<best){hit=b;best=d}}if(hit){Sim.selected=hit.id;UI.render()}else{const wx=(x-r.width/2-Sim.panX)/Sim.scale,wy=(y-r.height/2-Sim.panY)/Sim.scale;const type=UI.$("type").value,m=Number(UI.$("mass").value),rad=Number(UI.$("radius").value);if(m>0&&rad>0)Sim.create(type,m,rad,new V(wx,wy,0)),UI.render()}});
+let dragging=false,lastX=0,lastY=0;
+canvas.addEventListener("pointermove",e=>{if(!dragging)return;Sim.panX+=e.clientX-lastX;Sim.panY+=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;UI.draw()});
+canvas.addEventListener("pointerdown",e=>{dragging=true;lastX=e.clientX;lastY=e.clientY});
+canvas.addEventListener("pointerup",()=>dragging=false);canvas.addEventListener("pointercancel",()=>dragging=false);
+canvas.addEventListener("wheel",e=>{e.preventDefault();Sim.scale=Math.min(1e-2,Math.max(1e-18,Sim.scale*Math.exp(-e.deltaY*.001)));UI.draw()},{passive:false});
+UI.init();UI.solar();
+function loop(){if(!Sim.paused){try{Sim.step(Number(UI.$("dt").value))}catch(e){UI.fail(e)}}UI.render();requestAnimationFrame(loop)}loop();
+</script>
+</body>
+</html>
