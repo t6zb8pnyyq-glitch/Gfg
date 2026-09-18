@@ -8,7 +8,8 @@ MODULES_ORDER = [
     "src/physics/gravity/BBox.js",
     "src/physics/gravity/OctreeNode.js",
     "src/physics/gravity/GravityEngine.js",
-    "src/physics/ThermoEngine.js",
+    "src/physics/CollisionEngine.js",
+    "src/physics/ElectromagneticEngine.js",
     "src/physics/FluidEngine.js",
     "src/physics/NuclearEngine.js",
     "src/physics/RelativityEngine.js",
@@ -17,9 +18,10 @@ MODULES_ORDER = [
     "src/core/Integrator.js",
     "src/core/Diagnostics.js",
     "src/core/Validator.js",
-    "src/core/Simulation.js",
+    "src/core/Labs.js",
     "src/render/Renderer.js",
-    "src/ui/UI.js"
+    "src/ui/UI.js",
+    "src/core/Simulation.js"
 ]
 
 def build_universe_creator():
@@ -43,11 +45,11 @@ def build_universe_creator():
 <body>
     <div id="layout-container">
         <div id="module-bar">
-            <span class="lab-module active">중력/궤도 역학</span>
-            <span class="lab-module">항성/핵물리학</span>
-            <span class="lab-module">유체역학/SPH</span>
-            <span class="lab-module">상대성이론</span>
-            <span class="lab-module">우주론/초기우주</span>
+            <span class="lab-module active" onclick="Labs.loadLab('SOLAR_SYSTEM')">중력/궤도 역학 (Solar)</span>
+            <span class="lab-module" onclick="Labs.loadLab('GALAXY')">은하 시뮬레이션 (Galaxy)</span>
+            <span class="lab-module" onclick="Labs.loadLab('SPH_FLUID')">유체역학/SPH</span>
+            <span class="lab-module" onclick="Labs.loadLab('NUCLEAR_STAR')">항성/핵물리학</span>
+            <span class="lab-module" onclick="Labs.loadLab('QUANTUM_RELATIVITY')">양자/상대성 (Test)</span>
         </div>
 
         <div id="viewport-container">
@@ -60,19 +62,21 @@ def build_universe_creator():
             <h3>생성기 (Creator)</h3>
             <label>객체 유형</label>
             <select id="type">
-                <option value="planet">행성 (Planet)</option>
-                <option value="star">항성 (Star)</option>
-                <option value="blackhole">블랙홀 (Black Hole)</option>
-                <option value="gas">가스 구름 (Gas)</option>
+                <option value="PLANET">행성 (Planet)</option>
+                <option value="STAR">항성 (Star)</option>
+                <option value="BLACK_HOLE">블랙홀 (Black Hole)</option>
+                <option value="GAS_CLOUD">가스 구름 (Gas)</option>
             </select>
             <label>질량 (kg)</label>
-            <input type="number" id="mass" value="1e24">
+            <input type="number" id="mass" value="5.972e24">
             <label>반지름 (m)</label>
-            <input type="number" id="radius" value="6000000">
-            <label>속도 (m/s)</label>
-            <input type="number" id="vel_x" value="0" placeholder="Vx">
-            <input type="number" id="vel_y" value="0" placeholder="Vy">
-            <input type="number" id="vel_z" value="0" placeholder="Vz">
+            <input type="number" id="radius" value="6371000">
+            <label>속도 X (m/s)</label>
+            <input type="number" id="vel_x" value="0">
+            <label>속도 Y (m/s)</label>
+            <input type="number" id="vel_y" value="0">
+            <label>속도 Z (m/s)</label>
+            <input type="number" id="vel_z" value="0">
             <button onclick="UI.createObject()">생성 (CREATE)</button>
             <hr>
             <p style="font-size:10px; color:#aaa;">* 모바일: 화면을 더블 탭하여 생성 가능</p>
@@ -81,21 +85,30 @@ def build_universe_creator():
         <div id="inspector-panel" class="side-panel">
             <h3>물리 진단 (Diagnostics)</h3>
             <div id="inspector-data">선택된 객체 없음</div>
+            <hr>
+            <div id="diag-global">
+                <div>에너지: <span id="diag-energy">0</span></div>
+                <div>에너지 오차: <span id="diag-e-err">0</span></div>
+                <div>총 운동량: <span id="diag-mom">0</span></div>
+                <div>상태: <span id="diag-status">STABLE</span></div>
+            </div>
         </div>
 
         <div id="control-bar">
-            <button id="btn-pause" onclick="Simulation.togglePause()">일시정지 (PAUSE)</button>
+            <button id="btn-pause" onclick="Engine.togglePause()">일시정지 (PAUSE)</button>
             <label>적분기:</label>
-            <select id="integrator" onchange="Simulation.setIntegrator(this.value)">
+            <select id="integrator" onchange="Engine.integratorType = this.value">
                 <option value="rk4">Runge-Kutta 4 (정밀)</option>
                 <option value="verlet">Velocity Verlet (안정)</option>
                 <option value="euler">Semi-Implicit Euler</option>
             </select>
             <label>가속기:</label>
-            <select id="gravity" onchange="Simulation.gravityModel = this.value">
-                <option value="barnes-hut">Barnes-Hut O(N log N)</option>
-                <option value="direct">Direct O(N²)</option>
+            <select id="sys-gravity" onchange="Engine.gravityAlgorithm = this.value">
+                <option value="BARNES_HUT">Barnes-Hut O(N log N)</option>
+                <option value="DIRECT">Direct O(N²)</option>
             </select>
+            <label>타임스텝(dt):</label>
+            <input type="number" id="sys-dt" value="1.0" style="width:60px;" onchange="Engine.dt = parseFloat(this.value)">
             <button id="btn-audit" onclick="UI.showAudit()">검증 (AUDIT)</button>
         </div>
     </div>
@@ -108,7 +121,6 @@ def build_universe_creator():
 
     <script>
     let canvas, ctx;
-    let engine = { objects: [] };
     let isDragging = false;
     let lastMouse = {x:0, y:0};
     let camera = { distance: 1e9, rot: {x: 0, y: 0} };
@@ -119,7 +131,7 @@ def build_universe_creator():
         with open(mod, "r") as f:
             js += f.read() + "\n\n"
 
-    init_call = "\nwindow.onload = UI.init;\n"
+    init_call = "\nwindow.onload = () => { UI.init(); Renderer.init(); Labs.loadLab('SOLAR_SYSTEM'); Engine.loop(); };\n"
 
     html_footer = """
     </script>
