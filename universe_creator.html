@@ -32,7 +32,7 @@ h2,h3{margin:3px 0 14px}h3{font-size:15px}label{display:block;margin:10px 0 5px;
 </head>
 <body>
 <div id="app">
-<header id="top"><button class="mobile" id="creatorBtn">생성기</button><button class="mobile" id="inspectorBtn">진단</button><button id="newSystem">기본 태양계</button><span class="badge">SI / Newtonian N-body</span></header>
+<header id="top"><button class="mobile" id="creatorBtn">생성기</button><button class="mobile" id="inspectorBtn">진단</button><button id="newSystem">기본 태양계</button><button id="lab">물리 연구실</button><span class="badge">SI / Newtonian N-body + Physics Lab</span></header>
 <main id="view"><canvas id="canvas"></canvas><div id="status"></div></main>
 <aside id="creator" class="panel" data-open="true">
 <h3>창조주 — 객체 생성</h3>
@@ -154,12 +154,20 @@ init(){
 this.$("create").onclick=()=>{const type=this.$("type").value,m=Number(this.$("mass").value),r=Number(this.$("radius").value);if(m>0&&r>0){Sim.create(type,m,r);this.render()}};
 this.$("clear").onclick=()=>{Sim.bodies=[];Sim.time=0;Sim.selected=null;Sim.paused=true;this.render()};
 this.$("newSystem").onclick=()=>this.solar();
+this.$("lab").onclick=()=>this.lab();
 this.$("pause").onclick=()=>{Sim.paused=!Sim.paused;this.sync()};
 this.$("step").onclick=()=>{try{Sim.step(Number(this.$("dt").value))}catch(e){this.fail(e)}this.render()};
 this.$("resetView").onclick=()=>{Sim.scale=1e-9;Sim.panX=0;Sim.panY=0;Sim.rot=0};
 this.$("creatorBtn").onclick=()=>this.panel("creator");this.$("inspectorBtn").onclick=()=>this.panel("inspector");
 },
 panel(id){for(const x of ["creator","inspector"])this.$(x).dataset.open=x===id?"true":"false"},
+lab(){
+const q=PhysicsLab.validate();
+const rows=q.tests.map(t=>"<div>"+(t[1]?"✓ ":"✗ ")+t[0]+"</div>").join("");
+this.$("info").innerHTML="<b>Physics Lab</b><br>검증 "+q.pass+"/"+q.total+"<hr>"+rows+
+"<br><br>EOS / 핵반응 / 복사수송 / MHD / GR / 양자 / 우주론 모듈이 독립 계산기로 연결되어 있다.";
+this.panel("inspector");
+},
 solar(){
 Sim.bodies=[];Sim.time=0;Sim.paused=false;
 const sun=new Body("STAR",MS,6.9634e8,new V(),new V());Sim.bodies.push(sun);
