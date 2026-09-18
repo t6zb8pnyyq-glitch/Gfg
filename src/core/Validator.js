@@ -1,90 +1,89 @@
 const Validator = {
+    _assert(name, condition, metrics) {
+        return {name, status: condition ? "PASS" : "FAIL", ...metrics};
+    },
+
+    _twoBody(dt, periods) {
+        const M=PhysicsConstants.M_sun, m=PhysicsConstants.M_earth, r=PhysicsConstants.AU;
+        const mu=PhysicsConstants.G*(M+m), n=Math.sqrt(mu/r**3), T=2*Math.PI/n;
+        const vc=Math.sqrt(mu/r);
+        const comR=r*m/(M+m), comV=vc*m/(M+m);
+        const A=new PhysicalBody("S","STAR",M,6.96e8,new Vec3(-comR,0,0),new Vec3(0,-comV,0));
+        const B=new PhysicalBody("P","PLANET",m,6.371e6,new Vec3(r-comR,0,0),new Vec3(0,vc-comV,0));
+        const objects=[A,B];
+        const steps=Math.ceil(periods*T/dt);
+        const initialE=Diagnostics.getKineticEnergy(objects)+Diagnostics.getPotentialEnergy(objects);
+        const initialP=Diagnostics.getTotalMomentum(objects);
+        for(let k=0;k<steps;k++) Integrators.verlet(objects,dt,obs=>GravityEngine.computeAccelerations(obs,false));
+        const finalE=Diagnostics.getKineticEnergy(objects)+Diagnostics.getPotentialEnergy(objects);
+        const finalP=Diagnostics.getTotalMomentum(objects);
+        const rel=objects[1].pos.sub(objects[0].pos);
+        const phaseError=Math.abs(rel.mag()-r)/r;
+        return {T, initialE, finalE, initialP, finalP, energyError:Math.abs((finalE-initialE)/initialE), momentumError:finalP.sub(initialP).mag()/Math.max(initialP.mag(),1), radiusError:phaseError};
+    },
+
     tests: [
-        {
-            name: "Gravity: Analytical Two-Body Orbital Period (Kepler)",
-            run: () => {
-                // Controlled State
-                let M = PhysicsConstants.M_sun;
-                let m = PhysicsConstants.M_earth;
-                let r = PhysicsConstants.AU;
-                let v = Math.sqrt(PhysicsConstants.G * M / r);
-
-                let b1 = new PhysicalBody("S1", "STAR", M, 1e9, new Vec3(0,0,0), new Vec3(0,0,0));
-                let b2 = new PhysicalBody("P1", "PLANET", m, 1e6, new Vec3(r,0,0), new Vec3(0,v,0));
-
-                let testObjs = [b1, b2];
-                let dt = 3600;
-                let period = 2 * Math.PI * Math.sqrt(Math.pow(r, 3) / (PhysicsConstants.G * M));
-                let steps = Math.floor(period / dt);
-
-                for(let i=0; i<steps; i++) {
-                    let accels = GravityEngine.computeAccelerations(testObjs, false);
-                    Integrators.verlet(testObjs, dt, (objs) => GravityEngine.computeAccelerations(objs, false));
-                }
-
-                // After 1 period, Earth should be back near (r, 0, 0)
-                let error = Math.abs(testObjs[1].pos.x - r) / r;
-                return { status: error < 0.05 ? 'PASS' : 'FAIL', error: error, tolerance: '5%' };
+        {name:"Kepler two-body: 10-period radius stability", run(){
+            const x=Validator._twoBody(1800,10);
+            return Validator._assert(this.name,x.radiusError<2e-3,{error:x.radiusError,tolerance:"<2e-3"});
+        }},
+        {name:"Kepler timestep convergence", run(){
+            const a=Validator._twoBody(3600,2), b=Validator._twoBody(1800,2);
+            const ratio=Math.abs(b.radiusError-a.radiusError)/Math.max(a.radiusError,1e-15);
+            return Validator._assert(this.name,b.radiusError<a.radiusError*1.25+1e-8,{error:ratio,tolerance:"refinement must not materially worsen error"});
+        }},
+        {name:"Linear momentum conservation", run(){
+            const x=Validator._twoBody(3600,10);
+            return Validator._assert(this.name,x.momentumError<1e-12,{error:x.momentumError,tolerance:"<1e-12"});
+        }},
+        {name:"Mechanical energy conservation", run(){
+            const x=Validator._twoBody(3600,10);
+            return Validator._assert(this.name,x.energyError<1e-5,{error:x.energyError,tolerance:"<1e-5"});
+        }},
+        {name:"Collision merger linear + angular momentum", run(){
+            const a=new PhysicalBody("a","PLANET",1e10,10,new Vec3(-8,0,0),new Vec3(0,-2,0));
+            const b=new PhysicalBody("b","PLANET",2e10,10,new Vec3(8,0,0),new Vec3(0,1,0));
+            const p0=a.vel.mult(a.mass).add(b.vel.mult(b.mass));
+            const L0=a.pos.cross(a.vel.mult(a.mass)).add(b.pos.cross(b.vel.mult(b.mass)));
+            const o=[a,b]; CollisionEngine.checkAndResolve(o);
+            const p1=o[0].vel.mult(o[0].mass);
+            const L1=o[0].pos.cross(o[0].vel.mult(o[0].mass)).add(o[0].spin.mult((2/5)*o[0].mass*o[0].radius**2));
+            const pe=p1.sub(p0).mag()/Math.max(p0.mag(),1);
+            const le=L1.sub(L0).mag()/Math.max(L0.mag(),1);
+            return Validator._assert(this.name,pe<1e-14&&le<1e-12,{error:Math.max(pe,le),tolerance:"linear <1e-14, angular <1e-12"});
+        }},
+        {name:"Barnes-Hut deterministic convergence", run(){
+            const make=[];
+            for(let i=0;i<128;i++){
+                const a=2*Math.PI*i/128, r=1e10*(1+0.25*Math.sin(3*a));
+                make.push(new PhysicalBody(String(i),"PLANET",1e20,1e5,new Vec3(r*Math.cos(a),r*Math.sin(a),0),new Vec3()));
             }
-        },
-        {
-            name: "Collision: Inelastic Momentum Conservation",
-            run: () => {
-                // Controlled State
-                let m1 = 1e24, m2 = 1e24;
-                let v1 = new Vec3(1000, 0, 0), v2 = new Vec3(-1000, 0, 0);
-
-                let b1 = new PhysicalBody("1", "PLANET", m1, 1e6, new Vec3(-1e6,0,0), v1);
-                let b2 = new PhysicalBody("2", "PLANET", m2, 1e6, new Vec3(1e6,0,0), v2);
-
-                let p_initial = v1.mult(m1).add(v2.mult(m2));
-
-                let testObjs = [b1, b2];
-                CollisionEngine.checkAndResolve(testObjs);
-
-                if(testObjs.length !== 1) return { status: 'FAIL', error: 1.0, tolerance: 'Exact Merger' };
-
-                let p_final = testObjs[0].vel.mult(testObjs[0].mass);
-                let diff = p_initial.sub(p_final).mag();
-
-                return { status: diff < 1e-5 ? 'PASS' : 'FAIL', error: diff, tolerance: '1e-5 kg m/s' };
-            }
-        },
-        {
-            name: "Barnes-Hut vs Direct Summation Convergence",
-            run: () => {
-                let testObjsBH = [];
-                let testObjsDirect = [];
-                for(let i=0; i<51; i++) { // Must be > 50 to trigger Barnes Hut inside GravityEngine
-                    let b = new PhysicalBody(""+i, "PLANET", 1e20, 1e5,
-                        new Vec3(Math.random()*1e8, Math.random()*1e8, 0), new Vec3());
-                    testObjsBH.push(b.clone());
-                    testObjsDirect.push(b.clone());
-                }
-
-                let accelsBH = GravityEngine.computeAccelerations(testObjsBH, true);
-                let accelsDirect = GravityEngine.computeAccelerations(testObjsDirect, false);
-
-                let maxErr = 0;
-                for(let i=0; i<testObjsBH.length; i++) {
-                    let err = accelsBH[i].sub(accelsDirect[i]).mag() / (accelsDirect[i].mag() + 1e-20);
-                    if(err > maxErr) maxErr = err;
-                }
-
-                return { status: maxErr < 0.1 ? 'PASS' : 'WARNING', error: maxErr, tolerance: '10%' };
-            }
-        }
+            const direct=GravityEngine.computeAccelerations(make,false);
+            const bh=GravityEngine.computeAccelerations(make,true);
+            let max=0;
+            for(let i=0;i<make.length;i++) max=Math.max(max,bh[i].sub(direct[i]).mag()/Math.max(direct[i].mag(),1e-300));
+            return Validator._assert(this.name,max<0.03,{error:max,tolerance:"<3%"});
+        }},
+        {name:"Quantum Crank-Nicolson norm conservation", run(){
+            const V=new Float64Array(128);
+            const q=QuantumEngine.solve1DSchrodinger(V,1e-10,1e-20,100,9.1093837015e-31);
+            return Validator._assert(this.name,Math.abs(q.norm-1)<1e-10,{error:Math.abs(q.norm-1),tolerance:"<1e-10"});
+        }},
+        {name:"SPH density symmetry", run(){
+            const a=new PhysicalBody("a","GAS_CLOUD",1,1,new Vec3(-1,0,0),new Vec3());
+            const b=new PhysicalBody("b","GAS_CLOUD",1,1,new Vec3(1,0,0),new Vec3());
+            FluidEngine.h=4; FluidEngine.computeState([a,b]);
+            const e=Math.abs(a.sph_density-b.sph_density)/Math.max(a.sph_density,b.sph_density);
+            return Validator._assert(this.name,e<1e-14,{error:e,tolerance:"<1e-14"});
+        }}
     ],
-    runAllTests: function(returnResults = false) {
-        let results = [];
-        for (let test of this.tests) {
-            try {
-                let res = test.run();
-                results.push({ name: test.name, ...res });
-            } catch(e) {
-                results.push({ name: test.name, status: 'FAIL', error: 1, tolerance: 'N/A' });
-            }
+
+    runAllTests(returnResults=false){
+        const results=[];
+        for(const test of this.tests){
+            try{results.push(test.run());}
+            catch(e){results.push({name:test.name,status:"FAIL",error:Infinity,tolerance:"exception: "+e.message});}
         }
-        return results;
+        return returnResults?results:results.every(r=>r.status==="PASS");
     }
 };
