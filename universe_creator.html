@@ -66,7 +66,7 @@ html,body,#layout-container{width:100%;height:100%;min-width:0;min-height:0}
 #creator-panel{grid-column:1;grid-row:2;border-right:1px solid var(--border)}
 #inspector-panel{grid-column:3;grid-row:2;border-left:1px solid var(--border)}
 #control-bar{grid-column:1/-1;grid-row:3;display:flex;align-items:center;gap:6px;min-width:0;overflow-x:auto;padding:5px 7px;background:rgba(10,10,15,.96);border-top:1px solid var(--border);z-index:30;box-sizing:border-box;touch-action:pan-x}
-#control-bar>*{flex:0 0 auto}.model-row{display:flex;align-items:center;gap:6px;padding:4px 0;touch-action:manipulation}.model-row input{width:18px;height:18px;margin:0;flex:0 0 auto}
+#control-bar>*{flex:0 0 auto}
 #control-bar button,#control-bar select,#control-bar input{width:auto;margin:0}
 #validation-modal{position:fixed!important;z-index:10000!important;box-sizing:border-box;overscroll-behavior:contain;touch-action:pan-y}
 #validation-modal button{touch-action:manipulation}
@@ -133,9 +133,9 @@ html,body,#layout-container{width:100%;height:100%;min-width:0;min-height:0}
             <input type="number" id="vel_y" value="0">
             <label>속도 Z (m/s)</label>
             <input type="number" id="vel_z" value="0">
-            <button onclick="UI.createObject()">생성 (CREATE)</button><section class="section"><h3>활성 물리 엔진</h3><label class="model-row"><input type="checkbox" data-model="Gravity" checked onchange="UI.toggleModel('Gravity',this.checked)">중력 / N-body</label><label class="model-row"><input type="checkbox" data-model="Collision" checked onchange="UI.toggleModel('Collision',this.checked)">충돌 / 병합</label><label class="model-row"><input type="checkbox" data-model="Nuclear" checked onchange="UI.toggleModel('Nuclear',this.checked)">핵반응 / 핵융합</label><label class="model-row"><input type="checkbox" data-model="Thermodynamics" checked onchange="UI.toggleModel('Thermodynamics',this.checked)">열역학 / 복사</label><label class="model-row"><input type="checkbox" data-model="Fluid" onchange="UI.toggleModel('Fluid',this.checked)">SPH 유체</label><label class="model-row"><input type="checkbox" data-model="Electromagnetic" onchange="UI.toggleModel('Electromagnetic',this.checked)">전자기력</label><label class="model-row"><input type="checkbox" data-model="Relativity" onchange="UI.toggleModel('Relativity',this.checked)">상대론 보정</label></section>
+            <button onclick="UI.createObject()">생성 (CREATE)</button>
             <hr>
-            <p style="font-size:10px; color:#aaa;">* 모바일/마우스: 빈 공간을 한 번 탭/클릭하면 해당 위치에 객체 생성 · 기존 객체를 탭하면 선택 · 드래그하면 카메라 회전</p>
+            <p style="font-size:10px; color:#aaa;">* 모바일: 화면을 더블 탭하여 생성 가능</p>
         </div>
 
         <div id="inspector-panel" class="side-panel">
@@ -1095,11 +1095,18 @@ const Labs = {
     }
 };
 
+const Renderer={canvas:null,ctx:null,cameraRot:{x:0,y:0},cameraPan:{x:0,y:0},scale:1e-9,isDragging:false,pointerId:null,lastMouse:{x:0,y:0},downPoint:{x:0,y:0},dragMoved:false,
+init(){this.canvas=document.getElementById("universe-canvas");if(!this.canvas)throw new Error("Universe canvas missing");this.ctx=this.canvas.getContext("2d");this.resize();window.addEventListener("resize",()=>this.resize(),{passive:true});this.canvas.style.touchAction="none";
+this.canvas.addEventListener("pointerdown",e=>{if(e.pointerType==="mouse"&&e.button!==0)return;this.isDragging=true;this.pointerId=e.pointerId;this.dragMoved=false;this.lastMouse={x:e.clientX,y:e.clientY};this.downPoint={x:e.clientX,y:e.clientY};try{this.canvas.setPointerCapture(e.pointerId)}catch(_){}});
+this.canvas.addEventListener("pointermove",e=>{if(!this.isDragging||e.pointerId!==this.pointerId)return;const dx=e.clientX-this.lastMouse.x,dy=e.clientY-this.lastMouse.y;if(Math.hypot(e.clientX-this.downPoint.x,e.clientY-this.downPoint.y)>6)this.dragMoved=true;this.cameraRot.y+=dx*.01;this.cameraRot.x=Math.max(-Math.PI/2,Math.min(Math.PI/2,this.cameraRot.x+dy*.01));this.lastMouse={x:e.clientX,y:e.clientY};});
 const end=e=>{if(e.pointerId!==this.pointerId)return;const click=!this.dragMoved;this.isDragging=false;this.pointerId=null;try{this.canvas.releasePointerCapture(e.pointerId)}catch(_){}if(click&&e.type==="pointerup")UI.handleCanvasTap(e.clientX,e.clientY);};this.canvas.addEventListener("pointerup",end);this.canvas.addEventListener("pointercancel",end);
 this.canvas.addEventListener("wheel",e=>{e.preventDefault();this.scale=Math.min(1e-2,Math.max(1e-18,this.scale*Math.exp(-e.deltaY*.001)));},{passive:false});},
 resize(){const r=this.canvas.parentElement.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);this.canvas.width=Math.max(1,Math.round(r.width*dpr));this.canvas.height=Math.max(1,Math.round(r.height*dpr));this.canvas.style.width=r.width+"px";this.canvas.style.height=r.height+"px";this.ctx.setTransform(dpr,0,0,dpr,0,0);},
 projectObjects(){const w=this.canvas.clientWidth||1,h=this.canvas.clientHeight||1,cx=w/2+this.cameraPan.x,cy=h/2+this.cameraPan.y,sx=Math.sin(this.cameraRot.x),cxr=Math.cos(this.cameraRot.x),sy=Math.sin(this.cameraRot.y),cyr=Math.cos(this.cameraRot.y);return Engine.objects.map(o=>{const x1=o.pos.x*cyr-o.pos.z*sy,z1=o.pos.z*cyr+o.pos.x*sy,y2=o.pos.y*cxr-z1*sx,z2=z1*cxr+o.pos.y*sx;return{obj:o,px:cx+x1*this.scale,py:cy+y2*this.scale,pz:z2,pr:Math.max(1.5,o.radius*this.scale)};});},
-draw(){const w=this.canvas.clientWidth||1,h=this.canvas.clientHeight||1;this.ctx.fillStyle="#000";this.ctx.fillRect(0,0,w,h);for(const x of this.projectObjects().sort((a,b)=>a.pz-b.pz)){this.ctx.beginPath();this.ctx.arc(x.px,x.py,x.pr,0,Math.PI*2);if(x.obj.type==="STAR"){this.ctx.fillStyle="#facc15";this.ctx.shadowBlur=12;this.ctx.shadowColor="#facc15";}else if(x.obj.type==="PLANET"){this.ctx.fillStyle="#0ea5e9";this.ctx.shadowBlur=0;}else if(x.obj.type==="BLACK_HOLE"){this.ctx.fillStyle="#000";this.ctx.shadowBlur=0;this.ctx.strokeStyle="#fff";this.ctx.stroke();}else if(x.obj.type==="GAS_CLOUD"){this.ctx.fillStyle="rgba(16,185,129,.5)";this.ctx.shadowBlur=0;}else{this.ctx.fillStyle="#aaa";this.ctx.shadowBlur=0;}this.ctx.fill();this.ctx.shadowBlur=0;if(UI.selectedId===x.obj.id){this.ctx.beginPath();this.ctx.arc(x.px,x.py,Math.max(8,x.pr+5),0,Math.PI*2);this.ctx.strokeStyle="#fff";this.ctx.lineWidth=1.5;this.ctx.stroke();}}}};const UI = {
+draw(){const w=this.canvas.clientWidth||1,h=this.canvas.clientHeight||1;this.ctx.fillStyle="#000";this.ctx.fillRect(0,0,w,h);for(const x of this.projectObjects().sort((a,b)=>a.pz-b.pz)){this.ctx.beginPath();this.ctx.arc(x.px,x.py,x.pr,0,Math.PI*2);if(x.obj.type==="STAR"){this.ctx.fillStyle="#facc15";this.ctx.shadowBlur=12;this.ctx.shadowColor="#facc15";}else if(x.obj.type==="PLANET"){this.ctx.fillStyle="#0ea5e9";this.ctx.shadowBlur=0;}else if(x.obj.type==="BLACK_HOLE"){this.ctx.fillStyle="#000";this.ctx.shadowBlur=0;this.ctx.strokeStyle="#fff";this.ctx.stroke();}else if(x.obj.type==="GAS_CLOUD"){this.ctx.fillStyle="rgba(16,185,129,.5)";this.ctx.shadowBlur=0;}else{this.ctx.fillStyle="#aaa";this.ctx.shadowBlur=0;}this.ctx.fill();this.ctx.shadowBlur=0;if(UI.selectedId===x.obj.id){this.ctx.beginPath();this.ctx.arc(x.px,x.py,Math.max(8,x.pr+5),0,Math.PI*2);this.ctx.strokeStyle="#fff";this.ctx.lineWidth=1.5;this.ctx.stroke();}}}};
+
+
+const UI = {
     selectedId: null,
     init: function() {
         const tabs = [["__CREATOR__","생성기"],["__INSPECTOR__","진단"],["GRAVITY","중력/궤도"],["GALAXY","은하 N-body"],["SPH_FLUID","SPH 유체"],["NUCLEAR","항성/핵"],["QUANTUM","양자"],["MHD","MHD"],["RADIATION","복사수송"],["STELLAR","항성구조"],["GR","GR"],["COSMOLOGY","우주론"]];
@@ -1133,3 +1140,21 @@ draw(){const w=this.canvas.clientWidth||1,h=this.canvas.clientHeight||1;this.ctx
     togglePanel:function(which){const el=document.getElementById(which==="creator"?"creator-panel":"inspector-panel");if(!el)return;const open=el.dataset.open==="true";el.dataset.open=open?"false":"true";el.style.transform=which==="creator"?(open?"translateX(-105%)":"translateX(0)"):(open?"translateX(105%)":"translateX(0)");},
     showAudit:function(){const results=Validator.runAllTests(true)||[];let html="<h4>과학적 검증 프레임워크</h4><ul style='list-style:none;padding:0'>",allPass=results.length>0;for(const r of results){const pass=r.status==="PASS",warn=r.status==="WARNING";if(!pass)allPass=false;html+="<li><b>"+(pass?"[PASS]":warn?"[WARNING]":"[FAIL]")+"</b> "+r.name+"<br><span style='font-size:11px;color:#aaa'>Error: "+(Number.isFinite(r.error)?r.error.toExponential(3):String(r.error))+" | Tol: "+r.tolerance+"</span></li>"}html+="</ul><div>"+(allPass?"등록된 검증 항목 PASS":"검증 실패 또는 미완료 항목 존재")+"</div>";document.getElementById("validation-results").innerHTML=html;document.getElementById("validation-modal").style.display="block";}
 };
+
+const Engine={objects:[],time:0,dt:120,integratorType:"RK4",gravityAlgorithm:"BARNES_HUT",status:"STABLE",paused:false,frames:0,lastFpsTime:0,adaptiveDt:false,minDt:1e-6,maxDt:1e12,safety:.2,activeModels:["Gravity","Collision","Nuclear","Thermodynamics"],
+setIntegrator:function(type){this.integratorType=String(type).toUpperCase();},
+getAccelerations:function(objs){const a=new Array(objs.length).fill(null).map(()=>new Vec3());if(this.activeModels.includes("Gravity")){const g=GravityEngine.computeAccelerations(objs,this.gravityAlgorithm==="BARNES_HUT");for(let i=0;i<objs.length;i++)a[i]=a[i].add(g[i]);}if(this.activeModels.includes("Relativity")){const g=RelativityEngine.computeSchwarzschildPrecession(objs);for(let i=0;i<objs.length;i++)a[i]=a[i].add(g[i]);}if(this.activeModels.includes("Electromagnetic")){const g=ElectromagneticEngine.computeAccelerations(objs);for(let i=0;i<objs.length;i++)a[i]=a[i].add(g[i]);}return a;},
+step:function(){if(this.status==="FAILED"||this.paused)return;for(const o of this.objects){if(![o.pos.x,o.pos.y,o.pos.z,o.vel.x,o.vel.y,o.vel.z].every(Number.isFinite)){this.status="FAILED";throw new Error("Non-finite state detected");}if(o.vel.magSq()>=PhysicsConstants.c**2){this.status="FAILED";throw new Error("Superluminal velocity detected");}}if(!(this.dt>0&&Number.isFinite(this.dt)&&this.dt>=this.minDt&&this.dt<=this.maxDt)){this.status="FAILED";throw new Error("Invalid timestep");}const t=String(this.integratorType).toLowerCase();if(t==="euler")Integrators.eulerSemiImplicit(this.objects,this.dt,this.getAccelerations(this.objects));else if(t==="verlet")Integrators.verlet(this.objects,this.dt,obs=>this.getAccelerations(obs));else if(t==="rk4")Integrators.rk4(this.objects,this.dt,obs=>this.getAccelerations(obs));else{this.status="FAILED";throw new Error("Unknown integrator: "+this.integratorType);}if(this.activeModels.includes("Fluid"))FluidEngine.computeSPH(this.objects);if(this.activeModels.includes("Nuclear"))NuclearEngine.computeFusion(this.dt,this.objects);if(this.activeModels.includes("Collision"))CollisionEngine.checkAndResolve(this.objects);if(this.activeModels.includes("Thermodynamics")){ThermoEngine.updateTemperature(this.objects);ThermoEngine.computeRadiation(this.dt,this.objects);}if(this.adaptiveDt){let amin=Infinity;for(const o of this.objects){const a=o.acc.mag();if(a>0)amin=Math.min(amin,Math.sqrt(Math.max(o.radius,1)/a));}if(Number.isFinite(amin))this.dt=Math.max(this.minDt,Math.min(this.maxDt,this.safety*amin));}this.time+=this.dt;Diagnostics.update(this.objects);UI.updateInspector();},
+togglePause:function(){if(this.status==="FAILED"){this.status="STABLE";this.paused=false;Diagnostics.begin(this.objects);}else this.paused=!this.paused;this.syncPauseButton();},
+resetFailure:function(){this.status="STABLE";this.paused=false;Diagnostics.begin(this.objects);this.syncPauseButton();},
+syncPauseButton:function(){const b=document.getElementById("btn-pause");if(b)b.innerText=this.paused?"재개 (RESUME)":"일시정지 (PAUSE)";},
+setModel:function(name,enabled){const i=this.activeModels.indexOf(name);if(enabled&&i<0)this.activeModels.push(name);if(!enabled&&i>=0)this.activeModels.splice(i,1);},
+loop:function(){requestAnimationFrame(()=>this.loop());if(!this.paused){try{this.step();}catch(e){this.status="FAILED";this.paused=true;this.syncPauseButton();const statusEl=document.getElementById("diag-status");if(statusEl){statusEl.innerText="FAILED";statusEl.className="val fail";}}}Renderer.draw();}};
+
+
+
+window.addEventListener('DOMContentLoaded', () => { UI.init(); Renderer.init(); Labs.loadLab('GRAVITY'); Engine.loop(); });
+
+    </script>
+</body>
+</html>
