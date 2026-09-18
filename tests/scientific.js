@@ -12,7 +12,7 @@ const sandbox={console,Math,Float64Array,Float32Array,Map,Set,Array,Number,Date,
 document:{getElementById:()=>({innerText:"",className:"",dataset:{}})},Engine:{status:"STABLE"}};
 vm.createContext(sandbox);
 for(const f of files) vm.runInContext(fs.readFileSync(path.join(root,f),"utf8"),sandbox,{filename:f});
-const results=sandbox.Validator.runAllTests(true);
+const results=vm.runInContext("Validator.runAllTests(true)",sandbox);
 if (results.some(r=>r.status==="FAIL")) {
   console.error("Scientific regression failure detected.");
 }
