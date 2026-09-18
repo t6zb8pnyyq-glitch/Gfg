@@ -125,7 +125,7 @@ def build_universe_creator():
                 <option value="DIRECT">Direct O(N²)</option>
             </select>
             <label>타임스텝(dt):</label>
-            <input type="number" id="sys-dt" value="1.0" style="width:60px;" onchange="Engine.dt = parseFloat(this.value)">
+            <input type="number" id="sys-dt" value="1.0" style="width:60px;" onchange="Engine.dt = parseFloat(this.value)">\n            <label><input type="checkbox" id="adaptive-dt" onchange="Engine.adaptiveDt=this.checked" style="width:auto;">적응 dt</label>
             <button id="btn-audit" onclick="UI.showAudit()">검증 (AUDIT)</button>
         </div>
     </div>
