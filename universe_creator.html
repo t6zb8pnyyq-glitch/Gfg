@@ -647,6 +647,16 @@ const FluidEngine = {
   const gradCoeff=-45/(Math.PI*Math.pow(h,6));
   for(let a=0;a<gas.length;a++){const i=gas[a],ai=acc.get(i);for(let b=a+1;b<gas.length;b++){const j=gas[b],rv=i.pos.sub(j.pos),r=rv.mag();if(!(r>0&&r<h))continue;const grad=rv.div(r).mult(gradCoeff*Math.pow(h-r,2));const fP=grad.mult(-i.mass*j.mass*(i.sph_pressure/(i.sph_density*i.sph_density)+j.sph_pressure/(j.sph_density*j.sph_density)));ai.x+=fP.x/i.mass;ai.y+=fP.y/i.mass;ai.z+=fP.z/i.mass;const aj=acc.get(j);aj.x-=fP.x/j.mass;aj.y-=fP.y/j.mass;aj.z-=fP.z/j.mass;const vij=i.vel.sub(j.vel),vdotr=vij.dot(rv);if(vdotr<0){const cs=Math.sqrt(Math.max(0,this.gamma*Math.max(i.sph_pressure/i.sph_density,j.sph_pressure/j.sph_density))),mu=h*vdotr/(r*r+0.01*h2),rhoij=0.5*(i.sph_density+j.sph_density),Pi=-this.alphaVisc*cs*mu/rhoij,fV=grad.mult(-i.mass*j.mass*Pi);ai.x+=fV.x/i.mass;ai.y+=fV.y/i.mass;ai.z+=fV.z/i.mass;aj.x-=fV.x/j.mass;aj.y-=fV.y/j.mass;aj.z-=fV.z/j.mass;}}}return acc;
  },
+ updateInternalEnergy:function(objects,dt){
+  const gas=objects.filter(o=>o.type==="GAS_CLOUD"),h=this.h,h2=h*h,gradCoeff=-45/(Math.PI*Math.pow(h,6));if(!gas.length)return;
+  const du=new Map();for(const o of gas)du.set(o.id,0);
+  for(let a=0;a<gas.length;a++){const i=gas[a];for(let b=a+1;b<gas.length;b++){const j=gas[b],rv=i.pos.sub(j.pos),r=rv.mag();if(!(r>0&&r<h))continue;
+    const grad=rv.div(r).mult(gradCoeff*Math.pow(h-r,2)),vdotgrad=i.vel.sub(j.vel).dot(grad),term=i.sph_pressure/(i.sph_density*i.sph_density)+j.sph_pressure/(j.sph_density*j.sph_density);
+    let Pi=0;const vdotr=i.vel.sub(j.vel).dot(rv);if(vdotr<0){const cs=Math.sqrt(Math.max(0,this.gamma*Math.max(i.sph_pressure/i.sph_density,j.sph_pressure/j.sph_density))),mu=h*vdotr/(r*r+0.01*h2),rhoij=.5*(i.sph_density+j.sph_density);Pi=-this.alphaVisc*cs*mu/rhoij;}
+    du.set(i.id,du.get(i.id)+.5*j.mass*(term+Pi)*vdotgrad);du.set(j.id,du.get(j.id)+.5*i.mass*(term+Pi)*vdotgrad);
+  }}
+  for(const o of gas)o.internalEnergy=Math.max(0,o.internalEnergy+du.get(o.id)*dt);
+ },
  updateState:function(objects){this.computeAccelerations(objects);}
 };
 
@@ -1264,6 +1274,7 @@ const Engine = {
 
 
             if(this.activeModels.includes("Nuclear")) NuclearEngine.computeFusion(this.dt, this.objects);
+            if(this.activeModels.includes("Fluid")) FluidEngine.updateInternalEnergy(this.objects,this.dt);
             if(this.activeModels.includes("Collision")) CollisionEngine.checkAndResolve(this.objects);
 
             // Thermodynamics and Radiation processing
