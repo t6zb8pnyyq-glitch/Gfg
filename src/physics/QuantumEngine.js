@@ -11,7 +11,7 @@ const QuantumEngine={
         const N=V.length;if(N<3||!(dx>0)||!(dt>0)||!(steps>=0)||!(m>0)||!V.every(Number.isFinite))throw new Error("Invalid quantum solver parameters");
         const h=PhysicsConstants.h_bar,re=new Float64Array(N),im=new Float64Array(N),x0=(N-1)*.25,sigma=Math.max(2,N/20);for(let i=1;i<N-1;i++)re[i]=Math.exp(-Math.pow(i-x0,2)/(2*sigma*sigma));this.normalize(re,im,dx);
         const n=N-2,t=h*h/(2*m*dx*dx),ar=new Float64Array(n),ai=new Float64Array(n),br=new Float64Array(n),bi=new Float64Array(n),cr=new Float64Array(n),ci=new Float64Array(n),dr=new Float64Array(n),di=new Float64Array(n);
-        for(let step=0;step<steps;step++){for(let j=0;j<n;j++){const i=j+1,H=2*t+V[i];ar[j]=0;ai[j]=dt*t/(2*h);br[j]=1;bi[j]=dt*H/(2*h);cr[j]=0;ci[j]=dt*t/(2*h);const hr=-t*re[i-1]+H*re[i]-t*re[i+1],hi=-t*im[i-1]+H*im[i]-t*im[i+1];dr[j]=re[i]+dt*hi/(2*h);di[j]=im[i]-dt*hr/(2*h)}const sol=this._solveTridiagonalComplex(ar,ai,br,bi,cr,ci,dr,di);re.fill(0);im.fill(0);for(let j=0;j<n;j++){re[j+1]=sol.re[j];im[j+1]=sol.im[j]}this.normalize(re,im,dx)}
+        for(let step=0;step<steps;step++){for(let j=0;j<n;j++){const i=j+1,H=2*t+V[i];ar[j]=0;ai[j]=-dt*t/(2*h);br[j]=1;bi[j]=dt*H/(2*h);cr[j]=0;ci[j]=-dt*t/(2*h);const hr=-t*re[i-1]+H*re[i]-t*re[i+1],hi=-t*im[i-1]+H*im[i]-t*im[i+1];dr[j]=re[i]+dt*hi/(2*h);di[j]=im[i]-dt*hr/(2*h)}const sol=this._solveTridiagonalComplex(ar,ai,br,bi,cr,ci,dr,di);re.fill(0);im.fill(0);for(let j=0;j<n;j++){re[j+1]=sol.re[j];im[j+1]=sol.im[j]}this.normalize(re,im,dx)}
         return{re,im,norm:this.norm(re,im,dx),method:"Crank-Nicolson",boundary:"Dirichlet psi=0"};
     }
 };
