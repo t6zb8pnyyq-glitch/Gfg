@@ -4,7 +4,7 @@
     "playwright": "^1.63.0"
   },
   "scripts": {
-    "test": "node tests/scientific.js",
+    "test": "node tests/scientific.js && node tests/standalone.js",
     "build": "python3 build.py"
   }
 }
