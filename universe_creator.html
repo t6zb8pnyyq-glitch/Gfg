@@ -708,48 +708,52 @@ const FluidEngine = {
     }
 
 const NuclearEngine = {
-        computeFusion: function(dt, objs) {
-            for(let o of objs) {
-                if(o.type !== "STAR") continue;
-                // Core T estimation based on hydrostatic equilibrium (Ideal Gas approx)
-                // T_c ~ (G * M * m_p) / (k_B * R)
-                const m_p = 1.67262192e-27; // Proton mass [kg]
-                let Tc = (PhysicsConstants.G * o.mass * m_p) / (PhysicsConstants.k_B * o.radius);
+    // One-zone stellar burning model. Rates are standard analytic educational
+    // approximations, not a full stellar-evolution reaction network.
+    computeFusion: function(dt, objs) {
+        const mp=1.67262192369e-27;
+        const qPP=0.007*PhysicsConstants.c**2;     // J/kg H consumed (mass-defect scale)
+        const q3A=5.8e13;                          // J/kg He consumed, approximate
+        for(const o of objs){
+            if(o.type!=="STAR"||!(o.mass>0)||!(o.radius>0))continue;
+            const Tc=(PhysicsConstants.G*o.mass*mp)/(PhysicsConstants.k_B*o.radius);
+            o.temperature=Tc;
+            const thermal=1.5*(o.mass/mp)*PhysicsConstants.k_B*Tc;
+            if(!(o.internalEnergy>0)||!Number.isFinite(o.internalEnergy))o.internalEnergy=thermal;
 
-                // Update thermodynamic internal energy based on core temp
-                // U = 3/2 N k_B T  where N = mass / m_p
-                o.internalEnergy = 1.5 * (o.mass / m_p) * PhysicsConstants.k_B * Tc;
-                o.temperature = Tc; // Core temperature
+            const rho=o.density;
+            const X=Math.max(0,Math.min(1,o.composition.X));
+            const Y=Math.max(0,Math.min(1,o.composition.Y));
+            let released=0;
 
-                // PP-Chain parameterized network (H -> He)
-                if(Tc > 1.5e7 && o.composition.X > 0) {
-                    let rate = 1e-5 * o.density * o.composition.X * o.composition.X * Math.pow(Tc / 1e6, 4);
-                    let dm = rate * dt; // Mass fraction converted
-                    if(dm > o.composition.X) dm = o.composition.X;
-                    o.composition.X -= dm;
-                    o.composition.Y += dm;
-
-                    // Energy release: E = mc^2 (0.7% efficiency for H->He)
-                    let energy = (dm * o.mass) * 0.007 * PhysicsConstants.c * PhysicsConstants.c;
-                    o.internalEnergy += energy; // Add to thermodynamic pool
-                }
-
-                // Triple-Alpha (He -> C)
-                if(Tc > 1e8 && o.composition.Y > 0) {
-                    let rate = 1e-10 * o.density * o.density * Math.pow(o.composition.Y, 3) * Math.exp(-4.4 / (Tc/1e8));
-                    let dm = rate * dt;
-                    if(dm > o.composition.Y) dm = o.composition.Y;
-                    o.composition.Y -= dm;
-                    o.composition.Z += dm; // "Metals"
-
-                    // Energy release (Triple-Alpha ~ 0.06% efficient)
-                    let energy = (dm * o.mass) * 0.0006 * PhysicsConstants.c * PhysicsConstants.c;
-                    o.internalEnergy += energy;
-                }
+            // epsilon_pp ≈ 2.4e4 rho X² T6^(-2/3) exp[-33.8 T6^(-1/3)] erg g^-1 s^-1
+            if(Tc>3e6&&rho>0&&X>0){
+                const T6=Tc/1e6;
+                const epsPP=2.4e4*rho*X*X*Math.pow(T6,-2/3)*Math.exp(-33.8*Math.pow(T6,-1/3))*1e-4;
+                const dX=Math.min(X,Math.max(0,epsPP*dt/qPP));
+                o.composition.X-=dX;
+                o.composition.Y+=dX;
+                released+=dX*o.mass*qPP;
             }
+
+            // epsilon_3alpha ≈ 5.1e8 rho² Y³ T8^-3 exp[-4.4027/T8] erg g^-1 s^-1
+            if(Tc>8e7&&rho>0&&Y>0){
+                const T8=Tc/1e8;
+                const eps3=5.1e8*rho*rho*Y*Y*Y*Math.pow(T8,-3)*Math.exp(-4.4027/T8)*1e-4;
+                const dY=Math.min(o.composition.Y,Math.max(0,eps3*dt/q3A));
+                o.composition.Y-=dY;
+                o.composition.Z+=dY;
+                released+=dY*o.mass*q3A;
+            }
+
+            o.internalEnergy=Math.max(o.internalEnergy,thermal)+released;
+            const sum=o.composition.X+o.composition.Y+o.composition.Z;
+            if(!(sum>0)||!Number.isFinite(sum))throw new Error("Invalid stellar composition");
+            o.composition.X/=sum;o.composition.Y/=sum;o.composition.Z/=sum;
+            o.luminosity=released/Math.max(dt,Number.MIN_VALUE);
         }
     }
-
+};
 const RelativityEngine = {
         computeSchwarzschildPrecession: function(objects) {
             let accels = new Array(objects.length).fill(null).map(() => new Vec3());
@@ -792,7 +796,7 @@ const QuantumEngine = {
             xr[n-1]=qr[n-1];xi[n-1]=qi[n-1];for(let i=n-2;i>=0;i--){xr[i]=qr[i]-(cr[i]*xr[i+1]-ci[i]*xi[i+1]);xi[i]=qi[i]-(cr[i]*xi[i+1]+ci[i]*xr[i+1]);}return {re:xr,im:xi};
         }
         for(let s=0;s<steps;s++){const n=N-2,dr=new Float64Array(n),di=new Float64Array(n),or=new Float64Array(n-1),oi=new Float64Array(n-1),rr=new Float64Array(n),ri=new Float64Array(n);
-            for(let k=0;k<n;k++){const i=k+1,H=V_array[i]+2*A,hr=H*re[i],hi=H*im[i];dr[k]=1;di[k]=alpha*H;if(k<n-1){or[k]=0;oi[k]=alpha*(-A);}if(i>1){rr[k]+=re[i-1]*(-A);ri[k]+=im[i-1]*(-A);}if(i<N-2){rr[k]+=re[i+1]*(-A);ri[k]+=im[i+1]*(-A);}rr[k]+=re[i]+alpha*hi;ri[k]+=im[i]-alpha*hr;}
+            for(let k=0;k<n;k++){const i=k+1,H=V_array[i]+2*A,hr=H*re[i],hi=H*im[i];dr[k]=1;di[k]=alpha*H;if(k<n-1){or[k]=0;oi[k]=alpha*(-A);}if(i>1){hr+=(-A)*re[i-1];hi+=(-A)*im[i-1];}if(i<N-2){hr+=(-A)*re[i+1];hi+=(-A)*im[i+1];}rr[k]=re[i]+alpha*hi;ri[k]=im[i]-alpha*hr;}
             const z=solve(dr,di,or,oi,rr,ri);for(let k=0;k<n;k++){re[k+1]=z.re[k];im[k+1]=z.im[k];}re[0]=im[0]=re[N-1]=im[N-1]=0;}
         let norm=0;for(let i=0;i<N;i++)norm+=(re[i]**2+im[i]**2);norm=Math.sqrt(norm*dx);if(!(norm>0)||!Number.isFinite(norm))throw new Error("Quantum normalization failed");for(let i=0;i<N;i++){re[i]/=norm;im[i]/=norm;}return {re,im,norm};
     }
@@ -871,7 +875,7 @@ const Diagnostics = {
             document.getElementById('diag-mom').innerText = mom.mag().toExponential(3);
 
             let statusEl = document.getElementById('diag-status');
-            if(isNaN(totalE) || eErr > 100) { statusEl.innerText = "FAIL (발산)"; statusEl.className = "val fail"; Engine.status = "FAILED"; }
+            if(!Number.isFinite(totalE) || !Number.isFinite(eErr) || eErr > 100) { statusEl.innerText = "FAIL (발산)"; statusEl.className = "val fail"; Engine.status = "FAILED"; }
             else if(eErr > 1) { statusEl.innerText = "WARNING (경고)"; statusEl.className = "val warn"; }
             else { statusEl.innerText = "STABLE (안정)"; statusEl.className = "val pass"; }
         }
@@ -930,13 +934,14 @@ const Validator = {
             }
         },
         {
-            name: "Barnes-Hut vs Direct Summation Convergence",
+            name: "Barnes-Hut vs Direct Summation Accuracy",
             run: () => {
                 let testObjsBH = [];
                 let testObjsDirect = [];
-                for(let i=0; i<51; i++) { // Must be > 50 to trigger Barnes Hut inside GravityEngine
+                for(let i=0; i<51; i++) { // Deterministic validation set
+                    const q=i+1;
                     let b = new PhysicalBody(""+i, "PLANET", 1e20, 1e5,
-                        new Vec3(Math.random()*1e8, Math.random()*1e8, 0), new Vec3());
+                        new Vec3((q*17%101)*1e8/101, (q*43%97)*1e8/97, (q*29%89)*1e8/89), new Vec3());
                     testObjsBH.push(b.clone());
                     testObjsDirect.push(b.clone());
                 }
@@ -1324,12 +1329,20 @@ const Engine = {
             if(now - this.lastFpsTime >= 1000) { this.frames = 0; this.lastFpsTime = now; } // FPS tracking decoupled from DOM
 
             if(!this.paused) {
-                // Implement controlled substepping separated from framerate
-                const substeps = 1; // dt is physical simulation time per Engine.step; never multiply it by render FPS.
-
-                for(let i=0; i<substeps; i++) {
-                    this.step();
-                    if(this.status === "FAILED") break;
+                const substeps = 1;
+                for(let i=0;i<substeps;i++){
+                    try {
+                        this.step();
+                    } catch(err) {
+                        this.status="FAILED";
+                        this.paused=true;
+                        const msg=err&&err.message?err.message:String(err);
+                        const statusEl=document.getElementById('diag-status');
+                        if(statusEl){statusEl.textContent="FAILED (계산 중단)";statusEl.className="val fail";}
+                        if(window.UI&&UI.setMessage)UI.setMessage("수치 계산 중단: "+msg,"danger");
+                        break;
+                    }
+                    if(this.status==="FAILED")break;
                 }
             }
             Renderer.draw();
