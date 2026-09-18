@@ -51,11 +51,16 @@ def build_universe_creator():
 <body>
     <div id="layout-container" style="touch-action:manipulation;">
         <div id="module-bar">
-            <button type="button" id="btn-lab-GRAVITY" class="lab-module active" onclick="Labs.loadLab('GRAVITY')">중력/궤도 역학 (Solar)</button>
-            <button type="button" id="btn-lab-GALAXY" class="lab-module" onclick="Labs.loadLab('GALAXY')">은하 시뮬레이션 (Galaxy)</button>
-            <button type="button" id="btn-lab-SPH_FLUID" class="lab-module" onclick="Labs.loadLab('SPH_FLUID')">유체역학/SPH</button>
-            <button type="button" id="btn-lab-NUCLEAR_STAR" class="lab-module" onclick="Labs.loadLab('NUCLEAR_STAR')">항성/핵물리학</button>
-            <button type="button" id="btn-lab-QUANTUM_RELATIVITY" class="lab-module" onclick="Labs.loadLab('QUANTUM_RELATIVITY')">양자/상대성 (Test)</button>
+            <button type="button" id="btn-lab-GRAVITY" class="lab-module active" onclick="Labs.loadLab('GRAVITY')">중력/궤도</button>
+            <button type="button" id="btn-lab-GALAXY" class="lab-module" onclick="Labs.loadLab('GALAXY')">은하 N-body</button>
+            <button type="button" id="btn-lab-SPH_FLUID" class="lab-module" onclick="Labs.loadLab('SPH_FLUID')">SPH 유체</button>
+            <button type="button" id="btn-lab-NUCLEAR" class="lab-module" onclick="Labs.loadLab('NUCLEAR')">항성/핵</button>
+            <button type="button" id="btn-lab-QUANTUM" class="lab-module" onclick="Labs.loadLab('QUANTUM')">양자</button>
+            <button type="button" id="btn-lab-MHD" class="lab-module" onclick="Labs.loadLab('MHD')">MHD</button>
+            <button type="button" id="btn-lab-RADIATION" class="lab-module" onclick="Labs.loadLab('RADIATION')">복사수송</button>
+            <button type="button" id="btn-lab-STELLAR" class="lab-module" onclick="Labs.loadLab('STELLAR')">항성구조</button>
+            <button type="button" id="btn-lab-GR" class="lab-module" onclick="Labs.loadLab('GR')">GR</button>
+            <button type="button" id="btn-lab-COSMOLOGY" class="lab-module" onclick="Labs.loadLab('COSMOLOGY')">우주론</button>
         </div>
 
         <div id="viewport-container">
