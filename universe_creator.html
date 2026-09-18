@@ -1041,7 +1041,7 @@ const Validator={
 const Labs = {
     current:"GRAVITY",
     loadLab:function(labName){
-        this.current=labName; Engine.objects=[]; Diagnostics.initEnergy=0; Engine.time=0;
+        this.current=labName; Engine.objects=[]; Diagnostics.initEnergy=null; Diagnostics.initialMomentum=null; Diagnostics.initialAngularMomentum=null; Engine.time=0; Engine.status="STABLE"; Engine.paused=false;
         Engine.activeModels=["Gravity","Collision","Thermodynamics"];
         document.querySelectorAll(".lab-module").forEach(b=>b.classList.remove("active"));
         try{document.getElementById("btn-lab-"+labName).classList.add("active")}catch(e){}
@@ -1054,7 +1054,7 @@ const Labs = {
         } else if(labName==="GRAVITY"){
             info="표준 N-body 중력 (태양계 내부 근사)."; Engine.gravityAlgorithm="DIRECT"; document.getElementById("sys-gravity").value="DIRECT";
             Engine.objects.push(new PhysicalBody("Sun","STAR",PhysicsConstants.M_sun,6.96e8,new Vec3(),new Vec3()));
-            Engine.objects.push(new PhysicalBody("Earth","PLANET",PhysicsConstants.M_earth,6.37e6,new Vec3(PhysicsConstants.AU,0,0),new Vec3(0,29780,0))); Engine.dt=3600; Renderer.scale=1e-9;
+            Engine.objects.push(new PhysicalBody("Earth","PLANET",PhysicsConstants.M_earth,6.37e6,new Vec3(PhysicsConstants.AU,0,0),new Vec3(0,29780,0))); Engine.dt=21600; Renderer.scale=1e-9;
         } else if(labName==="SPH_FLUID"){
             info="SPH 유체역학."; Engine.activeModels=["Fluid","Thermodynamics"];
             for(let i=0;i<50;i++) Engine.objects.push(new PhysicalBody("G"+i,"GAS_CLOUD",1e20,1e5,new Vec3((Math.random()-.5)*1e6,(Math.random()-.5)*1e6,0),new Vec3()));
@@ -1095,173 +1095,59 @@ const Labs = {
     }
 };
 
-const Renderer = {
- canvas:null,ctx:null,cameraRot:{x:0,y:0},cameraPan:{x:0,y:0},scale:1e-9,isDragging:false,pointerId:null,lastMouse:{x:0,y:0},downPoint:{x:0,y:0},dragMoved:false,
- init(){
-  this.canvas=document.getElementById("universe-canvas");if(!this.canvas)throw new Error("Universe canvas missing");
-  this.ctx=this.canvas.getContext("2d");this.resize();window.addEventListener("resize",()=>this.resize(),{passive:true});this.canvas.style.touchAction="none";
-  this.canvas.addEventListener("pointerdown",e=>{if(e.pointerType==="mouse"&&e.button!==0)return;this.isDragging=true;this.pointerId=e.pointerId;this.dragMoved=false;this.lastMouse={x:e.clientX,y:e.clientY};this.downPoint={x:e.clientX,y:e.clientY};try{this.canvas.setPointerCapture(e.pointerId)}catch(_){}});
-  this.canvas.addEventListener("pointermove",e=>{if(!this.isDragging||e.pointerId!==this.pointerId)return;const dx=e.clientX-this.lastMouse.x,dy=e.clientY-this.lastMouse.y;if(Math.hypot(e.clientX-this.downPoint.x,e.clientY-this.downPoint.y)>6)this.dragMoved=true;this.cameraRot.y+=dx*.01;this.cameraRot.x+=dy*.01;this.lastMouse={x:e.clientX,y:e.clientY}});
-  const end=e=>{if(e.pointerId!==this.pointerId)return;const click=!this.dragMoved;this.isDragging=false;this.pointerId=null;try{this.canvas.releasePointerCapture(e.pointerId)}catch(_){}if(click&&e.type==="pointerup")UI.selectAtScreen(e.clientX,e.clientY)};
-  this.canvas.addEventListener("pointerup",end);this.canvas.addEventListener("pointercancel",end);
-  this.canvas.addEventListener("dblclick",e=>{if(e.target===this.canvas)UI.createObject(e.clientX,e.clientY)});
-  this.canvas.addEventListener("wheel",e=>{e.preventDefault();this.scale=Math.min(1e-2,Math.max(1e-18,this.scale*(e.deltaY>0?.9:1.1)))},{passive:false});
- },
- resize(){const r=this.canvas.parentElement.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);this.canvas.width=Math.max(1,Math.round(r.width*dpr));this.canvas.height=Math.max(1,Math.round(r.height*dpr));this.canvas.style.width=r.width+"px";this.canvas.style.height=r.height+"px";this.ctx.setTransform(dpr,0,0,dpr,0,0)},
- projectObjects(){const w=this.canvas.clientWidth||1,h=this.canvas.clientHeight||1,cx=w/2+this.cameraPan.x,cy=h/2+this.cameraPan.y,sx=Math.sin(this.cameraRot.x),cxr=Math.cos(this.cameraRot.x),sy=Math.sin(this.cameraRot.y),cyr=Math.cos(this.cameraRot.y);return Engine.objects.map(o=>{const x1=o.pos.x*cyr-o.pos.z*sy,z1=o.pos.z*cyr+o.pos.x*sy,y2=o.pos.y*cxr-z1*sx,z2=z1*cxr+o.pos.y*sx;return{obj:o,px:cx+x1*this.scale,py:cy+y2*this.scale,pz:z2,pr:Math.max(1.5,o.radius*this.scale)}})},
- draw(){const w=this.canvas.clientWidth||1,h=this.canvas.clientHeight||1;this.ctx.fillStyle="#000";this.ctx.fillRect(0,0,w,h);for(const x of this.projectObjects().sort((a,b)=>a.pz-b.pz)){this.ctx.beginPath();this.ctx.arc(x.px,x.py,x.pr,0,Math.PI*2);if(x.obj.type==="STAR")this.ctx.fillStyle="#facc15";else if(x.obj.type==="PLANET")this.ctx.fillStyle="#0ea5e9";else if(x.obj.type==="BLACK_HOLE"){this.ctx.fillStyle="#000";this.ctx.strokeStyle="#fff";this.ctx.stroke()}else if(x.obj.type==="GAS_CLOUD")this.ctx.fillStyle="rgba(16,185,129,.5)";else this.ctx.fillStyle="#aaa";this.ctx.fill();if(UI.selectedId===x.obj.id){this.ctx.beginPath();this.ctx.arc(x.px,x.py,x.pr+4,0,Math.PI*2);this.ctx.strokeStyle="#fff";this.ctx.stroke()}}}
-};
+const Renderer={canvas:null,ctx:null,cameraRot:{x:0,y:0},cameraPan:{x:0,y:0},scale:1e-9,isDragging:false,pointerId:null,lastMouse:{x:0,y:0},downPoint:{x:0,y:0},dragMoved:false,
+init(){this.canvas=document.getElementById("universe-canvas");if(!this.canvas)throw new Error("Universe canvas missing");this.ctx=this.canvas.getContext("2d");this.resize();window.addEventListener("resize",()=>this.resize(),{passive:true});this.canvas.style.touchAction="none";
+this.canvas.addEventListener("pointerdown",e=>{if(e.pointerType==="mouse"&&e.button!==0)return;this.isDragging=true;this.pointerId=e.pointerId;this.dragMoved=false;this.lastMouse={x:e.clientX,y:e.clientY};this.downPoint={x:e.clientX,y:e.clientY};try{this.canvas.setPointerCapture(e.pointerId)}catch(_){}});
+this.canvas.addEventListener("pointermove",e=>{if(!this.isDragging||e.pointerId!==this.pointerId)return;const dx=e.clientX-this.lastMouse.x,dy=e.clientY-this.lastMouse.y;if(Math.hypot(e.clientX-this.downPoint.x,e.clientY-this.downPoint.y)>6)this.dragMoved=true;this.cameraRot.y+=dx*.01;this.cameraRot.x=Math.max(-Math.PI/2,Math.min(Math.PI/2,this.cameraRot.x+dy*.01));this.lastMouse={x:e.clientX,y:e.clientY};});
+const end=e=>{if(e.pointerId!==this.pointerId)return;const click=!this.dragMoved;this.isDragging=false;this.pointerId=null;try{this.canvas.releasePointerCapture(e.pointerId)}catch(_){}if(click&&e.type==="pointerup")UI.handleCanvasTap(e.clientX,e.clientY);};this.canvas.addEventListener("pointerup",end);this.canvas.addEventListener("pointercancel",end);
+this.canvas.addEventListener("wheel",e=>{e.preventDefault();this.scale=Math.min(1e-2,Math.max(1e-18,this.scale*Math.exp(-e.deltaY*.001)));},{passive:false});},
+resize(){const r=this.canvas.parentElement.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);this.canvas.width=Math.max(1,Math.round(r.width*dpr));this.canvas.height=Math.max(1,Math.round(r.height*dpr));this.canvas.style.width=r.width+"px";this.canvas.style.height=r.height+"px";this.ctx.setTransform(dpr,0,0,dpr,0,0);},
+projectObjects(){const w=this.canvas.clientWidth||1,h=this.canvas.clientHeight||1,cx=w/2+this.cameraPan.x,cy=h/2+this.cameraPan.y,sx=Math.sin(this.cameraRot.x),cxr=Math.cos(this.cameraRot.x),sy=Math.sin(this.cameraRot.y),cyr=Math.cos(this.cameraRot.y);return Engine.objects.map(o=>{const x1=o.pos.x*cyr-o.pos.z*sy,z1=o.pos.z*cyr+o.pos.x*sy,y2=o.pos.y*cxr-z1*sx,z2=z1*cxr+o.pos.y*sx;return{obj:o,px:cx+x1*this.scale,py:cy+y2*this.scale,pz:z2,pr:Math.max(1.5,o.radius*this.scale)};});},
+draw(){const w=this.canvas.clientWidth||1,h=this.canvas.clientHeight||1;this.ctx.fillStyle="#000";this.ctx.fillRect(0,0,w,h);for(const x of this.projectObjects().sort((a,b)=>a.pz-b.pz)){this.ctx.beginPath();this.ctx.arc(x.px,x.py,x.pr,0,Math.PI*2);if(x.obj.type==="STAR"){this.ctx.fillStyle="#facc15";this.ctx.shadowBlur=12;this.ctx.shadowColor="#facc15";}else if(x.obj.type==="PLANET"){this.ctx.fillStyle="#0ea5e9";this.ctx.shadowBlur=0;}else if(x.obj.type==="BLACK_HOLE"){this.ctx.fillStyle="#000";this.ctx.shadowBlur=0;this.ctx.strokeStyle="#fff";this.ctx.stroke();}else if(x.obj.type==="GAS_CLOUD"){this.ctx.fillStyle="rgba(16,185,129,.5)";this.ctx.shadowBlur=0;}else{this.ctx.fillStyle="#aaa";this.ctx.shadowBlur=0;}this.ctx.fill();this.ctx.shadowBlur=0;if(UI.selectedId===x.obj.id){this.ctx.beginPath();this.ctx.arc(x.px,x.py,Math.max(8,x.pr+5),0,Math.PI*2);this.ctx.strokeStyle="#fff";this.ctx.lineWidth=1.5;this.ctx.stroke();}}}};
+
 
 const UI = {
     selectedId: null,
     init: function() {
-        const tabs = [
-            ["__CREATOR__","생성기"],["__INSPECTOR__","진단"],
-            ["GRAVITY","중력/궤도"],["GALAXY","은하 N-body"],["SPH_FLUID","SPH 유체"],
-            ["NUCLEAR","항성/핵"],["QUANTUM","양자"],["MHD","MHD"],
-            ["RADIATION","복사수송"],["STELLAR","항성구조"],["GR","GR"],["COSMOLOGY","우주론"]
-        ];
-        const bar = document.getElementById("module-bar");
-        if (!bar) throw new Error("module-bar missing");
-        bar.replaceChildren(...tabs.map(([id,label]) => {
-            const b=document.createElement("button");
-            b.type="button";
-            b.id=id.startsWith("__") ? "btn-"+id.slice(2).toLowerCase() : "btn-lab-"+id;
-            b.className=id.startsWith("__") ? "mobile-drawer-btn" : "lab-module";
-            b.textContent=label;
-            if(id==="__CREATOR__") b.addEventListener("click",()=>this.togglePanel("creator"));
-            else if(id==="__INSPECTOR__") b.addEventListener("click",()=>this.togglePanel("inspector"));
-            else b.addEventListener("click",()=>Labs.loadLab(id));
-            return b;
-        }));
+        const tabs = [["__CREATOR__","생성기"],["__INSPECTOR__","진단"],["GRAVITY","중력/궤도"],["GALAXY","은하 N-body"],["SPH_FLUID","SPH 유체"],["NUCLEAR","항성/핵"],["QUANTUM","양자"],["MHD","MHD"],["RADIATION","복사수송"],["STELLAR","항성구조"],["GR","GR"],["COSMOLOGY","우주론"]];
+        const bar=document.getElementById("module-bar"); if(!bar) throw new Error("module-bar missing");
+        bar.replaceChildren(...tabs.map(([id,label])=>{const b=document.createElement("button");b.type="button";b.id=id.startsWith("__")?"btn-"+id.slice(2).toLowerCase():"btn-lab-"+id;b.className=id.startsWith("__")?"mobile-drawer-btn":"lab-module";b.textContent=label;if(id==="__CREATOR__")b.addEventListener("click",()=>this.togglePanel("creator"));else if(id==="__INSPECTOR__")b.addEventListener("click",()=>this.togglePanel("inspector"));else b.addEventListener("click",()=>Labs.loadLab(id));return b;}));
         this.updateInspector();
     },
-    createObject: function() {
-        const type = document.getElementById("type").value;
-        const num=(id,fallback)=>{const el=document.getElementById(id);const v=Number(el&&el.value);return Number.isFinite(v)?v:fallback;};
-        const mass=num("mass",1e24), rad=num("radius",6e6);
-        if(!(mass>0)||!(rad>0)) throw new Error("mass/radius must be positive");
-        const dist=1e8;
-        const spawnPos=new Vec3(
-            dist*Math.sin(Renderer.cameraRot.y),
-            dist*Math.sin(-Renderer.cameraRot.x),
-            -dist*Math.cos(Renderer.cameraRot.y)
-        );
-        const vel=new Vec3(num("vel_x",0),num("vel_y",0),num("vel_z",0));
-        const body=new PhysicalBody("user-"+Date.now()+"-"+Engine.objects.length,type,mass,rad,spawnPos,vel);
-        if(type==="STAR") body.temperature=5778;
-        Engine.objects.push(body);
-        this.selectedId=body.id;
-        Diagnostics.initEnergy=null; Diagnostics.initialMomentum=null; Diagnostics.initialAngularMomentum=null;
-        this.updateInspector();
-        return body;
+    screenToWorld:function(clientX,clientY,depth=0){
+        const r=Renderer.canvas.getBoundingClientRect(),px=clientX-r.left,py=clientY-r.top,w=Renderer.canvas.clientWidth||r.width||1,h=Renderer.canvas.clientHeight||r.height||1;
+        const x1=(px-(w/2+Renderer.cameraPan.x))/Renderer.scale,y2=(py-(h/2+Renderer.cameraPan.y))/Renderer.scale;
+        const sx=Math.sin(Renderer.cameraRot.x),cx=Math.cos(Renderer.cameraRot.x),sy=Math.sin(Renderer.cameraRot.y),cy=Math.cos(Renderer.cameraRot.y);
+        const y=y2*cx+depth*sx,z1=-y2*sx+depth*cx;
+        return new Vec3(x1*cy+z1*sy,y,-x1*sy+z1*cy);
     },
-    selectAtScreen: function(clientX,clientY) {
-        const rect=Renderer.canvas.getBoundingClientRect();
-        const x=clientX-rect.left,y=clientY-rect.top;
-        let best=null,bestD=Infinity;
-        for(const p of Renderer.projectObjects()){
-            const d=Math.hypot(p.px-x,p.py-y), hit=Math.max(10,p.pr);
-            if(d<=hit&&d<bestD){best=p;bestD=d;}
-        }
-        this.selectedId=best?best.obj.id:null;
-        this.updateInspector();
+    createObject:function(clientX=null,clientY=null){
+        const type=(document.getElementById("type")||{value:"PLANET"}).value,num=(id,f)=>{const e=document.getElementById(id),v=Number(e&&e.value);return Number.isFinite(v)?v:f;};
+        const mass=num("mass",5.972e24),rad=num("radius",6.371e6);if(!(mass>0)||!(rad>0))throw new Error("mass/radius must be positive");
+        let p;if(Number.isFinite(clientX)&&Number.isFinite(clientY))p=this.screenToWorld(clientX,clientY,0);else{const r=Renderer.canvas.getBoundingClientRect();p=this.screenToWorld(r.left+r.width/2,r.top+r.height/2,0);}
+        const body=new PhysicalBody("user-"+Date.now()+"-"+Engine.objects.length,type,mass,rad,p,new Vec3(num("vel_x",0),num("vel_y",0),num("vel_z",0)));
+        if(type==="STAR")body.temperature=5778;
+        Engine.objects.push(body);this.selectedId=body.id;Diagnostics.initEnergy=null;Diagnostics.initialMomentum=null;Diagnostics.initialAngularMomentum=null;Diagnostics.begin(Engine.objects);this.updateInspector();return body;
     },
-    updateInspector: function() {
-        const ins=document.getElementById("inspector-data");
-        if(!ins||typeof Engine==="undefined") return;
-        const o=this.selectedId?Engine.objects.find(x=>x.id===this.selectedId):Engine.objects[Engine.objects.length-1];
-        if(!o){ins.textContent="선택된 객체 없음";return;}
-        const fmt=(v,u)=>Number.isFinite(v)?v.toExponential(6)+" "+u:"—";
-        ins.innerHTML="<b>Target: "+o.id+" ("+o.type+")</b><br>"+
-          "Mass: "+fmt(o.mass,"kg")+"<br>Radius: "+fmt(o.radius,"m")+"<br>"+
-          "Temperature: "+fmt(o.temperature,"K")+"<br>Luminosity: "+fmt(o.luminosity,"W");
+    handleCanvasTap:function(clientX,clientY){
+        const r=Renderer.canvas.getBoundingClientRect(),x=clientX-r.left,y=clientY-r.top;let best=null,bestD=Infinity;
+        for(const p of Renderer.projectObjects()){const d=Math.hypot(p.px-x,p.py-y),hit=Math.max(12,p.pr+6);if(d<=hit&&d<bestD){best=p;bestD=d;}}
+        if(best){this.selectedId=best.obj.id;this.updateInspector();return{action:"select",object:best.obj};}
+        return{action:"create",object:this.createObject(clientX,clientY)};
     },
-    togglePanel: function(which) {
-        const el=document.getElementById(which==="creator"?"creator-panel":"inspector-panel");
-        if(!el) return;
-        const open=el.dataset.open==="true";
-        el.dataset.open=open?"false":"true";
-        el.style.transform=which==="creator"?(open?"translateX(-105%)":"translateX(0)"):(open?"translateX(105%)":"translateX(0)");
-    },
-    showAudit: function() {
-        const results=Validator.runAllTests(true)||[];
-        let html="<h4>과학적 검증 프레임워크</h4><ul style='list-style:none;padding:0'>";
-        let allPass=results.length>0;
-        for(const r of results){
-            const pass=r.status==="PASS",warn=r.status==="WARNING";
-            if(!pass) allPass=false;
-            const tag=pass?"[PASS]":warn?"[WARNING]":"[FAIL]";
-            html+="<li style='margin-bottom:8px;border-bottom:1px solid #333;padding-bottom:4px'>"+
-              "<b>"+tag+"</b> "+r.name+"<br><span style='font-size:11px;color:#aaa'>Error: "+
-              (Number.isFinite(r.error)?r.error.toExponential(3):String(r.error))+" | Tol: "+r.tolerance+"</span></li>";
-        }
-        html+="</ul><div style='color:"+(allPass?"#10b981":"#ef4444")+"'>"+
-          (allPass?"등록된 검증 항목 PASS":"검증 실패 또는 미완료 항목 존재")+"</div>";
-        document.getElementById("validation-results").innerHTML=html;
-        document.getElementById("validation-modal").style.display="block";
-    }
+    selectAtScreen:function(clientX,clientY){const r=Renderer.canvas.getBoundingClientRect(),x=clientX-r.left,y=clientY-r.top;let best=null,bestD=Infinity;for(const p of Renderer.projectObjects()){const d=Math.hypot(p.px-x,p.py-y),hit=Math.max(12,p.pr+6);if(d<=hit&&d<bestD){best=p;bestD=d;}}this.selectedId=best?best.obj.id:null;this.updateInspector();},
+    updateInspector:function(){const ins=document.getElementById("inspector-data");if(!ins||typeof Engine==="undefined")return;const o=this.selectedId?Engine.objects.find(x=>x.id===this.selectedId):Engine.objects[Engine.objects.length-1];if(!o){ins.textContent="선택된 객체 없음";return;}const f=(v,u)=>Number.isFinite(v)?v.toExponential(6)+" "+u:"—";ins.innerHTML="<b>Target: "+o.id+" ("+o.type+")</b><br>Mass: "+f(o.mass,"kg")+"<br>Radius: "+f(o.radius,"m")+"<br>Position: ["+f(o.pos.x,"m")+", "+f(o.pos.y,"m")+", "+f(o.pos.z,"m")+"]<br>Velocity: ["+f(o.vel.x,"m/s")+", "+f(o.vel.y,"m/s")+", "+f(o.vel.z,"m/s")+"]<br>Temperature: "+f(o.temperature,"K")+"<br>Luminosity: "+f(o.luminosity,"W");},
+    togglePanel:function(which){const el=document.getElementById(which==="creator"?"creator-panel":"inspector-panel");if(!el)return;const open=el.dataset.open==="true";el.dataset.open=open?"false":"true";el.style.transform=which==="creator"?(open?"translateX(-105%)":"translateX(0)"):(open?"translateX(105%)":"translateX(0)");},
+    showAudit:function(){const results=Validator.runAllTests(true)||[];let html="<h4>과학적 검증 프레임워크</h4><ul style='list-style:none;padding:0'>",allPass=results.length>0;for(const r of results){const pass=r.status==="PASS",warn=r.status==="WARNING";if(!pass)allPass=false;html+="<li><b>"+(pass?"[PASS]":warn?"[WARNING]":"[FAIL]")+"</b> "+r.name+"<br><span style='font-size:11px;color:#aaa'>Error: "+(Number.isFinite(r.error)?r.error.toExponential(3):String(r.error))+" | Tol: "+r.tolerance+"</span></li>"}html+="</ul><div>"+(allPass?"등록된 검증 항목 PASS":"검증 실패 또는 미완료 항목 존재")+"</div>";document.getElementById("validation-results").innerHTML=html;document.getElementById("validation-modal").style.display="block";}
 };
 
-const Engine = {
-    objects: [], time: 0, dt: 120, integratorType: "RK4", gravityAlgorithm: "BARNES_HUT",
-    status: "STABLE", paused: false, frames: 0, lastFpsTime: 0, adaptiveDt: false, minDt: 1e-6, maxDt: 1e12, safety: 0.2,
-    activeModels: ["Gravity", "Collision"],
-    setIntegrator: function(type) { this.integratorType = String(type).toUpperCase(); },
-    getAccelerations: function(objs) {
-        const accels = new Array(objs.length).fill(null).map(() => new Vec3());
-        if(this.activeModels.includes("Gravity")) {
-            const gravAcc = GravityEngine.computeAccelerations(objs, this.gravityAlgorithm === "BARNES_HUT");
-            for(let i=0;i<objs.length;i++) accels[i]=accels[i].add(gravAcc[i]);
-        }
-        if(this.activeModels.includes("Relativity")) {
-            const grAcc = RelativityEngine.computeSchwarzschildPrecession(objs);
-            for(let i=0;i<objs.length;i++) accels[i]=accels[i].add(grAcc[i]);
-        }
-        if(this.activeModels.includes("Electromagnetic")) {
-            const emAcc = ElectromagneticEngine.computeAccelerations(objs);
-            for(let i=0;i<objs.length;i++) accels[i]=accels[i].add(emAcc[i]);
-        }
-        return accels;
-    },
-    step: function() {
-        if(this.status==="FAILED"||this.paused) return;
-        for(const o of this.objects) {
-            const finite=[o.pos.x,o.pos.y,o.pos.z,o.vel.x,o.vel.y,o.vel.z].every(Number.isFinite);
-            if(!finite){this.status="FAILED";throw new Error("Non-finite state detected");}
-            if(o.vel.magSq()>=PhysicsConstants.c*PhysicsConstants.c){this.status="FAILED";throw new Error("Superluminal velocity detected");}
-        }
-        if(!(this.dt>0)||!Number.isFinite(this.dt)){this.status="FAILED";throw new Error("Invalid timestep");} if(this.dt<this.minDt||this.dt>this.maxDt){this.status="FAILED";throw new Error("Timestep outside configured safety bounds");}
-        const t_integrator=String(this.integratorType).toLowerCase();
-        if(t_integrator==="euler") Integrators.eulerSemiImplicit(this.objects,this.dt,this.getAccelerations(this.objects));
-        else if(t_integrator==="verlet") Integrators.verlet(this.objects,this.dt,obs=>this.getAccelerations(obs));
-        else if(t_integrator==="rk4") Integrators.rk4(this.objects,this.dt,obs=>this.getAccelerations(obs));
-        else {this.status="FAILED";throw new Error("Unknown integrator: "+this.integratorType);}
-        if(this.activeModels.includes("Fluid")) FluidEngine.computeSPH(this.objects);
-        if(this.activeModels.includes("Nuclear")) NuclearEngine.computeFusion(this.dt,this.objects);
-        if(this.activeModels.includes("Collision")) CollisionEngine.checkAndResolve(this.objects);
-        if(this.activeModels.includes("Thermodynamics")){
-            ThermoEngine.updateTemperature(this.objects);
-            ThermoEngine.computeRadiation(this.dt,this.objects);
-        }
-        if(this.adaptiveDt){let amin=Infinity;for(const o of this.objects){const a=o.acc.mag();if(a>0)amin=Math.min(amin,Math.sqrt(Math.max(o.radius,1)/a));}if(Number.isFinite(amin))this.dt=Math.max(this.minDt,Math.min(this.maxDt,this.safety*amin));} this.time+=this.dt;
-        Diagnostics.update(this.objects);
-        UI.updateInspector();
-    },
-    togglePause: function() {
-        this.paused=!this.paused;
-        const b=document.getElementById("btn-pause"); if(b) b.innerText=this.paused?"재개 (RESUME)":"일시정지 (PAUSE)";
-    },
-    loop: function() {
-        requestAnimationFrame(()=>this.loop());
-        const now=performance.now(); this.frames++;
-        if(now-this.lastFpsTime>=1000){this.frames=0;this.lastFpsTime=now;}
-        if(!this.paused){
-            try{this.step();}catch(e){this.status="FAILED";this.paused=true;const b=document.getElementById("btn-pause");if(b)b.innerText="재개 (RESUME)";}
-        }
-        Renderer.draw();
-    }
-};
+const Engine={objects:[],time:0,dt:120,integratorType:"RK4",gravityAlgorithm:"BARNES_HUT",status:"STABLE",paused:false,frames:0,lastFpsTime:0,adaptiveDt:false,minDt:1e-6,maxDt:1e12,safety:.2,activeModels:["Gravity","Collision"],
+setIntegrator:function(type){this.integratorType=String(type).toUpperCase();},
+getAccelerations:function(objs){const a=new Array(objs.length).fill(null).map(()=>new Vec3());if(this.activeModels.includes("Gravity")){const g=GravityEngine.computeAccelerations(objs,this.gravityAlgorithm==="BARNES_HUT");for(let i=0;i<objs.length;i++)a[i]=a[i].add(g[i]);}if(this.activeModels.includes("Relativity")){const g=RelativityEngine.computeSchwarzschildPrecession(objs);for(let i=0;i<objs.length;i++)a[i]=a[i].add(g[i]);}if(this.activeModels.includes("Electromagnetic")){const g=ElectromagneticEngine.computeAccelerations(objs);for(let i=0;i<objs.length;i++)a[i]=a[i].add(g[i]);}return a;},
+step:function(){if(this.status==="FAILED"||this.paused)return;for(const o of this.objects){if(![o.pos.x,o.pos.y,o.pos.z,o.vel.x,o.vel.y,o.vel.z].every(Number.isFinite)){this.status="FAILED";throw new Error("Non-finite state detected");}if(o.vel.magSq()>=PhysicsConstants.c**2){this.status="FAILED";throw new Error("Superluminal velocity detected");}}if(!(this.dt>0&&Number.isFinite(this.dt)&&this.dt>=this.minDt&&this.dt<=this.maxDt)){this.status="FAILED";throw new Error("Invalid timestep");}const t=String(this.integratorType).toLowerCase();if(t==="euler")Integrators.eulerSemiImplicit(this.objects,this.dt,this.getAccelerations(this.objects));else if(t==="verlet")Integrators.verlet(this.objects,this.dt,obs=>this.getAccelerations(obs));else if(t==="rk4")Integrators.rk4(this.objects,this.dt,obs=>this.getAccelerations(obs));else{this.status="FAILED";throw new Error("Unknown integrator: "+this.integratorType);}if(this.activeModels.includes("Fluid"))FluidEngine.computeSPH(this.objects);if(this.activeModels.includes("Nuclear"))NuclearEngine.computeFusion(this.dt,this.objects);if(this.activeModels.includes("Collision"))CollisionEngine.checkAndResolve(this.objects);if(this.activeModels.includes("Thermodynamics")){ThermoEngine.updateTemperature(this.objects);ThermoEngine.computeRadiation(this.dt,this.objects);}if(this.adaptiveDt){let amin=Infinity;for(const o of this.objects){const a=o.acc.mag();if(a>0)amin=Math.min(amin,Math.sqrt(Math.max(o.radius,1)/a));}if(Number.isFinite(amin))this.dt=Math.max(this.minDt,Math.min(this.maxDt,this.safety*amin));}this.time+=this.dt;Diagnostics.update(this.objects);UI.updateInspector();},
+togglePause:function(){this.paused=!this.paused;const b=document.getElementById("btn-pause");if(b)b.innerText=this.paused?"재개 (RESUME)":"일시정지 (PAUSE)";},
+loop:function(){requestAnimationFrame(()=>this.loop());if(!this.paused){try{this.step();}catch(e){this.status="FAILED";this.paused=true;const b=document.getElementById("btn-pause");if(b)b.innerText="재개 (RESUME)";}}Renderer.draw();}};
+
 
 
 window.addEventListener('DOMContentLoaded', () => { UI.init(); Renderer.init(); Labs.loadLab('GRAVITY'); Engine.loop(); });
