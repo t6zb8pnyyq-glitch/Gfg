@@ -163,9 +163,22 @@ this.$("creatorBtn").onclick=()=>this.panel("creator");this.$("inspectorBtn").on
 panel(id){for(const x of ["creator","inspector"])this.$(x).dataset.open=x===id?"true":"false"},
 lab(){
 const q=PhysicsLab.validate();
+const p=Sim.bodies;
 const rows=q.tests.map(t=>"<div>"+(t[1]?"✓ ":"✗ ")+t[0]+"</div>").join("");
+const astrophysics=p.map(b=>{
+const rho=b.mass/Math.max((4*Math.PI/3)*Math.pow(b.radius,3),1e-300);
+const T=b.type==="STAR"?5.8e3:288;
+const pressure=PhysicsLab.EOS.idealGasPressure(rho,T);
+const rs=PhysicsLab.GR.schwarzschildRadius(b.mass);
+const redshift=rs<b.radius?PhysicsLab.GR.gravitationalRedshift(b.mass,b.radius):Infinity;
+return "<hr><b>"+b.type+" "+b.id.slice(0,8)+"</b><br>ρ = "+rho.toExponential(3)+" kg/m³"+
+"<br>P<sub>gas</sub> = "+pressure.toExponential(3)+" Pa"+
+"<br>R<sub>s</sub> = "+rs.toExponential(3)+" m"+
+"<br>z<sub>grav</sub> = "+(Number.isFinite(redshift)?redshift.toExponential(3):"inside Rₛ")+"";
+}).join("");
 this.$("info").innerHTML="<b>Physics Lab</b><br>검증 "+q.pass+"/"+q.total+"<hr>"+rows+
-"<br><br>EOS / 핵반응 / 복사수송 / MHD / GR / 양자 / 우주론 모듈이 독립 계산기로 연결되어 있다.";
+"<br><br><b>현재 우주 상태의 파생 물리량</b>"+astrophysics+
+"<br><br>※ 현재 값은 reduced-order diagnostic이며 N-body 운동방정식 자체를 대체하지 않는다.";
 this.panel("inspector");
 },
 solar(){
