@@ -123,7 +123,8 @@ energy(bodies){let K=0,U=0;for(let i=0;i<bodies.length;i++){K+=.5*bodies[i].mass
 angularMomentum(bodies){return bodies.reduce((L,b)=>L.add(b.pos.cross(b.vel.mul(b.mass))),new V())},
 snapshot(bodies){return {P:this.momentum(bodies),E:this.energy(bodies),L:this.angularMomentum(bodies)}},
 relative(a,b){return Math.abs(a-b)/Math.max(1,Math.abs(a),Math.abs(b))},
-vectorRelative(a,b){return this.relative(a.mag(),b.mag())}
+vectorRelative(a,b){return this.relative(a.mag(),b.mag())},
+transition(before,after){if(!this.finiteSystem(after))throw new Error("NON_FINITE_STATE");return {energy:this.relative(before.E,after.E),momentum:this.vectorRelative(before.P,after.P),angularMomentum:this.vectorRelative(before.L,after.L)}}
 };
 const Sim={
 bodies:[],time:0,paused:true,scale:1e-9,panX:0,panY:0,rot:0,selected:null,
@@ -143,7 +144,9 @@ const a0=this.accel(this.bodies);
 for(let i=0;i<this.bodies.length;i++){const b=this.bodies[i];b.pos=b.pos.add(b.vel.mul(dt)).add(a0[i].mul(.5*dt*dt))}
 const a1=this.accel(this.bodies);
 for(let i=0;i<this.bodies.length;i++){const b=this.bodies[i];b.vel=b.vel.add(a0[i].add(a1[i]).mul(.5*dt));b.acc=a1[i];if(b.vel.mag()>=C)throw new Error("velocity reached c")}
-this.time+=dt;this.collide()},
+this.time+=dt;this.collide();
+this.lastDiagnostics=PhysicsValidator.transition(before,PhysicsValidator.snapshot(this.bodies));
+},
 collide(){
 const remove=new Set(),add=[];
 for(let i=0;i<this.bodies.length;i++)for(let j=i+1;j<this.bodies.length;j++){
