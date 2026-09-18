@@ -985,7 +985,7 @@ const Labs = {
                 Engine.gravityAlgorithm="DIRECT";document.getElementById('sys-gravity').value="DIRECT";
                 Engine.activeModels.push("Relativity");
                 const M=10*PhysicsConstants.M_sun,rs=2*PhysicsConstants.G*M/(PhysicsConstants.c**2),r=100*rs,v=Math.sqrt(PhysicsConstants.G*M/r);
-                Engine.objects.push(new PhysicalBody("BH","BLACK_HOLE",M,rs,new Vec3(),new Vec3()));
+                const bhBody=new PhysicalBody("BH","BLACK_HOLE",M,rs,new Vec3(),new Vec3());bhBody.temperature=BlackHoleThermodynamics.hawkingTemperature(M);bhBody.surfaceTemperature=bhBody.temperature;bhBody.luminosity=BlackHoleThermodynamics.hawkingPower(M);Engine.objects.push(bhBody);
                 Engine.objects.push(new PhysicalBody("TEST","PLANET",1e20,1e3,new Vec3(r,0,0),new Vec3(0,v,0)));
                 Engine.dt=Math.max(1e-3,0.001*2*Math.PI*Math.sqrt(r**3/(PhysicsConstants.G*M)));Renderer.scale=1e-7;
             }
