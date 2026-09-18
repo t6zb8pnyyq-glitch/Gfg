@@ -395,7 +395,8 @@ class PhysicalBody {
         this.spin = new Vec3();           // Angular velocity vector [rad/s]
 
         // --- Thermodynamics & Fluid State ---
-        this.temperature = 2.73;          // Absolute temperature [K] (CMB default)
+        this.temperature = 2.73;          // Diagnostic/core temperature [K]
+        this.surfaceTemperature = 2.73;  // Radiating surface temperature [K]
         this.internalEnergy = 0;          // Total internal energy [J]
 
         // Fluid/SPH specific
@@ -439,6 +440,7 @@ class PhysicalBody {
         b.acc = this.acc.clone();
         b.spin = this.spin.clone();
         b.temperature = this.temperature;
+        b.surfaceTemperature = this.surfaceTemperature;
         b.internalEnergy = this.internalEnergy;
         b.density = this.density;
         b.sph_density = this.sph_density;
@@ -619,6 +621,39 @@ const FluidEngine = {
  updateState:function(objects){this.computeAccelerations(objects);}
 };
 
+const ThermoEngine = {
+    updateTemperature:function(objects){
+        const mp=1.67262192369e-27;
+        for(const o of objects){
+            if(!(o.mass>0)||!(o.internalEnergy>=0))continue;
+            if(o.type==="GAS_CLOUD"){
+                const mu=0.61;
+                const u=o.internalEnergy/o.mass;
+                o.temperature=Math.max(2.73,(2/3)*u*mu*mp/PhysicsConstants.k_B);
+                o.surfaceTemperature=o.temperature;
+            }else if(o.type==="STAR"){
+                if(!(o.surfaceTemperature>0)||!Number.isFinite(o.surfaceTemperature))o.surfaceTemperature=5778;
+            }else{
+                if(!(o.surfaceTemperature>0)||!Number.isFinite(o.surfaceTemperature))o.surfaceTemperature=Math.max(2.73,o.temperature||2.73);
+            }
+        }
+    },
+    computeRadiation:function(dt,objects){
+        if(!(dt>0))return;
+        for(const o of objects){
+            if(!(o.radius>0)||!(o.mass>0))continue;
+            const T=Math.max(2.73,Number.isFinite(o.surfaceTemperature)?o.surfaceTemperature:2.73);
+            const area=4*Math.PI*o.radius*o.radius;
+            const blackbody=PhysicsConstants.sigma_sb*area*T**4;
+            const source=Number.isFinite(o.luminosity)&&o.luminosity>0?o.luminosity:blackbody;
+            o.radiativeLuminosity=blackbody;
+            if(o.type!=="STAR"&&o.type!=="GAS_CLOUD")o.luminosity=blackbody;
+            const loss=Math.min(Math.max(0,o.internalEnergy),Math.max(0,source*dt));
+            o.internalEnergy=Math.max(0,o.internalEnergy-loss);
+        }
+    }
+};
+
 const NuclearEngine = {
     // One-zone stellar burning model. Rates are standard analytic educational
     // approximations, not a full stellar-evolution reaction network.
@@ -633,7 +668,7 @@ const NuclearEngine = {
             const thermal=1.5*(o.mass/mp)*PhysicsConstants.k_B*Tc;
             if(!(o.internalEnergy>0)||!Number.isFinite(o.internalEnergy))o.internalEnergy=thermal;
 
-            const rho=o.density;
+            const rho=o.density*1e-3; // kg m^-3 -> g cm^-3 for the cgs fitting formula
             const X=Math.max(0,Math.min(1,o.composition.X));
             const Y=Math.max(0,Math.min(1,o.composition.Y));
             let released=0;
@@ -658,7 +693,7 @@ const NuclearEngine = {
                 released+=dY*o.mass*q3A;
             }
 
-            o.internalEnergy=Math.max(o.internalEnergy,thermal)+released;
+            o.internalEnergy+=released;
             const sum=o.composition.X+o.composition.Y+o.composition.Z;
             if(!(sum>0)||!Number.isFinite(sum))throw new Error("Invalid stellar composition");
             o.composition.X/=sum;o.composition.Y/=sum;o.composition.Z/=sum;
@@ -842,6 +877,7 @@ const Labs = {
         current: "GRAVITY",
         loadLab: function(labName) {
             this.current = labName;
+            UI.selectedId = null;
             Engine.objects = [];
             Engine.time = 0;
             Engine.status = "STABLE";
@@ -992,7 +1028,7 @@ const Renderer = {
                 else if(p.obj.type === "GAS_CLOUD") this.ctx.fillStyle = "rgba(16, 185, 129, 0.5)";
                 else this.ctx.fillStyle = "#aaa";
                 this.ctx.fill();
-                if(window.UI&&p.obj.id===UI.selectedId){this.ctx.beginPath();this.ctx.arc(p.px,p.py,p.pr+4,0,Math.PI*2);this.ctx.strokeStyle="#fff";this.ctx.lineWidth=2;this.ctx.stroke();}
+                if(p.obj.id===UI.selectedId){this.ctx.beginPath();this.ctx.arc(p.px,p.py,p.pr+4,0,Math.PI*2);this.ctx.strokeStyle="#fff";this.ctx.lineWidth=2;this.ctx.stroke();}
             }
         }
     }
@@ -1042,7 +1078,7 @@ const UI = {
             const d=1e8,pos=new Vec3(d*Math.sin(camera.rot.y),d*Math.sin(-camera.rot.x),-d*Math.cos(camera.rot.y));
             const id=(globalThis.crypto&&typeof crypto.randomUUID==='function')?crypto.randomUUID():Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
             const body=new PhysicalBody('body-'+id,type,mass,rad,pos,vel);
-            if(type==='STAR')body.temperature=5778;
+            if(type==='STAR'){body.temperature=1.57e7;body.surfaceTemperature=5778;}
             if(type==='GAS_CLOUD'){body.temperature=100;const mu=0.61,mp=1.67262192369e-27;body.internalEnergy=1.5*(mass/(mu*mp))*PhysicsConstants.k_B*body.temperature;}
             Engine.objects.push(body);Diagnostics.initEnergy=null;this.updateInspector();return true;
         },
