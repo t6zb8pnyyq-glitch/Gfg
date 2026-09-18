@@ -2,7 +2,7 @@ const fs = require("fs");
 const acorn = require("acorn");
 
 const html = fs.readFileSync("universe_creator.html", "utf8");
-const match = html.match(/<script>([\\s\\S]*)<\\/script>/);
+const match = html.match(/<script>([\s\S]*)<\/script>/);
 if (!match) throw new Error("inline script not found");
 
 const js = match[1];
@@ -18,7 +18,7 @@ for (const id of required) {
   if (!html.includes(id)) throw new Error("missing UI node: " + id);
 }
 
-const ids = [...html.matchAll(/\\bid="([^"]+)"/g)].map(m => m[1]);
+const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]);
 const duplicates = [...new Set(ids.filter((id, i) => ids.indexOf(id) !== i))];
 if (duplicates.length) throw new Error("duplicate DOM ids: " + duplicates.join(", "));
 
