@@ -22,8 +22,9 @@ h2,h3{margin:3px 0 14px}h3{font-size:15px}label{display:block;margin:10px 0 5px;
 .row{display:grid;grid-template-columns:1fr 1fr;gap:7px}.hint{color:var(--muted);font-size:11px;line-height:1.5;padding:9px;background:#111925;border:1px solid var(--line);border-radius:8px;margin:10px 0}
 #status{position:absolute;top:10px;left:10px;pointer-events:none;color:#aebbd0;font:11px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre}
 .badge{padding:5px 8px;border:1px solid var(--line);border-radius:7px;color:var(--muted);white-space:nowrap}.ok{color:var(--ok)}.warn{color:var(--warn)}.danger{color:var(--danger)}
-.mobile{display:none}
+.mobile{display:none}#diag{font:11px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted);word-break:break-word}
 @media(max-width:1000px){
+#creator,#inspector{grid-row:2}.panel{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 #app{grid-template-columns:1fr;grid-template-rows:50px minmax(0,1fr) 56px}
 #view{grid-column:1}.panel{position:absolute;top:50px;bottom:56px;width:min(86vw,340px);transition:transform .18s;box-shadow:0 15px 50px #0008}.panel[data-open="false"]{transform:translateX(-105%)}#inspector[data-open="false"]{transform:translateX(105%)}#creator{left:0;border-right:1px solid var(--line)}#inspector{right:0;border-left:1px solid var(--line)}.mobile{display:block}
 }
@@ -43,14 +44,14 @@ h2,h3{margin:3px 0 14px}h3{font-size:15px}label{display:block;margin:10px 0 5px;
 <button id="create" style="width:100%">현재 위치에 생성</button>
 <button id="clear" style="width:100%;margin-top:7px">전체 삭제</button>
 </aside>
-<section class="panel" id="diagnosticsPanel"><h3>검증</h3><div id="diag"></div></section><aside id="inspector" class="panel" data-open="false">
+<aside id="inspector" class="panel" data-open="false">
 <h3>물리 진단</h3><div id="info">객체를 선택하세요.</div>
 <hr>
 <div>객체 수: <b id="count">0</b></div>
 <div>시간: <b id="simTime">0 s</b></div>
 <div>에너지: <b id="energy">0 J</b></div>
 <div>운동량: <b id="momentum">0 kg·m/s</b></div>
-<div>상태: <b id="state" class="ok">STABLE</b></div>
+<div>상태: <b id="state" class="ok">STABLE</b></div><hr><div id="diag">ΔE —<br>ΔP —<br>ΔL —</div>
 </aside>
 <footer id="bottom"><button id="pause">PAUSE</button><button id="step">STEP</button><label style="margin:0;color:var(--muted)">dt</label><input id="dt" type="number" value="3600" step="any" style="width:100px"><button id="resetView">VIEW RESET</button></footer>
 </div>
@@ -115,7 +116,8 @@ const PhysicsLab={
   }
 };
 
-const LIMITS={MAX_DT:86400*365,MAX_BODIES:2000,MAX_SPEED:299792458*(1-1e-12),MAX_REL_DRIFT:1e-5};\nconst PhysicsValidator={
+const LIMITS={MAX_DT:86400*365,MAX_BODIES:2000,MAX_SPEED:299792458*(1-1e-12),MAX_REL_DRIFT:1e-5};
+const PhysicsValidator={
 finiteBody(b){return [b.mass,b.radius,b.pos.x,b.pos.y,b.pos.z,b.vel.x,b.vel.y,b.vel.z,b.acc.x,b.acc.y,b.acc.z].every(Number.isFinite)&&b.mass>0&&b.radius>0},
 finiteSystem(bodies){return bodies.every(this.finiteBody)},
 momentum(bodies){return bodies.reduce((p,b)=>p.add(b.vel.mul(b.mass)),new V())},
@@ -160,15 +162,23 @@ a[i]=a[i].add(r.mul(k*b[j].mass));a[j]=a[j].add(r.mul(-k*b[i].mass));
 }return a},
 step(dt){
 if(!Number.isFinite(dt)||dt<=0||dt>LIMITS.MAX_DT)throw new Error("INVALID_DT");
-if(this.bodies.length>LIMITS.MAX_BODIES)throw new Error("MAX_BODIES_EXCEEDED");\nif(!PhysicsValidator.finiteSystem(this.bodies))throw new Error("INVALID_STATE");\nfor(const b of this.bodies)if(b.vel.mag()>=LIMITS.MAX_SPEED)throw new Error("SUPERLUMINAL_STATE");
+if(this.bodies.length>LIMITS.MAX_BODIES)throw new Error("MAX_BODIES_EXCEEDED");
+if(!PhysicsValidator.finiteSystem(this.bodies))throw new Error("INVALID_STATE");
+for(const b of this.bodies)if(b.pos.mag()>LIMITS.MAX_POSITION)throw new Error("POSITION_LIMIT_EXCEEDED");
+for(const b of this.bodies)if(b.vel.mag()>=LIMITS.MAX_SPEED)throw new Error("SUPERLUMINAL_STATE");
 const before=PhysicsValidator.snapshot(this.bodies);
 if(!(dt>0&&Number.isFinite(dt)))throw new Error("dt must be positive and finite");
 const a0=this.accel(this.bodies);
 for(let i=0;i<this.bodies.length;i++){const b=this.bodies[i];b.pos=b.pos.add(b.vel.mul(dt)).add(a0[i].mul(.5*dt*dt))}
 const a1=this.accel(this.bodies);
 for(let i=0;i<this.bodies.length;i++){const b=this.bodies[i];b.vel=b.vel.add(a0[i].add(a1[i]).mul(.5*dt));b.acc=a1[i];if(b.vel.mag()>=C)throw new Error("velocity reached c")}
-this.time+=dt;this.collide();
-this.lastDiagnostics=PhysicsValidator.transition(before,PhysicsValidator.snapshot(this.bodies));
+this.time+=dt;
+const collisionBefore=PhysicsValidator.snapshot(this.bodies);
+this.collide();
+const after=PhysicsValidator.snapshot(this.bodies);
+const transition=PhysicsValidator.transition(before,after);
+transition.collisionEnergyLoss=Math.max(0,collisionBefore.E-after.E);
+this.lastDiagnostics=transition;
 },
 collide(){
 const remove=new Set(),add=[];
@@ -196,7 +206,7 @@ this.$("newSystem").onclick=()=>this.solar();
 this.$("lab").onclick=()=>this.lab();
 this.$("pause").onclick=()=>{Sim.paused=!Sim.paused;this.sync()};
 this.$("step").onclick=()=>{try{Sim.step(Number(this.$("dt").value))}catch(e){this.fail(e)}this.render()};
-this.$("resetView").onclick=()=>{Sim.scale=1e-9;Sim.panX=0;Sim.panY=0;Sim.rot=0};
+this.$("resetView").onclick=()=>{Sim.scale=1e-9;Sim.panX=0;Sim.panY=0;Sim.rot=0;this.draw()};
 this.$("creatorBtn").onclick=()=>this.panel("creator");this.$("inspectorBtn").onclick=()=>this.panel("inspector");
 },
 panel(id){for(const x of ["creator","inspector"])this.$(x).dataset.open=x===id?"true":"false"},
@@ -250,7 +260,9 @@ draw(){
 const c=this.$("canvas"),ctx=c.getContext("2d"),r=c.parentElement.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2);c.width=Math.max(1,Math.round(r.width*d));c.height=Math.max(1,Math.round(r.height*d));ctx.setTransform(d,0,0,d,0,0);ctx.fillStyle="#010204";ctx.fillRect(0,0,r.width,r.height);
 const cx=r.width/2+Sim.panX,cy=r.height/2+Sim.panY;
 for(const b of [...Sim.bodies].sort((a,b)=>a.pos.z-b.pos.z)){const x=cx+b.pos.x*Sim.scale,y=cy+b.pos.y*Sim.scale,rr=Math.max(3,Math.min(28,b.radius*Sim.scale));ctx.beginPath();ctx.arc(x,y,rr,0,Math.PI*2);ctx.fillStyle=b.type==="STAR"?"#ffd45a":b.type==="BLACK_HOLE"?"#000":"#48aef5";ctx.fill();if(b.type==="BLACK_HOLE"){ctx.strokeStyle="#fff";ctx.stroke()}if(b.id===Sim.selected){ctx.beginPath();ctx.arc(x,y,Math.max(9,rr+5),0,Math.PI*2);ctx.strokeStyle="#fff";ctx.stroke()}}
-this.$("status").textContent="N="+Sim.bodies.length+"\nT="+Sim.time.toExponential(4)+" s\nSCALE="+Sim.scale.toExponential(3)+" m/px";
+this.$("status").textContent="N="+Sim.bodies.length+"
+T="+Sim.time.toExponential(4)+" s
+SCALE="+Sim.scale.toExponential(3)+" m/px";
 }
 };
 const canvas=document.getElementById("canvas");
@@ -288,6 +300,7 @@ if(m>0&&rad>0)Sim.create(UI.$("type").value,m,rad,new V(wx,wy,0)),UI.render();
 canvas.addEventListener("pointercancel",()=>gesture=null);
 canvas.addEventListener("wheel",e=>{e.preventDefault();Sim.scale=Math.min(1e-2,Math.max(1e-18,Sim.scale*Math.exp(-e.deltaY*.001)));UI.draw()},{passive:false});
 UI.init();UI.solar();Sim.selfTests=runSelfTests();
+window.addEventListener("resize",()=>UI.draw(),{passive:true});
 function runSelfTests(){
 const out=[];
 try{out.push(["Kepler period",Math.abs(AdvancedPhysics.orbitalPeriod(MS,AU)-365.256*86400)/(365.256*86400)<1e-12])}catch(e){out.push(["Kepler period",false])}
@@ -300,7 +313,7 @@ function loop(){if(!Sim.paused){try{Sim.step(Number(UI.$("dt").value))}catch(e){
 const d=Sim.lastDiagnostics;
 if(d){
 const el=UI.$("diag");
-if(el)el.innerHTML="ΔE "+d.energy.toExponential(3)+"<br>ΔP "+d.momentum.toExponential(3)+"<br>ΔL "+d.angularMomentum.toExponential(3);
+if(el)el.innerHTML="ΔE "+d.energy.toExponential(3)+"<br>ΔP "+d.momentum.toExponential(3)+"<br>ΔL "+d.angularMomentum.toExponential(3)+"<br>충돌 에너지 손실 "+d.collisionEnergyLoss.toExponential(3)+" J";
 }
 requestAnimationFrame(loop)}loop();
 </script>
