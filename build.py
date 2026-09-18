@@ -49,13 +49,13 @@ def build_universe_creator():
     </style>
 </head>
 <body>
-    <div id="layout-container">
+    <div id="layout-container" style="touch-action:manipulation;">
         <div id="module-bar">
-            <span class="lab-module active" onclick="Labs.loadLab('GRAVITY')">중력/궤도 역학 (Solar)</span>
-            <span class="lab-module" onclick="Labs.loadLab('GALAXY')">은하 시뮬레이션 (Galaxy)</span>
-            <span class="lab-module" onclick="Labs.loadLab('SPH_FLUID')">유체역학/SPH</span>
-            <span class="lab-module" onclick="Labs.loadLab('NUCLEAR_STAR')">항성/핵물리학</span>
-            <span class="lab-module" onclick="Labs.loadLab('QUANTUM_RELATIVITY')">양자/상대성 (Test)</span>
+            <button type="button" id="btn-lab-GRAVITY" class="lab-module active" onclick="Labs.loadLab('GRAVITY')">중력/궤도 역학 (Solar)</button>
+            <button type="button" id="btn-lab-GALAXY" class="lab-module" onclick="Labs.loadLab('GALAXY')">은하 시뮬레이션 (Galaxy)</button>
+            <button type="button" id="btn-lab-SPH_FLUID" class="lab-module" onclick="Labs.loadLab('SPH_FLUID')">유체역학/SPH</button>
+            <button type="button" id="btn-lab-NUCLEAR_STAR" class="lab-module" onclick="Labs.loadLab('NUCLEAR_STAR')">항성/핵물리학</button>
+            <button type="button" id="btn-lab-QUANTUM_RELATIVITY" class="lab-module" onclick="Labs.loadLab('QUANTUM_RELATIVITY')">양자/상대성 (Test)</button>
         </div>
 
         <div id="viewport-container">
@@ -137,7 +137,7 @@ def build_universe_creator():
         with open(mod, "r") as f:
             js += f.read() + "\n\n"
 
-    init_call = "\nwindow.onload = () => { UI.init(); Renderer.init(); Labs.loadLab('SOLAR_SYSTEM'); Engine.loop(); };\n"
+    init_call = "\nwindow.addEventListener('DOMContentLoaded', () => { UI.init(); Renderer.init(); Labs.loadLab('GRAVITY'); Engine.loop(); });\n"
 
     html_footer = """
     </script>
