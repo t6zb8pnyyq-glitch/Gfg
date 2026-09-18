@@ -115,6 +115,16 @@ const PhysicsLab={
   }
 };
 
+const PhysicsValidator={
+finiteBody(b){return [b.mass,b.radius,b.pos.x,b.pos.y,b.pos.z,b.vel.x,b.vel.y,b.vel.z,b.acc.x,b.acc.y,b.acc.z].every(Number.isFinite)&&b.mass>0&&b.radius>0},
+finiteSystem(bodies){return bodies.every(this.finiteBody)},
+momentum(bodies){return bodies.reduce((p,b)=>p.add(b.vel.mul(b.mass)),new V())},
+energy(bodies){let K=0,U=0;for(let i=0;i<bodies.length;i++){K+=.5*bodies[i].mass*bodies[i].vel.mag2();for(let j=i+1;j<bodies.length;j++){const d=bodies[i].pos.sub(bodies[j].pos).mag();if(d>0)U-=G*bodies[i].mass*bodies[j].mass/d}}return K+U},
+angularMomentum(bodies){return bodies.reduce((L,b)=>L.add(b.pos.cross(b.vel.mul(b.mass))),new V())},
+snapshot(bodies){return {P:this.momentum(bodies),E:this.energy(bodies),L:this.angularMomentum(bodies)}},
+relative(a,b){return Math.abs(a-b)/Math.max(1,Math.abs(a),Math.abs(b))},
+vectorRelative(a,b){return this.relative(a.mag(),b.mag())}
+};
 const Sim={
 bodies:[],time:0,paused:true,scale:1e-9,panX:0,panY:0,rot:0,selected:null,
 accel(b){
@@ -125,6 +135,9 @@ const inv=1/Math.sqrt(r2),k=G*inv/r2;
 a[i]=a[i].add(r.mul(k*b[j].mass));a[j]=a[j].add(r.mul(-k*b[i].mass));
 }return a},
 step(dt){
+if(!Number.isFinite(dt)||dt<=0)throw new Error("INVALID_DT");
+if(!PhysicsValidator.finiteSystem(this.bodies))throw new Error("INVALID_STATE");
+const before=PhysicsValidator.snapshot(this.bodies);
 if(!(dt>0&&Number.isFinite(dt)))throw new Error("dt must be positive and finite");
 const a0=this.accel(this.bodies);
 for(let i=0;i<this.bodies.length;i++){const b=this.bodies[i];b.pos=b.pos.add(b.vel.mul(dt)).add(a0[i].mul(.5*dt*dt))}
