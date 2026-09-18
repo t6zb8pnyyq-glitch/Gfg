@@ -168,6 +168,7 @@ html,body,#layout-container{width:100%;height:100%;min-width:0;min-height:0}
             </select>
             <label>타임스텝(dt):</label>
             <input type="number" id="sys-dt" value="1.0" style="width:60px;" onchange="Engine.dt = parseFloat(this.value)">
+            <label><input type="checkbox" id="adaptive-dt" onchange="Engine.adaptiveDt=this.checked" style="width:auto;">적응 dt</label>
             <button id="btn-audit" onclick="UI.showAudit()">검증 (AUDIT)</button>
         </div>
     </div>
