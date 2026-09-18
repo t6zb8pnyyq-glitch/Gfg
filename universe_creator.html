@@ -1318,46 +1318,101 @@ const QuantumEngine={
 const CosmologyEngine={derivative(a,H0,Om,Or,Ol){if(!(a>0))throw new Error("Scale factor must be positive");const E2=Om*a**-3+Or*a**-4+Ol;if(E2<0)throw new Error("Friedmann H^2 became negative");return a*H0*Math.sqrt(E2)},solveFriedmann(H0_si,Omega_m,Omega_r,Omega_lambda,t_end,dt,a_initial=1){if(!(H0_si>0&&t_end>=0&&dt>0&&a_initial>0))throw new Error("Invalid Friedmann parameters");const h=(a)=>this.derivative(a,H0_si,Omega_m,Omega_r,Omega_lambda);let a=a_initial,t=0,history=[];while(t<=t_end){history.push({t,a});if(t+dt>t_end)break;const k1=h(a),k2=h(a+dt*k1/2),k3=h(a+dt*k2/2),k4=h(a+dt*k3);a+=dt*(k1+2*k2+2*k3+k4)/6;if(!(a>0&&Number.isFinite(a)))throw new Error("Friedmann integration diverged");t+=dt}return history}};
 
 const Integrators = {
-        eulerSemiImplicit: function(objects, dt, accels) {
-            for(let i=0; i<objects.length; i++) {
-                objects[i].vel = objects[i].vel.add(accels[i].mult(dt));
-                objects[i].pos = objects[i].pos.add(objects[i].vel.mult(dt));
-                objects[i].acc = accels[i];
-            }
-        },
-        verlet: function(objects, dt, getAccelsFn) {
-            if(!(dt>0)||!Number.isFinite(dt)) throw new Error("Invalid Velocity-Verlet timestep");
-            const currentAccels=getAccelsFn(objects);
-            if(currentAccels.length!==objects.length) throw new Error("Acceleration/state size mismatch");
-            for(let i=0;i<objects.length;i++){
-                objects[i].acc=currentAccels[i];
-                objects[i].pos=objects[i].pos.add(objects[i].vel.mult(dt)).add(currentAccels[i].mult(0.5*dt*dt));
-            }
-            const newAccels=getAccelsFn(objects);
-            for(let i=0;i<objects.length;i++){
-                objects[i].vel=objects[i].vel.add(currentAccels[i].add(newAccels[i]).mult(0.5*dt));
-                objects[i].acc=newAccels[i];
-            }
-        },
-        rk4: function(objects, dt, getAccelsFn) {
-            let clones = objects.map(o => o.clone());
-            let k1_v = getAccelsFn(clones); let k1_x = clones.map(o => o.vel.clone());
-            for(let i=0; i<clones.length; i++) { clones[i].pos = objects[i].pos.add(k1_x[i].mult(0.5*dt)); clones[i].vel = objects[i].vel.add(k1_v[i].mult(0.5*dt)); }
-
-            let k2_v = getAccelsFn(clones); let k2_x = clones.map(o => o.vel.clone());
-            for(let i=0; i<clones.length; i++) { clones[i].pos = objects[i].pos.add(k2_x[i].mult(0.5*dt)); clones[i].vel = objects[i].vel.add(k2_v[i].mult(0.5*dt)); }
-
-            let k3_v = getAccelsFn(clones); let k3_x = clones.map(o => o.vel.clone());
-            for(let i=0; i<clones.length; i++) { clones[i].pos = objects[i].pos.add(k3_x[i].mult(dt)); clones[i].vel = objects[i].vel.add(k3_v[i].mult(dt)); }
-
-            let k4_v = getAccelsFn(clones); let k4_x = clones.map(o => o.vel.clone());
-            for(let i=0; i<objects.length; i++) {
-                objects[i].pos = objects[i].pos.add( (k1_x[i].add(k2_x[i].mult(2)).add(k3_x[i].mult(2)).add(k4_x[i])).mult(dt/6) );
-                objects[i].vel = objects[i].vel.add( (k1_v[i].add(k2_v[i].mult(2)).add(k3_v[i].mult(2)).add(k4_v[i])).mult(dt/6) );
-                objects[i].acc = k1_v[i];
-            }
+    eulerSemiImplicit: function(objects, dt, accels) {
+        for(let i=0; i<objects.length; i++) {
+            objects[i].vel = objects[i].vel.add(accels[i].mult(dt));
+            objects[i].pos = objects[i].pos.add(objects[i].vel.mult(dt));
+            objects[i].acc = accels[i];
         }
+    },
+
+    verlet: function(objects, dt, getAccelsFn) {
+        if(!(dt>0)||!Number.isFinite(dt)) throw new Error("Invalid Velocity-Verlet timestep");
+        const currentAccels=getAccelsFn(objects);
+        if(currentAccels.length!==objects.length) throw new Error("Acceleration/state size mismatch");
+        for(let i=0;i<objects.length;i++){
+            objects[i].acc=currentAccels[i];
+            objects[i].pos=objects[i].pos.add(objects[i].vel.mult(dt)).add(currentAccels[i].mult(0.5*dt*dt));
+        }
+        const newAccels=getAccelsFn(objects);
+        for(let i=0;i<objects.length;i++){
+            objects[i].vel=objects[i].vel.add(currentAccels[i].add(newAccels[i]).mult(0.5*dt));
+            objects[i].acc=newAccels[i];
+        }
+    },
+
+    rk4Step: function(objects, dt, getAccelsFn) {
+        const base=objects.map(o=>o.clone());
+        const k1_v=getAccelsFn(base), k1_x=base.map(o=>o.vel.clone());
+
+        const s2=base.map((o,i)=>{const q=o.clone();q.pos=base[i].pos.add(k1_x[i].mult(.5*dt));q.vel=base[i].vel.add(k1_v[i].mult(.5*dt));return q;});
+        const k2_v=getAccelsFn(s2), k2_x=s2.map(o=>o.vel.clone());
+
+        const s3=base.map((o,i)=>{const q=o.clone();q.pos=base[i].pos.add(k2_x[i].mult(.5*dt));q.vel=base[i].vel.add(k2_v[i].mult(.5*dt));return q;});
+        const k3_v=getAccelsFn(s3), k3_x=s3.map(o=>o.vel.clone());
+
+        const s4=base.map((o,i)=>{const q=o.clone();q.pos=base[i].pos.add(k3_x[i].mult(dt));q.vel=base[i].vel.add(k3_v[i].mult(dt));return q;});
+        const k4_v=getAccelsFn(s4), k4_x=s4.map(o=>o.vel.clone());
+
+        for(let i=0;i<objects.length;i++){
+            objects[i].pos=base[i].pos.add(
+                k1_x[i].add(k2_x[i].mult(2)).add(k3_x[i].mult(2)).add(k4_x[i]).mult(dt/6)
+            );
+            objects[i].vel=base[i].vel.add(
+                k1_v[i].add(k2_v[i].mult(2)).add(k3_v[i].mult(2)).add(k4_v[i]).mult(dt/6)
+            );
+            objects[i].acc=k4_v[i];
+        }
+    },
+
+    rk4: function(objects, dt, getAccelsFn) {
+        this.rk4Step(objects,dt,getAccelsFn);
+    },
+
+    rk4Adaptive: function(objects, dt, getAccelsFn, tolerance=1e-8, minDt=1e-6, maxAttempts=8) {
+        if(!(dt>0)||!Number.isFinite(dt)) throw new Error("Invalid adaptive RK4 timestep");
+        const original=objects.map(o=>o.clone());
+        let trialDt=dt, lastError=Infinity;
+
+        for(let attempt=0;attempt<maxAttempts;attempt++){
+            // One full fourth-order step.
+            const full=original.map(o=>o.clone());
+            this.rk4Step(full,trialDt,getAccelsFn);
+
+            // Richardson step-doubling: two half steps provide a fourth-order
+            // local error estimate without assuming a problem-specific scale.
+            const half=original.map(o=>o.clone());
+            this.rk4Step(half,trialDt*.5,getAccelsFn);
+            this.rk4Step(half,trialDt*.5,getAccelsFn);
+
+            let err=0;
+            for(let i=0;i<original.length;i++){
+                const pScale=Math.max(original[i].pos.mag(),full[i].pos.mag(),half[i].pos.mag(),1);
+                const vScale=Math.max(original[i].vel.mag(),full[i].vel.mag(),half[i].vel.mag(),1);
+                const ep=full[i].pos.sub(half[i].pos).mag()/(pScale*15);
+                const ev=full[i].vel.sub(half[i].vel).mag()/(vScale*15);
+                err=Math.max(err,ep,ev);
+            }
+            lastError=err;
+
+            if(err<=tolerance || trialDt<=minDt*1.0000001){
+                for(let i=0;i<objects.length;i++){
+                    objects[i].pos=half[i].pos;
+                    objects[i].vel=half[i].vel;
+                    objects[i].acc=half[i].acc;
+                }
+                const factor=err>0 ? .9*Math.pow(tolerance/err,.2) : 2;
+                const nextDt=Math.max(minDt,Math.min(dt*4,trialDt*Math.max(.2,Math.min(2.5,factor))));
+                return {acceptedDt:trialDt,nextDt,error:err,attempts:attempt+1};
+            }
+
+            const factor=.9*Math.pow(tolerance/Math.max(err,1e-300),.2);
+            trialDt=Math.max(minDt,trialDt*Math.max(.1,Math.min(.5,factor)));
+        }
+
+        throw new Error("Adaptive RK4 failed to converge: error="+lastError);
     }
+};
 
 const Diagnostics = {
     initEnergy: null,
@@ -1652,7 +1707,7 @@ const UI={
 
 const Engine={
     objects:[],time:0,dt:21600,paused:false,status:"STABLE",integratorType:"verlet",gravityAlgorithm:"DIRECT",
-    activeModels:["Gravity","Collision","Nuclear","Thermodynamics"],minDt:1e-6,maxDt:3.154e12,adaptiveDt:false,safety:.1,
+    activeModels:["Gravity","Collision","Nuclear","Thermodynamics"],minDt:1e-6,maxDt:3.154e12,adaptiveDt:false,adaptiveTolerance:1e-8,maxAdaptiveAttempts:8,safety:.1,_acceptedDt:21600,_adaptiveError:0,
     getAccelerations(objs){
         const a=objs.map(()=>new Vec3());
         if(this.activeModels.includes("Gravity")){const g=GravityEngine.computeAccelerations(objs,this.gravityAlgorithm==="BARNES_HUT");for(let i=0;i<objs.length;i++)a[i]=a[i].add(g[i]);}
@@ -1674,16 +1729,27 @@ const Engine={
             this.validateState();
             if(!(this.dt>0&&Number.isFinite(this.dt)&&this.dt>=this.minDt&&this.dt<=this.maxDt))throw new Error("잘못된 timestep");
             const t=String(this.integratorType).toLowerCase();
-            if(t==="euler")Integrators.eulerSemiImplicit(this.objects,this.dt,this.getAccelerations(this.objects));
-            else if(t==="verlet")Integrators.verlet(this.objects,this.dt,obs=>this.getAccelerations(obs));
-            else if(t==="rk4")Integrators.rk4(this.objects,this.dt,obs=>this.getAccelerations(obs));
+            if(t==="euler"){ this._acceptedDt=this.dt; Integrators.eulerSemiImplicit(this.objects,this.dt,this.getAccelerations(this.objects)); }
+            else if(t==="verlet"){ this._acceptedDt=this.dt; Integrators.verlet(this.objects,this.dt,obs=>this.getAccelerations(obs)); }
+            else if(t==="rk4"){
+                if(this.adaptiveDt){
+                    const r=Integrators.rk4Adaptive(this.objects,this.dt,obs=>this.getAccelerations(obs),this.adaptiveTolerance,this.minDt,this.maxAdaptiveAttempts);
+                    this.dt=r.nextDt;
+                    this._acceptedDt=r.acceptedDt;
+                    this._adaptiveError=r.error;
+                }else{
+                    Integrators.rk4(this.objects,this.dt,obs=>this.getAccelerations(obs));
+                    this._acceptedDt=this.dt;
+                    this._adaptiveError=0;
+                }
+            }
             else throw new Error("알 수 없는 integrator: "+this.integratorType);
             if(this.activeModels.includes("Fluid"))FluidEngine.computeSPH(this.objects);
-            if(this.activeModels.includes("Nuclear"))NuclearEngine.computeFusion(this.dt,this.objects);
+            if(this.activeModels.includes("Nuclear"))NuclearEngine.computeFusion(this._acceptedDt||this.dt,this.objects);
             if(this.activeModels.includes("Collision"))CollisionEngine.checkAndResolve(this.objects);
-            if(this.activeModels.includes("Thermodynamics")){ThermoEngine.updateTemperature(this.objects);ThermoEngine.computeRadiation(this.dt,this.objects);}
+            if(this.activeModels.includes("Thermodynamics")){ThermoEngine.updateTemperature(this.objects);ThermoEngine.computeRadiation(this._acceptedDt||this.dt,this.objects);}
             this.validateState();
-            this.time+=this.dt;
+            this.time+=this._acceptedDt||this.dt;
             Diagnostics.update(this.objects);UI.updateInspector();
         }catch(err){
             this.objects=snapshot;
