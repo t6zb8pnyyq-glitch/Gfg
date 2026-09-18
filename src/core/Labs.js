@@ -1,7 +1,7 @@
 const Labs = {
     current:"GRAVITY",
     loadLab:function(labName){
-        this.current=labName; Engine.objects=[]; Diagnostics.initEnergy=0; Engine.time=0;
+        this.current=labName; Engine.objects=[]; Diagnostics.initEnergy=null; Diagnostics.initialMomentum=null; Diagnostics.initialAngularMomentum=null; Engine.time=0; Engine.status="STABLE"; Engine.paused=false;
         Engine.activeModels=["Gravity","Collision","Thermodynamics"];
         document.querySelectorAll(".lab-module").forEach(b=>b.classList.remove("active"));
         try{document.getElementById("btn-lab-"+labName).classList.add("active")}catch(e){}
@@ -14,7 +14,7 @@ const Labs = {
         } else if(labName==="GRAVITY"){
             info="표준 N-body 중력 (태양계 내부 근사)."; Engine.gravityAlgorithm="DIRECT"; document.getElementById("sys-gravity").value="DIRECT";
             Engine.objects.push(new PhysicalBody("Sun","STAR",PhysicsConstants.M_sun,6.96e8,new Vec3(),new Vec3()));
-            Engine.objects.push(new PhysicalBody("Earth","PLANET",PhysicsConstants.M_earth,6.37e6,new Vec3(PhysicsConstants.AU,0,0),new Vec3(0,29780,0))); Engine.dt=3600; Renderer.scale=1e-9;
+            Engine.objects.push(new PhysicalBody("Earth","PLANET",PhysicsConstants.M_earth,6.37e6,new Vec3(PhysicsConstants.AU,0,0),new Vec3(0,29780,0))); Engine.dt=21600; Renderer.scale=1e-9;
         } else if(labName==="SPH_FLUID"){
             info="SPH 유체역학."; Engine.activeModels=["Fluid","Thermodynamics"];
             for(let i=0;i<50;i++) Engine.objects.push(new PhysicalBody("G"+i,"GAS_CLOUD",1e20,1e5,new Vec3((Math.random()-.5)*1e6,(Math.random()-.5)*1e6,0),new Vec3()));
