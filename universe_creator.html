@@ -590,7 +590,8 @@ const CollisionEngine = {
         m.composition.Y=(a.composition.Y*a.mass+b.composition.Y*b.mass)/mass;
         m.composition.Z=(a.composition.Z*a.mass+b.composition.Z*b.mass)/mass;
         m.charge=a.charge+b.charge;
-        m.spin=a.spin.mult(a.mass).add(b.spin.mult(b.mass)).div(mass);
+        const IA=(2/5)*a.mass*a.radius*a.radius,IB=(2/5)*b.mass*b.radius*b.radius,IM=(2/5)*mass*radius*radius;
+        m.spin=a.spin.mult(IA).add(b.spin.mult(IB)).div(Math.max(IM,Number.MIN_VALUE));
         m.surfaceTemperature=(a.surfaceTemperature*a.mass+b.surfaceTemperature*b.mass)/mass;
         m.temperature=(a.temperature*a.mass+b.temperature*b.mass)/mass;
         m.isotopes={...a.isotopes};
