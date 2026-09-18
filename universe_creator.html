@@ -1246,6 +1246,8 @@ const Engine = {
         step: function() {
             if(this.status === "FAILED") return;
 
+            // Resolve contacts already present before evaluating a singular/near-singular force.
+            CollisionEngine.checkAndResolve(this.objects);
             // Hard numerical validity gate.
             for(const o of this.objects){
                 const finite=[o.mass,o.radius,o.pos.x,o.pos.y,o.pos.z,o.vel.x,o.vel.y,o.vel.z,o.acc.x,o.acc.y,o.acc.z].every(Number.isFinite);
