@@ -68,7 +68,7 @@ const Engine = {
 
             if(!this.paused) {
                 // Implement controlled substepping separated from framerate
-                let substeps = 1; // Default to 1 substep per frame unless explicitly configured otherwise
+                let substeps = 1;
                 if (this.integratorType.toLowerCase() === "rk4") substeps = 4; // Use higher precision splitting if requested
 
                 for(let i=0; i<substeps; i++) {
