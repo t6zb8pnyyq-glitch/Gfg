@@ -23,7 +23,7 @@ const Engine={
             if(!(this.dt>0&&Number.isFinite(this.dt)&&this.dt>=this.minDt&&this.dt<=this.maxDt))throw new Error("잘못된 timestep");
             const t=String(this.integratorType).toLowerCase();
             if(t==="euler"){ this._acceptedDt=this.dt; Integrators.eulerSemiImplicit(this.objects,this.dt,this.getAccelerations(this.objects)); }
-            else if(t==="verlet"){ this._acceptedDt=this.dt; Integrators.verlet(this.objects,this.dt,obs=>this.getAccelerations(obs)); }
+            else if(t==="verlet"){ this._acceptedDt=this.dt; Integrators.verlet(this.objects,this.dt,obs=>this.getAccelerations(obs)); }\n            else if(t==="leapfrog"){ this._acceptedDt=this.dt; Integrators.leapfrogKDK(this.objects,this.dt,obs=>this.getAccelerations(obs)); }\n            else if(t==="yoshida4"){ this._acceptedDt=this.dt; Integrators.yoshida4(this.objects,this.dt,obs=>this.getAccelerations(obs)); }
             else if(t==="rk4"){
                 if(this.adaptiveDt){
                     const r=Integrators.rk4Adaptive(this.objects,this.dt,obs=>this.getAccelerations(obs),this.adaptiveTolerance,this.minDt,this.maxAdaptiveAttempts);
