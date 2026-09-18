@@ -75,7 +75,8 @@ const Validator = {
             const out=MHD1D.step(U,1,1e-4,Bx),finite=out.flat().every(Number.isFinite)&&out.every(u=>u[0]>0);
             return Validator._assert(this.name,finite,{error:finite?0:1,tolerance:"all finite, rho>0"});
         }},
-        {name:"Radiation optical-depth positivity", run(){const tau=RadiationTransport.opticalDepth(.34,1e-4,1e7);return Validator._assert(this.name,tau>=0,{error:tau,tolerance:">=0"});}},        {name:"SPH density symmetry", run(){
+        {name:"Radiation optical-depth positivity", run(){const tau=RadiationTransport.opticalDepth(.34,1e-4,1e7);return Validator._assert(this.name,tau>=0,{error:tau,tolerance:">=0"});}},
+        {name:"Schwarzschild redshift analytic check", run(){const M=PhysicsConstants.M_sun,r=10*GRGeodesic.schwarzschildRadius(M),z=1/GRGeodesic.redshiftFactor(r,M)-1,expected=1/Math.sqrt(.9)-1;return Validator._assert(this.name,Math.abs(z-expected)<1e-14,{error:Math.abs(z-expected),tolerance:"<1e-14"});}},        {name:"SPH density symmetry", run(){
             const a=new PhysicalBody("a","GAS_CLOUD",1,1,new Vec3(-1,0,0),new Vec3());
             const b=new PhysicalBody("b","GAS_CLOUD",1,1,new Vec3(1,0,0),new Vec3());
             FluidEngine.h=4; FluidEngine.computeState([a,b]);
