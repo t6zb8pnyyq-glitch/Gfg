@@ -373,6 +373,26 @@ const PeriodicTable = [
     { Z: 118, symbol: "Og", mass: 294 }
 ];
 
+const NuclearData = {
+    isotopes:{
+        H1:{Z:1,A:1,halfLife:Infinity,mode:"stable",daughter:null},
+        H2:{Z:1,A:2,halfLife:Infinity,mode:"stable",daughter:null},
+        H3:{Z:1,A:3,halfLife:12.32*PhysicsConstants.yr,mode:"beta-",daughter:"He3"},
+        He3:{Z:2,A:3,halfLife:Infinity,mode:"stable",daughter:null},
+        He4:{Z:2,A:4,halfLife:Infinity,mode:"stable",daughter:null},
+        C12:{Z:6,A:12,halfLife:Infinity,mode:"stable",daughter:null},
+        C14:{Z:6,A:14,halfLife:5730*PhysicsConstants.yr,mode:"beta-",daughter:"N14"},
+        N14:{Z:7,A:14,halfLife:Infinity,mode:"stable",daughter:null},
+        O16:{Z:8,A:16,halfLife:Infinity,mode:"stable",daughter:null},
+        Fe56:{Z:26,A:56,halfLife:Infinity,mode:"stable",daughter:null},
+        Ni56:{Z:28,A:56,halfLife:6.075*PhysicsConstants.day,mode:"beta+",daughter:"Co56"},
+        Co56:{Z:27,A:56,halfLife:77.236*PhysicsConstants.day,mode:"beta+",daughter:"Fe56"},
+        U235:{Z:92,A:235,halfLife:7.038e8*PhysicsConstants.yr,mode:"alpha",daughter:"Th231"},
+        U238:{Z:92,A:238,halfLife:4.468e9*PhysicsConstants.yr,mode:"alpha",daughter:"Th234"},
+        Th232:{Z:90,A:232,halfLife:1.405e10*PhysicsConstants.yr,mode:"alpha",daughter:"Ra228"}
+    }
+};
+
 /**
  * src/physics/PhysicalBody.js
  *
@@ -409,6 +429,7 @@ class PhysicalBody {
         // --- Nuclear & Chemical Composition ---
         // Mass fractions must sum to 1.0. X=Hydrogen, Y=Helium, Z=Metals
         this.composition = { X: 0.73, Y: 0.25, Z: 0.02 };
+        this.isotopes = {};
 
         // --- Electromagnetic ---
         this.charge = 0;                  // [C]
@@ -447,6 +468,7 @@ class PhysicalBody {
         b.sph_density = this.sph_density;
         b.sph_pressure = this.sph_pressure;
         b.composition = { ...this.composition };
+        b.isotopes = { ...this.isotopes };
         b.charge = this.charge;
         b.magneticField = this.magneticField.clone();
         b.luminosity = this.luminosity;
@@ -663,10 +685,23 @@ const ThermoEngine = {
     }
 };
 
+const RadioactiveDecayEngine = {
+    evolve:function(body,dt){
+        if(!(dt>=0)||!body||!body.isotopes)return;
+        for(const [name,amount] of Object.entries(body.isotopes)){
+            const data=NuclearData.isotopes[name];if(!data||!(amount>0)||data.halfLife===Infinity)continue;
+            const remaining=amount*Math.exp(-Math.LN2*dt/data.halfLife),decayed=amount-remaining;
+            body.isotopes[name]=remaining;
+            if(data.daughter)body.isotopes[data.daughter]=(body.isotopes[data.daughter]||0)+decayed;
+        }
+    }
+};
+
 const NuclearEngine = {
     // One-zone stellar burning model. Rates are standard analytic educational
     // approximations, not a full stellar-evolution reaction network.
     computeFusion: function(dt, objs) {
+        for(const o of objs)RadioactiveDecayEngine.evolve(o,dt);
         const mp=1.67262192369e-27;
         const qPP=0.007*PhysicsConstants.c**2;     // J/kg H consumed (mass-defect scale)
         const q3A=5.8e13;                          // J/kg He consumed, approximate
