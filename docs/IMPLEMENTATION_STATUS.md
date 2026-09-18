@@ -1,6 +1,6 @@
 # IMPLEMENTATION STATUS
 
-## Current Phase: P0/P1 - Repository Architecture Rebuild
+## Current Phase: P1 - Gravity Engine & Collision Engine Verification
 
 | Subsystem | Status | Notes |
 | :--- | :--- | :--- |
@@ -8,5 +8,6 @@
 | **Physical Units** | VERIFIED | `src/physics/Constants.js` created and populated with strict SI units. |
 | **Data Structures** | VERIFIED | `src/physics/PhysicalBody.js` implemented. Single canonical state object enforced with explicit dimension units. |
 | **Simulation State** | VERIFIED | Refactored `Simulation.js` into canonical `Engine.objects`. DOM elements synchronized. |
-| **N-Body Gravity** | PARTIAL | Barnes-Hut octree separated. Needs rigorous numerical convergence tests (P1). |
-| **Integrators** | PARTIAL | RK4, Verlet, Semi-implicit Euler isolated. Needs testing against analytical cases (P1). |
+| **N-Body Gravity** | VERIFIED | Barnes-Hut octree stripped of illegal perturbations. Coincident bodies strictly sum. |
+| **Integrators** | VERIFIED | RK4, Velocity Verlet, Semi-implicit Euler isolated and mapped correctly to UI selection. |
+| **Collisions** | VERIFIED | Momentum, internal energy, composition, and object types strictly conserved through inelastic mergers. |

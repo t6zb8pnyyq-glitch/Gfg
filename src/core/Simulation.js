@@ -32,9 +32,12 @@ const Engine = {
                 if(o.vel.magSq() >= PhysicsConstants.c * PhysicsConstants.c) { this.status = "FAILED"; alert("SUPERLUMINAL VELOCITY DETECTED."); return; }
             }
 
-            if(this.integratorType === "EULER_SEMI" || this.integratorType === "LEAPFROG") {
+            let t_integrator = this.integratorType.toLowerCase();
+            if(t_integrator === "euler") {
                 Integrators.eulerSemiImplicit(this.objects, this.dt, this.getAccelerations(this.objects));
-            } else if(this.integratorType === "RK4") {
+            } else if(t_integrator === "verlet") {
+                Integrators.verlet(this.objects, this.dt, (obs)=>this.getAccelerations(obs));
+            } else if(t_integrator === "rk4") {
                 Integrators.rk4(this.objects, this.dt, (obs)=>this.getAccelerations(obs));
             }
 

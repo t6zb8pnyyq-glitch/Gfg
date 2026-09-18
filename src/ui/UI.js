@@ -3,12 +3,12 @@ const UI = {
             let tabs = ['GRAVITY', 'GALAXY', 'SPH_FLUID', 'NUCLEAR', 'QUANTUM', 'COSMOLOGY'];
             let html = "";
             for(let t of tabs) { html += `<button id="btn-lab-${t}" class="lab-btn" onclick="Labs.loadLab('${t}')">${t}</button>`; }
-            document.getElementById('lab-tabs').innerHTML = html;
+            document.getElementById('module-bar').innerHTML = html;
         },
         createObject: function() {
-            let type = document.getElementById('obj-type').value;
-            let mass = parseFloat(document.getElementById('obj-mass').value);
-            let rad = parseFloat(document.getElementById('obj-radius').value);
+            let type = document.getElementById('type').value;
+            let mass = parseFloat(document.getElementById('mass').value);
+            let rad = parseFloat(document.getElementById('radius').value);
             let pos = new Vec3(...document.getElementById('obj-pos').value.split(',').map(Number));
             let vel = new Vec3(...document.getElementById('obj-vel').value.split(',').map(Number));
             Engine.objects.push(new PhysicalBody(Date.now().toString(), type, mass, rad, pos, vel));

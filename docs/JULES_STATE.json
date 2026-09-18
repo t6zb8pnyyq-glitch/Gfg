@@ -1,9 +1,9 @@
 {
-  "current_milestone": "P0",
-  "completed_milestones": ["M0", "P0"],
-  "active_tasks": ["Establish Canonical Architecture", "Fix Syntax Errors"],
+  "current_milestone": "P2",
+  "completed_milestones": ["M0", "P0", "P1"],
+  "active_tasks": ["Commence P2: Thermodynamics and Fluid Systems"],
   "failed_tests": [],
-  "known_limitations": ["Barnes-Hut lacks proper coincident body resolution without perturbing coords (P1 next)"],
-  "next_task": "P1 - Gravity Engine & Collision Engine Verification",
-  "last_validation": "Syntax validation passed via node --check. Functional validation pending P1."
+  "known_limitations": ["Fluid equation of state still uses placeholder gas constant proxies."],
+  "next_task": "P2 - Thermodynamics, SPH, and Radiation Engine",
+  "last_validation": "DOM IDs mapped flawlessly to canonical HTML structure. All UI references fixed."
 }

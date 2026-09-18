@@ -312,10 +312,19 @@ class OctreeNode {
         }
         insert(body) {
             if(!this.box.contains(body.pos)) return;
-            // Prevent infinite recursion if bodies have exactly identical coordinates
-            if (this.body && this.body.pos.x === body.pos.x && this.body.pos.y === body.pos.y && this.body.pos.z === body.pos.z) {
-                body.pos.x += 1e-4; // Perturb slightly
+            // To strictly handle identical coordinates without coordinate perturbation,
+            // we accumulate them in the current node without subdividing infinitely.
+            // In a pure Barnes-Hut, if two distinct particles occupy the exact same floating-point coordinate,
+            // we cannot subdivide a bounding box to separate them.
+            if(this.body && this.body.pos.x === body.pos.x && this.body.pos.y === body.pos.y && this.body.pos.z === body.pos.z) {
+                // They occupy the exact same position. Combine mass and COM in this leaf.
+                // We keep a reference to one body, but update the node's total representation.
+                let totalMass = this.mass + body.mass;
+                this.centerOfMass = this.centerOfMass.mult(this.mass).add(body.pos.mult(body.mass)).div(totalMass);
+                this.mass = totalMass;
+                return;
             }
+
             if(this.mass === 0) {
                 this.body = body;
                 this.mass = body.mass;
@@ -425,7 +434,27 @@ const CollisionEngine = {
                         let newVel = (objA.vel.mult(objA.mass).add(objB.vel.mult(objB.mass))).div(newMass);
                         let newRadius = Math.pow(Math.pow(objA.radius, 3) + Math.pow(objB.radius, 3), 1/3);
 
-                        let merged = new PhysicalBody(Date.now()+"_merged", "PLANET", newMass, newRadius, newPos, newVel);
+
+                        // Determine type based on mass hierarchy
+                        let type = objA.mass > objB.mass ? objA.type : objB.type;
+                        if(type !== "BLACK_HOLE" && newMass > 3.0 * PhysicsConstants.M_sun) type = "BLACK_HOLE";
+                        else if(type === "PLANET" && newMass > 0.08 * PhysicsConstants.M_sun) type = "STAR";
+
+                        let merged = new PhysicalBody(Date.now()+"_merged", type, newMass, newRadius, newPos, newVel);
+
+                        // Conservation of internal energy and thermodynamics (Inelastic merger)
+                        let keA = 0.5 * objA.mass * objA.vel.magSq();
+                        let keB = 0.5 * objB.mass * objB.vel.magSq();
+                        let keMerged = 0.5 * merged.mass * merged.vel.magSq();
+                        let energyDissipated = (keA + keB) - keMerged; // Dissipated kinetic becomes internal heat
+
+                        merged.internalEnergy = objA.internalEnergy + objB.internalEnergy + energyDissipated;
+
+                        // Weighted composition
+                        merged.composition.X = (objA.composition.X * objA.mass + objB.composition.X * objB.mass) / newMass;
+                        merged.composition.Y = (objA.composition.Y * objA.mass + objB.composition.Y * objB.mass) / newMass;
+                        merged.composition.Z = (objA.composition.Z * objA.mass + objB.composition.Z * objB.mass) / newMass;
+
                         newObjects.push(merged);
                         toRemove.push(i); toRemove.push(j);
                     }
@@ -600,6 +629,18 @@ const Integrators = {
                 objects[i].acc = accels[i];
             }
         },
+        verlet: function(objects, dt, getAccelsFn) {
+            // Velocity Verlet: r(t+dt) = r(t) + v(t)dt + 0.5*a(t)dt^2
+            // v(t+dt) = v(t) + 0.5*(a(t) + a(t+dt))dt
+            for(let i=0; i<objects.length; i++) {
+                objects[i].pos = objects[i].pos.add(objects[i].vel.mult(dt)).add(objects[i].acc.mult(0.5 * dt * dt));
+            }
+            let newAccels = getAccelsFn(objects);
+            for(let i=0; i<objects.length; i++) {
+                objects[i].vel = objects[i].vel.add((objects[i].acc.add(newAccels[i])).mult(0.5 * dt));
+                objects[i].acc = newAccels[i];
+            }
+        },
         rk4: function(objects, dt, getAccelsFn) {
             let clones = objects.map(o => o.clone());
             let k1_v = getAccelsFn(clones); let k1_x = clones.map(o => o.vel.clone());
@@ -656,13 +697,13 @@ const Validator = {
             {
                 name: "Momentum Conservation",
                 run: () => {
-                    if (bodies.length === 0) return { status: 'NOT APPLICABLE', error: 0, tolerance: 1e-6 };
+                    if (Engine.objects.length === 0) return { status: 'NOT APPLICABLE', error: 0, tolerance: 1e-6 };
                     let initialP = {x:0, y:0, z:0};
                     let currentP = {x:0, y:0, z:0};
-                    for(let b of bodies) {
-                        currentP.x += b.mass * b.velocity.x;
-                        currentP.y += b.mass * b.velocity.y;
-                        currentP.z += b.mass * b.velocity.z;
+                    for(let b of Engine.objects) {
+                        currentP.x += b.mass * b.vel.x;
+                        currentP.y += b.mass * b.vel.y;
+                        currentP.z += b.mass * b.vel.z;
                     }
                     if(!this._initP) this._initP = { ...currentP };
                     initialP = this._initP;
@@ -678,17 +719,17 @@ const Validator = {
             {
                 name: "Energy Consistency",
                 run: () => {
-                    if (bodies.length < 2) return { status: 'NOT APPLICABLE', error: 0, tolerance: 1e-4 };
+                    if (Engine.objects.length < 2) return { status: 'NOT APPLICABLE', error: 0, tolerance: 1e-4 };
                     let ke = 0, pe = 0;
-                    for (let i = 0; i < bodies.length; i++) {
-                        let b = bodies[i];
-                        let v2 = b.velocity.x**2 + b.velocity.y**2 + b.velocity.z**2;
+                    for (let i = 0; i < Engine.objects.length; i++) {
+                        let b = Engine.objects[i];
+                        let v2 = b.vel.x**2 + b.vel.y**2 + b.vel.z**2;
                         ke += 0.5 * b.mass * v2;
-                        for (let j = i + 1; j < bodies.length; j++) {
-                            let b2 = bodies[j];
-                            let dx = b2.position.x - b.position.x;
-                            let dy = b2.position.y - b.position.y;
-                            let dz = b2.position.z - b.position.z;
+                        for (let j = i + 1; j < Engine.objects.length; j++) {
+                            let b2 = Engine.objects[j];
+                            let dx = b2.pos.x - b.pos.x;
+                            let dy = b2.pos.y - b.pos.y;
+                            let dz = b2.pos.z - b.pos.z;
                             let r = Math.sqrt(dx*dx + dy*dy + dz*dz) + 0.0001;
                             pe -= PhysicsConstants.G * b.mass * b2.mass / r;
                         }
@@ -792,13 +833,17 @@ const Renderer = {
         isDragging: false, isPanDragging: false, lastMouse: {x: 0, y: 0},
 
         init: function() {
-            this.canvas = document.getElementById('sim-canvas');
+            this.canvas = document.getElementById('universe-canvas');
             this.ctx = this.canvas.getContext('2d');
             this.resize(); window.addEventListener('resize', () => this.resize());
 
-            this.
-    // Pointer and touch handling for mobile support
-    canvas.addEventListener('pointerdown', (e) => {
+            // Map global variables to Renderer canonical state
+            canvas = this.canvas;
+            ctx = this.ctx;
+            camera = { rot: this.cameraRot, pan: this.cameraPan, distance: 1e9 };
+
+            // Pointer and touch handling for mobile support
+            this.canvas.addEventListener('pointerdown', (e) => {
         isDragging = true;
         lastMouse = { x: e.clientX, y: e.clientY };
         canvas.setPointerCapture(e.pointerId);
@@ -832,7 +877,7 @@ const Renderer = {
         let b = new PhysicalBody(Date.now().toString(), type, mass, radius, spawnPos, new Vec3(0,0,0));
         if(type === 'star') b.temperature = 5778;
         engine.objects.push(b);
-        updateInspector();
+        UI.updateInspector();
     });
 
     canvas.addEventListener('wheel', (e) => {
@@ -845,7 +890,7 @@ const Renderer = {
         // Simple mapping from screen to world space approximation for creation
         let b = new Body(1e24, 6000000, 0, 0, 0, 0, 0, 0);
         bodies.push(b);
-        updateInspector();
+        UI.updateInspector();
     });
 
             this.canvas.addEventListener('mousemove', (e) => {
@@ -889,12 +934,12 @@ const UI = {
             let tabs = ['GRAVITY', 'GALAXY', 'SPH_FLUID', 'NUCLEAR', 'QUANTUM', 'COSMOLOGY'];
             let html = "";
             for(let t of tabs) { html += `<button id="btn-lab-${t}" class="lab-btn" onclick="Labs.loadLab('${t}')">${t}</button>`; }
-            document.getElementById('lab-tabs').innerHTML = html;
+            document.getElementById('module-bar').innerHTML = html;
         },
         createObject: function() {
-            let type = document.getElementById('obj-type').value;
-            let mass = parseFloat(document.getElementById('obj-mass').value);
-            let rad = parseFloat(document.getElementById('obj-radius').value);
+            let type = document.getElementById('type').value;
+            let mass = parseFloat(document.getElementById('mass').value);
+            let rad = parseFloat(document.getElementById('radius').value);
             let pos = new Vec3(...document.getElementById('obj-pos').value.split(',').map(Number));
             let vel = new Vec3(...document.getElementById('obj-vel').value.split(',').map(Number));
             Engine.objects.push(new PhysicalBody(Date.now().toString(), type, mass, rad, pos, vel));
@@ -954,9 +999,12 @@ const Engine = {
                 if(o.vel.magSq() >= PhysicsConstants.c * PhysicsConstants.c) { this.status = "FAILED"; alert("SUPERLUMINAL VELOCITY DETECTED."); return; }
             }
 
-            if(this.integratorType === "EULER_SEMI" || this.integratorType === "LEAPFROG") {
+            let t_integrator = this.integratorType.toLowerCase();
+            if(t_integrator === "euler") {
                 Integrators.eulerSemiImplicit(this.objects, this.dt, this.getAccelerations(this.objects));
-            } else if(this.integratorType === "RK4") {
+            } else if(t_integrator === "verlet") {
+                Integrators.verlet(this.objects, this.dt, (obs)=>this.getAccelerations(obs));
+            } else if(t_integrator === "rk4") {
                 Integrators.rk4(this.objects, this.dt, (obs)=>this.getAccelerations(obs));
             }
 

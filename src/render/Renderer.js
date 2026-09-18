@@ -3,13 +3,17 @@ const Renderer = {
         isDragging: false, isPanDragging: false, lastMouse: {x: 0, y: 0},
 
         init: function() {
-            this.canvas = document.getElementById('sim-canvas');
+            this.canvas = document.getElementById('universe-canvas');
             this.ctx = this.canvas.getContext('2d');
             this.resize(); window.addEventListener('resize', () => this.resize());
 
-            this.
-    // Pointer and touch handling for mobile support
-    canvas.addEventListener('pointerdown', (e) => {
+            // Map global variables to Renderer canonical state
+            canvas = this.canvas;
+            ctx = this.ctx;
+            camera = { rot: this.cameraRot, pan: this.cameraPan, distance: 1e9 };
+
+            // Pointer and touch handling for mobile support
+            this.canvas.addEventListener('pointerdown', (e) => {
         isDragging = true;
         lastMouse = { x: e.clientX, y: e.clientY };
         canvas.setPointerCapture(e.pointerId);
@@ -43,7 +47,7 @@ const Renderer = {
         let b = new PhysicalBody(Date.now().toString(), type, mass, radius, spawnPos, new Vec3(0,0,0));
         if(type === 'star') b.temperature = 5778;
         engine.objects.push(b);
-        updateInspector();
+        UI.updateInspector();
     });
 
     canvas.addEventListener('wheel', (e) => {
@@ -56,7 +60,7 @@ const Renderer = {
         // Simple mapping from screen to world space approximation for creation
         let b = new Body(1e24, 6000000, 0, 0, 0, 0, 0, 0);
         bodies.push(b);
-        updateInspector();
+        UI.updateInspector();
     });
 
             this.canvas.addEventListener('mousemove', (e) => {

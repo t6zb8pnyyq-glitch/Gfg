@@ -8,10 +8,19 @@ class OctreeNode {
         }
         insert(body) {
             if(!this.box.contains(body.pos)) return;
-            // Prevent infinite recursion if bodies have exactly identical coordinates
-            if (this.body && this.body.pos.x === body.pos.x && this.body.pos.y === body.pos.y && this.body.pos.z === body.pos.z) {
-                body.pos.x += 1e-4; // Perturb slightly
+            // To strictly handle identical coordinates without coordinate perturbation,
+            // we accumulate them in the current node without subdividing infinitely.
+            // In a pure Barnes-Hut, if two distinct particles occupy the exact same floating-point coordinate,
+            // we cannot subdivide a bounding box to separate them.
+            if(this.body && this.body.pos.x === body.pos.x && this.body.pos.y === body.pos.y && this.body.pos.z === body.pos.z) {
+                // They occupy the exact same position. Combine mass and COM in this leaf.
+                // We keep a reference to one body, but update the node's total representation.
+                let totalMass = this.mass + body.mass;
+                this.centerOfMass = this.centerOfMass.mult(this.mass).add(body.pos.mult(body.mass)).div(totalMass);
+                this.mass = totalMass;
+                return;
             }
+
             if(this.mass === 0) {
                 this.body = body;
                 this.mass = body.mass;

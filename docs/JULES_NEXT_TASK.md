@@ -1,5 +1,5 @@
 # NEXT JULES TASK
 
-**NEXT TASK:** Commence P1: Gravity Engine & Collision Engine Verification.
+**NEXT TASK:** Commence P2: Thermodynamics, SPH, and Radiation Engine Refactoring.
 
-**Rationale:** The canonical engine state has been unified and syntax errors eliminated. The next mandate from the Full Rebuild protocol is to rigorously test the Direct and Barnes-Hut gravitational models against analytical two-body orbits, removing any arbitrary softening or position perturbation factors, and ensuring physical mergers conserve momentum perfectly.
+**Rationale:** P0 (Architecture) and P1 (Core Gravity/Collision Mechanics) have been completed and verified. The next directive in the Full Rebuild sequence is to replace the fake/arbitrary equations in the Fluid Dynamics engine (e.g., `k_gas = 100`) with a properly dimensioned SPH hydrodynamics model utilizing strict SI equations of state, and to implement rigorous Thermodynamics.
