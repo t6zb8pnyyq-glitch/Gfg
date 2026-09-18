@@ -1,1180 +1,164 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Universe Creator — Scientific Computational Physics Laboratory</title>
-    <style>
-:root {
-                --bg: #000000;
-                --text: #e0e0e0;
-                --panel: rgba(10, 10, 15, 0.9);
-                --border: #38bdf8;
-                --accent: #0284c7;
-                --success: #10b981;
-                --warning: #f59e0b;
-                --danger: #ef4444;
-            }
-            body {
-                margin: 0; padding: 0; background: var(--bg); color: var(--text);
-                font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', monospace; overflow: hidden;
-                display: flex; flex-direction: column; height: 100vh;
-            }
-            /* Layout */
-            #top-bar { height: 45px; background: var(--panel); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 10px; font-weight: bold; overflow-x: auto; white-space: nowrap; }
-            #main-area { display: flex; flex: 1; height: calc(100vh - 85px); position: relative; }
-            .panel-col { width: 320px; background: var(--panel); overflow-y: auto; padding: 10px; box-sizing: border-box; font-size: 12px; z-index: 10; border-right: 1px solid var(--border); }
-            #right-panel { border-right: none; border-left: 1px solid var(--border); }
-            #center-viewport { flex: 1; position: relative; background: #000; overflow: hidden; z-index: 1; }
-            #bottom-bar { height: 40px; background: var(--panel); border-top: 1px solid var(--border); display: flex; align-items: center; padding: 0 10px; z-index: 10; }
-
-            /* Controls */
-            select, input, button { background: #1e293b; color: #fff; border: 1px solid var(--border); padding: 5px; font-family: inherit; margin: 3px 0; width: 100%; box-sizing: border-box; }
-            button { background: var(--accent); cursor: pointer; font-weight: bold; transition: background 0.2s; }
-            button:hover { background: #0369a1; }
-            .section { margin-bottom: 15px; border: 1px solid rgba(56, 189, 248, 0.3); padding: 10px; background: rgba(15, 23, 42, 0.6); }
-            .section h3 { margin: 0 0 10px 0; font-size: 14px; color: var(--border); border-bottom: 1px solid rgba(56, 189, 248, 0.3); padding-bottom: 5px; }
-
-            canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; touch-action: none; }
-
-            /* UI Elements */
-            .lab-btn { margin-right: 5px; background: #1e293b; border: 1px solid var(--border); padding: 5px 10px; cursor: pointer; width: auto; font-size: 11px;}
-            .lab-btn.active { background: var(--accent); color: white; }
-            table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 10px; }
-            td { padding: 3px 0; border-bottom: 1px dotted #334155; }
-            .val { float: right; font-family: monospace; }
-            .pass { color: var(--success); }
-            .fail { color: var(--danger); }
-            .warn { color: var(--warning); }
-
-            /* Modal */
-            .modal { display: none; position: absolute; top: 5%; left: 5%; width: 90%; height: 90%; background: var(--panel); border: 2px solid var(--border); z-index: 1000; overflow: auto; padding: 20px; box-sizing: border-box; backdrop-filter: blur(5px); }
-            #close-modal { float: right; background: var(--danger); width: auto; padding: 5px 15px; border: none;}
-
-            /* Audit UI */
-            .audit-tag { display: inline-block; padding: 2px 6px; margin: 2px; border-radius: 3px; font-size: 10px; background: var(--success); color: #000; font-weight: bold; }
-
-/* Universe Creator runtime layout: these IDs are the canonical standalone HTML surface. */
-html,body,#layout-container{width:100%;height:100%;min-width:0;min-height:0}
-#layout-container{position:relative;display:grid;grid-template-columns:minmax(220px,280px) minmax(0,1fr) minmax(220px,280px);grid-template-rows:auto minmax(0,1fr) auto;background:#000;overflow:hidden;isolation:isolate}
-#module-bar{grid-column:1/-1;grid-row:1;display:flex;align-items:center;gap:4px;min-width:0;overflow-x:auto;overflow-y:hidden;padding:5px 7px;background:rgba(10,10,15,.96);border-bottom:1px solid var(--border);z-index:30;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;touch-action:pan-x}
-#module-bar .lab-module{flex:0 0 auto;width:auto;min-width:max-content;margin:0;padding:8px 10px;border-radius:4px;touch-action:manipulation}
-#viewport-container{grid-column:2;grid-row:2;position:relative;min-width:0;min-height:0;overflow:hidden;background:#000;z-index:1}
-#universe-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:1;touch-action:none}
-#diagnostics-overlay{position:absolute;top:8px;left:8px;z-index:5;pointer-events:none;font-size:11px;white-space:pre-line;text-shadow:0 1px 2px #000}
-.side-panel{position:relative;z-index:20;min-width:0;overflow-y:auto;overflow-x:hidden;padding:10px;background:var(--panel);font-size:12px;box-sizing:border-box;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y}
-#creator-panel{grid-column:1;grid-row:2;border-right:1px solid var(--border)}
-#inspector-panel{grid-column:3;grid-row:2;border-left:1px solid var(--border)}
-#control-bar{grid-column:1/-1;grid-row:3;display:flex;align-items:center;gap:6px;min-width:0;overflow-x:auto;padding:5px 7px;background:rgba(10,10,15,.96);border-top:1px solid var(--border);z-index:30;box-sizing:border-box;touch-action:pan-x}
-#control-bar>*{flex:0 0 auto}
-#control-bar button,#control-bar select,#control-bar input{width:auto;margin:0}
-#validation-modal{position:fixed!important;z-index:10000!important;box-sizing:border-box;overscroll-behavior:contain;touch-action:pan-y}
-#validation-modal button{touch-action:manipulation}
-@media (max-width:900px){
-  #layout-container{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto}
-  #viewport-container{grid-column:1;grid-row:2}
-  #creator-panel,#inspector-panel{position:absolute;top:0;bottom:0;width:min(86vw,330px);z-index:40;box-shadow:0 0 24px #000;transform:translateX(-105%);transition:transform .16s ease}
-  #creator-panel{left:0}
-  #inspector-panel{right:0;transform:translateX(105%)}
-  #control-bar{grid-column:1;grid-row:3}
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>UNIVERSE CREATOR — Physics Sandbox</title>
+<style>
+:root{--bg:#070a10;--panel:#0e1420;--panel2:#121a28;--line:#263248;--txt:#e7edf7;--muted:#8d9bb0;--accent:#64b5ff;--good:#52d273;--bad:#ff6374}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font:13px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+button,input,select{font:inherit;color:inherit}button{border:1px solid var(--line);background:#172235;border-radius:8px;padding:9px 11px;min-height:40px;touch-action:manipulation}button:active{transform:translateY(1px)}input,select{width:100%;background:#0a101a;border:1px solid var(--line);border-radius:7px;padding:9px;min-height:40px}
+#app{display:grid;grid-template-columns:280px 1fr 290px;grid-template-rows:1fr 54px;width:100%;height:100%}
+.panel{background:var(--panel);overflow:auto;padding:12px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+#left{border-right:1px solid var(--line)}#right{border-left:1px solid var(--line)}
+h1{font-size:15px;margin:0 0 12px}h2{font-size:13px;margin:18px 0 8px;color:#b9c8dc}
+.field{margin:8px 0}.field label{display:block;color:var(--muted);font-size:11px;margin-bottom:4px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:7px}.row{display:flex;gap:7px;align-items:center}.row>*{flex:1}
+.engine{display:flex;align-items:center;gap:9px;padding:7px 0;min-height:40px}.engine input{width:20px;height:20px;flex:0 0 auto}
+.note{font-size:11px;line-height:1.45;color:var(--muted);padding:8px;background:#0a101a;border:1px solid var(--line);border-radius:7px}
+#view{position:relative;min-width:0;min-height:0;background:#000}canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#hud{position:absolute;left:10px;top:10px;pointer-events:none;white-space:pre-line;font:11px ui-monospace,SFMono-Regular,Menlo,monospace;line-height:1.45;text-shadow:0 1px 3px #000}
+#toolbar{grid-column:1/-1;display:flex;gap:6px;align-items:center;overflow-x:auto;padding:6px 8px;background:#0a0f18;border-top:1px solid var(--line);z-index:20}
+#toolbar>*{flex:0 0 auto}#toolbar button{min-height:40px}.status{padding:0 8px;color:var(--muted);white-space:nowrap}
+.bad{color:var(--bad)}.good{color:var(--good)}
+#mobileMenu{display:none}
+@media(max-width:900px){
+ #app{grid-template-columns:1fr;grid-template-rows:1fr 54px}
+ .panel{position:fixed;top:0;bottom:54px;width:min(86vw,340px);z-index:30;box-shadow:0 0 30px #000;transition:transform .16s ease}
+ #left{left:0;transform:translateX(-105%);border-right:1px solid var(--line)}#right{right:0;transform:translateX(105%);border-left:1px solid var(--line)}
+ #left.open,#right.open{transform:translateX(0)}
+ #mobileMenu{display:flex;position:absolute;top:8px;left:8px;z-index:10;gap:6px}
+ #mobileMenu button{background:#111a28cc;backdrop-filter:blur(8px)}
 }
-@media (max-width:600px){
-  #module-bar{padding:4px}
-  #module-bar .lab-module{padding:9px 11px;font-size:12px}
-  #control-bar{gap:4px;padding:4px}
-  #control-bar button,#control-bar select,#control-bar input{min-height:38px}
-  #validation-modal{top:3%!important;left:3%!important;width:94%!important;height:94%!important;padding:12px!important}
-  input,select,button{font-size:16px}
-}
-
-.mobile-drawer-btn{display:none!important}@media(max-width:900px){.mobile-drawer-btn{display:block!important;flex:0 0 auto!important;min-width:58px!important;background:#334155!important}.side-panel[data-open="true"]{transform:translateX(0)!important}}
-
-.model-row{display:flex;align-items:center;gap:8px;min-height:40px;touch-action:manipulation}.model-row input{width:22px;height:22px;margin:0}.orbit-help{font-size:11px;color:#94a3b8;line-height:1.45;margin:6px 0}details{margin:8px 0}summary{padding:8px;background:#172033;touch-action:manipulation}
-
-    </style>
+</style>
 </head>
 <body>
-    <div id="layout-container" style="touch-action:manipulation;">
-        <div id="module-bar">
-            <button type="button" class="mobile-drawer-btn" onclick="UI.togglePanel('creator')">생성기</button>
-            <button type="button" class="mobile-drawer-btn" onclick="UI.togglePanel('inspector')">진단</button>
-            <button type="button" id="btn-lab-GRAVITY" class="lab-module active" onclick="Labs.loadLab('GRAVITY')">중력/궤도</button>
-            <button type="button" id="btn-lab-GALAXY" class="lab-module" onclick="Labs.loadLab('GALAXY')">은하 N-body</button>
-            <button type="button" id="btn-lab-SPH_FLUID" class="lab-module" onclick="Labs.loadLab('SPH_FLUID')">SPH 유체</button>
-            <button type="button" id="btn-lab-NUCLEAR" class="lab-module" onclick="Labs.loadLab('NUCLEAR')">항성/핵</button>
-            <button type="button" id="btn-lab-QUANTUM" class="lab-module" onclick="Labs.loadLab('QUANTUM')">양자</button>
-            <button type="button" id="btn-lab-MHD" class="lab-module" onclick="Labs.loadLab('MHD')">MHD</button>
-            <button type="button" id="btn-lab-RADIATION" class="lab-module" onclick="Labs.loadLab('RADIATION')">복사수송</button>
-            <button type="button" id="btn-lab-STELLAR" class="lab-module" onclick="Labs.loadLab('STELLAR')">항성구조</button>
-            <button type="button" id="btn-lab-GR" class="lab-module" onclick="Labs.loadLab('GR')">GR</button>
-            <button type="button" id="btn-lab-COSMOLOGY" class="lab-module" onclick="Labs.loadLab('COSMOLOGY')">우주론</button>
-        </div>
+<div id="app">
+<aside id="left" class="panel">
+<h1>UNIVERSE CREATOR</h1>
+<div class="note">객체를 만드는 순간 물리 초기조건을 계산한다. 행성의 원형 궤도 속도는 질량과 거리에서 자동 결정한다. 속도 입력은 기본 생성 과정에서 사용하지 않는다.</div>
+<h2>생성</h2>
+<div class="field"><label>종류</label><select id="kind"><option value="STAR">항성</option><option value="PLANET">행성</option><option value="MOON">위성</option><option value="BLACK_HOLE">블랙홀</option></select></div>
+<div class="field"><label>질량 (kg)</label><input id="mass" type="number" value="1.89813e27" step="any"></div>
+<div class="field"><label>반지름 (m)</label><input id="radius" type="number" value="6.9911e7" step="any"></div>
+<div class="field"><label>생성 거리 (m)</label><input id="distance" type="number" value="7.7857e11" step="any"></div>
+<div class="field"><label>중심체</label><select id="parent"></select></div>
+<button id="create" style="width:100%">객체 생성</button>
+<h2>초기조건</h2>
+<div class="note">행성/위성: 선택한 중심체에 대해 원형 궤도 조건을 자동 생성한다. 일반 N-body에서 속도는 독립적인 동역학 상태이므로 엔진 내부에는 반드시 존재한다.</div>
+<h2>활성 물리</h2>
+<label class="engine"><input data-engine="gravity" type="checkbox" checked>중력 / N-body</label>
+<label class="engine"><input data-engine="collision" type="checkbox" checked>충돌 / 병합</label>
+<label class="engine"><input data-engine="nuclear" type="checkbox" checked>핵반응</label>
+<label class="engine"><input data-engine="thermal" type="checkbox" checked>열역학 / 복사</label>
+<h2>수치해석</h2>
+<div class="field"><label>최대 기본 timestep (s)</label><input id="dt" type="number" value="3600" min="0.001" step="any"></div>
+<div class="field"><label>적분기</label><select id="integrator"><option value="verlet">Velocity Verlet</option><option value="rk4">RK4</option></select></div>
+<button id="reset" style="width:100%">전체 초기화</button>
+</aside>
 
-        <div id="viewport-container">
-            <canvas id="universe-canvas"></canvas>
-            <div id="diagnostics-overlay">초기화 중...</div>
-            <div id="mobile-joystick" style="display:none; position:absolute; bottom:20px; left:20px; width:100px; height:100px; background:rgba(255,255,255,0.1); border-radius:50%; pointer-events:none;"></div>
-        </div>
+<main id="view"><canvas id="canvas"></canvas><div id="mobileMenu"><button id="mLeft">생성</button><button id="mRight">진단</button></div><div id="hud"></div></main>
 
-        <div id="creator-panel" class="side-panel">
-            <h3>창조주 — 객체 생성</h3>
-            <label>객체 유형</label>
-            <select id="type">
-                <option value="PLANET">행성</option><option value="STAR">항성</option><option value="BLACK_HOLE">블랙홀</option><option value="GAS_CLOUD">가스 구름</option>
-            </select>
-            <label>질량 (kg)</label><input type="number" id="mass" value="5.9722e24">
-            <label>반지름 (m)</label><input type="number" id="radius" value="6371000">
-            <div class="orbit-help">행성은 항성이 있으면 위치에 따라 원형 궤도 속도를 자동 계산합니다. 빈 화면을 한 번 탭하면 그 위치에 생성됩니다.</div>
-            <details><summary>직접 초기속도 — 고급</summary>
-              <label>속도 X (m/s)</label><input type="number" id="vel_x" value="0">
-              <label>속도 Y (m/s)</label><input type="number" id="vel_y" value="0">
-              <label>속도 Z (m/s)</label><input type="number" id="vel_z" value="0">
-            </details>
-            <button onclick="UI.createObject()">객체 생성</button>
-            <hr><h3>활성 물리 엔진</h3>
-            <label class="model-row"><input type="checkbox" data-model="Gravity" checked onchange="UI.toggleModel('Gravity',this.checked)">중력 / N-body</label>
-            <label class="model-row"><input type="checkbox" data-model="Collision" checked onchange="UI.toggleModel('Collision',this.checked)">충돌 / 병합</label>
-            <label class="model-row"><input type="checkbox" data-model="Nuclear" checked onchange="UI.toggleModel('Nuclear',this.checked)">핵반응 / 핵융합</label>
-            <label class="model-row"><input type="checkbox" data-model="Thermodynamics" checked onchange="UI.toggleModel('Thermodynamics',this.checked)">열역학 / 복사</label>
-            <label class="model-row"><input type="checkbox" data-model="Fluid" onchange="UI.toggleModel('Fluid',this.checked)">SPH 유체</label>
-            <label class="model-row"><input type="checkbox" data-model="Electromagnetic" onchange="UI.toggleModel('Electromagnetic',this.checked)">전자기력</label>
-            <label class="model-row"><input type="checkbox" data-model="Relativity" onchange="UI.toggleModel('Relativity',this.checked)">상대론 보정</label>
-        </div>
-
-        <div id="inspector-panel" class="side-panel">
-            <h3>물리 진단 (Diagnostics)</h3>
-            <div id="inspector-data">선택된 객체 없음</div>
-            <hr>
-            <div id="diag-global">
-                <div>에너지: <span id="diag-energy">0</span></div>
-                <div>에너지 오차: <span id="diag-e-err">0</span></div>
-                <div>총 운동량: <span id="diag-mom">0</span></div>
-                <div>상태: <span id="diag-status">STABLE</span></div>
-            </div>
-        </div>
-
-        <div id="control-bar">
-            <button id="btn-pause" onclick="Engine.togglePause()">일시정지 (PAUSE)</button><button onclick="Engine.resetFailure()">실패 복구</button>
-            <label>적분기:</label>
-            <select id="integrator" onchange="Engine.integratorType = this.value">
-                <option value="rk4">Runge-Kutta 4 (정밀)</option>
-                <option value="verlet">Velocity Verlet (안정)</option>
-                <option value="euler">Semi-Implicit Euler</option>
-            </select>
-            <label>가속기:</label>
-            <select id="sys-gravity" onchange="Engine.gravityAlgorithm = this.value">
-                <option value="BARNES_HUT">Barnes-Hut O(N log N)</option>
-                <option value="DIRECT">Direct O(N²)</option>
-            </select>
-            <label>타임스텝(dt):</label>
-            <input type="number" id="sys-dt" value="1.0" style="width:60px;" onchange="Engine.dt = parseFloat(this.value)">
-            <button id="btn-audit" onclick="UI.showAudit()">검증 (AUDIT)</button>
-        </div>
-    </div>
-
-    <div id="validation-modal" style="display:none; position:absolute; top:10%; left:20%; width:60%; height:80%; background:#1e1e1e; border:2px solid var(--border); z-index:1000; padding:20px; overflow-y:auto;">
-        <h2>과학적 검증 프레임워크 결과</h2>
-        <div id="validation-results"></div>
-        <button onclick="document.getElementById('validation-modal').style.display='none'" style="margin-top:20px;">닫기</button>
-    </div>
-
-    <script>
-    class Vec3 {
-        constructor(x=0, y=0, z=0) { this.x=x; this.y=y; this.z=z; }
-        add(v) { return new Vec3(this.x+v.x, this.y+v.y, this.z+v.z); }
-        sub(v) { return new Vec3(this.x-v.x, this.y-v.y, this.z-v.z); }
-        mult(s) { return new Vec3(this.x*s, this.y*s, this.z*s); }
-        div(s) { return new Vec3(this.x/s, this.y/s, this.z/s); }
-        dot(v) { return this.x*v.x + this.y*v.y + this.z*v.z; }
-        cross(v) { return new Vec3(this.y*v.z - this.z*v.y, this.z*v.x - this.x*v.z, this.x*v.y - this.y*v.x); }
-        magSq() { return this.x*this.x + this.y*this.y + this.z*this.z; }
-        mag() { return Math.sqrt(this.magSq()); }
-        normalize() { let m = this.mag(); return m === 0 ? new Vec3() : this.div(m); }
-        clone() { return new Vec3(this.x, this.y, this.z); }
-    }
-
-/**
- * src/physics/Constants.js
- *
- * Centralized registry of physical constants in strict SI units.
- * As per M1 specification, all internal calculations MUST use these constants.
- * Conversion functions are provided for UI/diagnostic display only.
- */
-const PhysicsConstants = {
-    // Fundamental Constants
-    G: 6.67430e-11,             // Gravitational constant [m^3 kg^-1 s^-2]
-    c: 299792458,               // Speed of light in vacuum [m/s]
-    h_bar: 1.054571817e-34,     // Reduced Planck constant [J s]
-    k_B: 1.380649e-23,          // Boltzmann constant [J/K]
-    e: 1.602176634e-19,         // Elementary charge [C]
-    eps_0: 8.8541878128e-12,    // Vacuum permittivity [F/m]
-    mu_0: 1.25663706212e-6,     // Vacuum permeability [N/A^2]
-    sigma_sb: 5.670374419e-8,   // Stefan-Boltzmann constant [W m^-2 K^-4]
-
-    // Astronomical Masses
-    M_sun: 1.98847e30,          // Solar mass [kg]
-    M_earth: 5.9722e24,         // Earth mass [kg]
-    M_moon: 7.342e22,           // Moon mass [kg]
-
-    // Astronomical Distances
-    AU: 1.495978707e11,         // Astronomical Unit [m]
-    pc: 3.085677581e16,         // Parsec [m]
-    ly: 9.4607e15,              // Light-year [m]
-
-    // Time conversions
-    yr: 31557600,               // Julian year [s]
-    day: 86400,                 // Day [s]
-
-    // Hubble parameter
-    // Represented in s^-1 for internal integration (H0 = 70 km/s/Mpc)
-    H0_s: 2.2685e-18            // Hubble constant [s^-1]
-};
-
-const UnitConverter = {
-    toAU: (meters) => meters / PhysicsConstants.AU,
-    fromAU: (au) => au * PhysicsConstants.AU,
-    toSolarMass: (kg) => kg / PhysicsConstants.M_sun,
-    fromSolarMass: (sm) => sm * PhysicsConstants.M_sun,
-    toYears: (seconds) => seconds / PhysicsConstants.yr,
-    fromYears: (years) => years * PhysicsConstants.yr
-};
-
-
-const PeriodicTable = [
-    { Z: 1, symbol: "H", mass: 1.008 },
-    { Z: 2, symbol: "He", mass: 4.0026 },
-    { Z: 3, symbol: "Li", mass: 6.94 },
-    { Z: 4, symbol: "Be", mass: 9.0122 },
-    { Z: 5, symbol: "B", mass: 10.81 },
-    { Z: 6, symbol: "C", mass: 12.011 },
-    { Z: 7, symbol: "N", mass: 14.007 },
-    { Z: 8, symbol: "O", mass: 15.999 },
-    { Z: 9, symbol: "F", mass: 18.998 },
-    { Z: 10, symbol: "Ne", mass: 20.180 },
-    { Z: 11, symbol: "Na", mass: 22.990 },
-    { Z: 12, symbol: "Mg", mass: 24.305 },
-    { Z: 13, symbol: "Al", mass: 26.982 },
-    { Z: 14, symbol: "Si", mass: 28.085 },
-    { Z: 15, symbol: "P", mass: 30.974 },
-    { Z: 16, symbol: "S", mass: 32.06 },
-    { Z: 17, symbol: "Cl", mass: 35.45 },
-    { Z: 18, symbol: "Ar", mass: 39.95 },
-    { Z: 19, symbol: "K", mass: 39.098 },
-    { Z: 20, symbol: "Ca", mass: 40.078 },
-    { Z: 21, symbol: "Sc", mass: 44.956 },
-    { Z: 22, symbol: "Ti", mass: 47.867 },
-    { Z: 23, symbol: "V", mass: 50.942 },
-    { Z: 24, symbol: "Cr", mass: 51.996 },
-    { Z: 25, symbol: "Mn", mass: 54.938 },
-    { Z: 26, symbol: "Fe", mass: 55.845 },
-    { Z: 27, symbol: "Co", mass: 58.933 },
-    { Z: 28, symbol: "Ni", mass: 58.693 },
-    { Z: 29, symbol: "Cu", mass: 63.546 },
-    { Z: 30, symbol: "Zn", mass: 65.38 },
-    { Z: 31, symbol: "Ga", mass: 69.723 },
-    { Z: 32, symbol: "Ge", mass: 72.630 },
-    { Z: 33, symbol: "As", mass: 74.922 },
-    { Z: 34, symbol: "Se", mass: 78.971 },
-    { Z: 35, symbol: "Br", mass: 79.904 },
-    { Z: 36, symbol: "Kr", mass: 83.798 },
-    { Z: 37, symbol: "Rb", mass: 85.468 },
-    { Z: 38, symbol: "Sr", mass: 87.62 },
-    { Z: 39, symbol: "Y", mass: 88.906 },
-    { Z: 40, symbol: "Zr", mass: 91.224 },
-    { Z: 41, symbol: "Nb", mass: 92.906 },
-    { Z: 42, symbol: "Mo", mass: 95.95 },
-    { Z: 43, symbol: "Tc", mass: 98 },
-    { Z: 44, symbol: "Ru", mass: 101.07 },
-    { Z: 45, symbol: "Rh", mass: 102.91 },
-    { Z: 46, symbol: "Pd", mass: 106.42 },
-    { Z: 47, symbol: "Ag", mass: 107.87 },
-    { Z: 48, symbol: "Cd", mass: 112.41 },
-    { Z: 49, symbol: "In", mass: 114.82 },
-    { Z: 50, symbol: "Sn", mass: 118.71 },
-    { Z: 51, symbol: "Sb", mass: 121.76 },
-    { Z: 52, symbol: "Te", mass: 127.60 },
-    { Z: 53, symbol: "I", mass: 126.90 },
-    { Z: 54, symbol: "Xe", mass: 131.29 },
-    { Z: 55, symbol: "Cs", mass: 132.91 },
-    { Z: 56, symbol: "Ba", mass: 137.33 },
-    { Z: 57, symbol: "La", mass: 138.91 },
-    { Z: 58, symbol: "Ce", mass: 140.12 },
-    { Z: 59, symbol: "Pr", mass: 140.91 },
-    { Z: 60, symbol: "Nd", mass: 144.24 },
-    { Z: 61, symbol: "Pm", mass: 145 },
-    { Z: 62, symbol: "Sm", mass: 150.36 },
-    { Z: 63, symbol: "Eu", mass: 151.96 },
-    { Z: 64, symbol: "Gd", mass: 157.25 },
-    { Z: 65, symbol: "Tb", mass: 158.93 },
-    { Z: 66, symbol: "Dy", mass: 162.50 },
-    { Z: 67, symbol: "Ho", mass: 164.93 },
-    { Z: 68, symbol: "Er", mass: 167.26 },
-    { Z: 69, symbol: "Tm", mass: 168.93 },
-    { Z: 70, symbol: "Yb", mass: 173.05 },
-    { Z: 71, symbol: "Lu", mass: 174.97 },
-    { Z: 72, symbol: "Hf", mass: 178.49 },
-    { Z: 73, symbol: "Ta", mass: 180.95 },
-    { Z: 74, symbol: "W", mass: 183.84 },
-    { Z: 75, symbol: "Re", mass: 186.21 },
-    { Z: 76, symbol: "Os", mass: 190.23 },
-    { Z: 77, symbol: "Ir", mass: 192.22 },
-    { Z: 78, symbol: "Pt", mass: 195.08 },
-    { Z: 79, symbol: "Au", mass: 196.97 },
-    { Z: 80, symbol: "Hg", mass: 200.59 },
-    { Z: 81, symbol: "Tl", mass: 204.38 },
-    { Z: 82, symbol: "Pb", mass: 207.2 },
-    { Z: 83, symbol: "Bi", mass: 208.98 },
-    { Z: 84, symbol: "Po", mass: 209 },
-    { Z: 85, symbol: "At", mass: 210 },
-    { Z: 86, symbol: "Rn", mass: 222 },
-    { Z: 87, symbol: "Fr", mass: 223 },
-    { Z: 88, symbol: "Ra", mass: 226 },
-    { Z: 89, symbol: "Ac", mass: 227 },
-    { Z: 90, symbol: "Th", mass: 232.04 },
-    { Z: 91, symbol: "Pa", mass: 231.04 },
-    { Z: 92, symbol: "U", mass: 238.03 },
-    { Z: 93, symbol: "Np", mass: 237 },
-    { Z: 94, symbol: "Pu", mass: 244 },
-    { Z: 95, symbol: "Am", mass: 243 },
-    { Z: 96, symbol: "Cm", mass: 247 },
-    { Z: 97, symbol: "Bk", mass: 247 },
-    { Z: 98, symbol: "Cf", mass: 251 },
-    { Z: 99, symbol: "Es", mass: 252 },
-    { Z: 100, symbol: "Fm", mass: 257 },
-    { Z: 101, symbol: "Md", mass: 258 },
-    { Z: 102, symbol: "No", mass: 259 },
-    { Z: 103, symbol: "Lr", mass: 266 },
-    { Z: 104, symbol: "Rf", mass: 267 },
-    { Z: 105, symbol: "Db", mass: 268 },
-    { Z: 106, symbol: "Sg", mass: 269 },
-    { Z: 107, symbol: "Bh", mass: 270 },
-    { Z: 108, symbol: "Hs", mass: 269 },
-    { Z: 109, symbol: "Mt", mass: 278 },
-    { Z: 110, symbol: "Ds", mass: 281 },
-    { Z: 111, symbol: "Rg", mass: 282 },
-    { Z: 112, symbol: "Cn", mass: 285 },
-    { Z: 113, symbol: "Nh", mass: 286 },
-    { Z: 114, symbol: "Fl", mass: 289 },
-    { Z: 115, symbol: "Mc", mass: 290 },
-    { Z: 116, symbol: "Lv", mass: 293 },
-    { Z: 117, symbol: "Ts", mass: 294 },
-    { Z: 118, symbol: "Og", mass: 294 }
-];
-
-class PhysicalBody {
-    constructor(id,type,mass,radius,pos,vel){
-        if(!(mass>0) || !(radius>0) || !pos || !vel) throw new Error("Invalid body state");
-        this.id=id; this.type=type; this.mass=mass; this.radius=radius;
-        this.pos=pos; this.vel=vel; this.acc=new Vec3(); this.spin=new Vec3();
-        this.temperature=2.73; this.internalEnergy=0; this.sph_density=0; this.sph_pressure=0;
-        this.composition={X:0.73,Y:0.25,Z:0.02};
-        this.charge=0; this.magneticField=new Vec3(); this.luminosity=0; this.radiatedEnergy=0;
-        this.updateDensity();
-    }
-    updateDensity(){
-        if(!(this.mass>0)||!(this.radius>0)||!Number.isFinite(this.mass)||!Number.isFinite(this.radius)){
-            this.density=NaN; return;
-        }
-        this.density=this.mass/((4/3)*Math.PI*this.radius**3);
-    }
-    isFiniteState(){
-        return Number.isFinite(this.mass)&&this.mass>0&&Number.isFinite(this.radius)&&this.radius>0&&
-            [this.pos.x,this.pos.y,this.pos.z,this.vel.x,this.vel.y,this.vel.z].every(Number.isFinite);
-    }
-    clone(){
-        const b=new PhysicalBody(this.id,this.type,this.mass,this.radius,this.pos.clone(),this.vel.clone());
-        b.acc=this.acc.clone(); b.spin=this.spin.clone(); b.temperature=this.temperature;
-        b.internalEnergy=this.internalEnergy; b.density=this.density; b.sph_density=this.sph_density;
-        b.sph_pressure=this.sph_pressure; b.composition={...this.composition}; b.charge=this.charge;
-        b.magneticField=this.magneticField.clone(); b.luminosity=this.luminosity; b.radiatedEnergy=this.radiatedEnergy;
-        return b;
-    }
+<aside id="right" class="panel">
+<h1>진단 / 선택 객체</h1><div id="inspector" class="note">객체를 선택하세요.</div>
+<h2>시뮬레이션</h2><div id="siminfo" class="note"></div>
+<h2>객체 목록</h2><div id="objects"></div>
+<h2>규칙</h2><div class="note">• SI 내부단위<br>• 중력은 pairwise Newtonian gravity<br>• 충돌은 기하학적 반지름 교차 시 병합<br>• 원형 궤도 초기속도는 v = sqrt(G(M+m)/r)<br>• 에너지/운동량 보존을 검증하며 비유한 상태는 해당 스텝을 롤백</div>
+</aside>
+<div id="toolbar"><button id="pause">일시정지</button><button id="step">1 step</button><button id="focus">선택 추적</button><span id="state" class="status"></span></div>
+</div>
+<script>
+"use strict";
+const C={G:6.67430e-11,c:299792458,Ms:1.98847e30,Me:5.9722e24,Rsun:6.957e8,Re:6.371e6,AU:1.495978707e11};
+class V{
+ constructor(x=0,y=0,z=0){this.x=x;this.y=y;this.z=z}
+ add(b){return new V(this.x+b.x,this.y+b.y,this.z+b.z)} sub(b){return new V(this.x-b.x,this.y-b.y,this.z-b.z)}
+ mul(k){return new V(this.x*k,this.y*k,this.z*k)} div(k){return this.mul(1/k)}
+ dot(b){return this.x*b.x+this.y*b.y+this.z*b.z} cross(b){return new V(this.y*b.z-this.z*b.y,this.z*b.x-this.x*b.z,this.x*b.y-this.y*b.x)}
+ n2(){return this.dot(this)} n(){return Math.sqrt(this.n2())} unit(){const n=this.n();return n>0?this.div(n):new V()}
+ clone(){return new V(this.x,this.y,this.z)}
+ finite(){return [this.x,this.y,this.z].every(Number.isFinite)}
 }
-
-
-class BBox {
-        constructor(x, y, z, size) {
-            this.x=x; this.y=y; this.z=z; this.size=size;
-        }
-        contains(pos) {
-            return pos.x >= this.x && pos.x < this.x+this.size &&
-                   pos.y >= this.y && pos.y < this.y+this.size &&
-                   pos.z >= this.z && pos.z < this.z+this.size;
-        }
-    }
-
-class OctreeNode {
-        constructor(box) {
-            this.box = box;
-            this.body = null;
-            this.children = null;
-            this.mass = 0;
-            this.centerOfMass = new Vec3();
-        }
-        insert(body) {
-            if(!this.box.contains(body.pos)) return;
-            // To strictly handle identical coordinates without coordinate perturbation,
-            // we accumulate them in the current node without subdividing infinitely.
-            // In a pure Barnes-Hut, if two distinct particles occupy the exact same floating-point coordinate,
-            // we cannot subdivide a bounding box to separate them.
-            if(this.body && this.body.pos.x === body.pos.x && this.body.pos.y === body.pos.y && this.body.pos.z === body.pos.z) {
-                // They occupy the exact same position. Combine mass and COM in this leaf.
-                // We keep a reference to one body, but update the node's total representation.
-                let totalMass = this.mass + body.mass;
-                this.centerOfMass = this.centerOfMass.mult(this.mass).add(body.pos.mult(body.mass)).div(totalMass);
-                this.mass = totalMass;
-                return;
-            }
-
-            if(this.mass === 0) {
-                this.body = body;
-                this.mass = body.mass;
-                this.centerOfMass = body.pos.clone();
-            } else {
-                if(!this.children) this.subdivide();
-                if(this.body) {
-                    this.insertIntoChildren(this.body);
-                    this.body = null; // internal nodes don't hold bodies
-                }
-                this.insertIntoChildren(body);
-                // Update COM
-                let totalMass = this.mass + body.mass;
-                this.centerOfMass = this.centerOfMass.mult(this.mass).add(body.pos.mult(body.mass)).div(totalMass);
-                this.mass = totalMass;
-            }
-        }
-        subdivide() {
-            let s = this.box.size / 2;
-            let x = this.box.x, y = this.box.y, z = this.box.z;
-            this.children = [
-                new OctreeNode(new BBox(x,y,z,s)), new OctreeNode(new BBox(x+s,y,z,s)),
-                new OctreeNode(new BBox(x,y+s,z,s)), new OctreeNode(new BBox(x+s,y+s,z,s)),
-                new OctreeNode(new BBox(x,y,z+s,s)), new OctreeNode(new BBox(x+s,y,z+s,s)),
-                new OctreeNode(new BBox(x,y+s,z+s,s)), new OctreeNode(new BBox(x+s,y+s,z+s,s))
-            ];
-        }
-        insertIntoChildren(body) {
-            for(let i=0; i<8; i++) this.children[i].insert(body);
-        }
-    }
-
-const GravityEngine = {
-    computeAccelerations:function(objects,useBarnesHut){
-        const accels=new Array(objects.length).fill(null).map(()=>new Vec3());
-        if(useBarnesHut&&objects.length>50){
-            let min=new Vec3(Infinity,Infinity,Infinity),max=new Vec3(-Infinity,-Infinity,-Infinity);
-            for(const o of objects){min.x=Math.min(min.x,o.pos.x);min.y=Math.min(min.y,o.pos.y);min.z=Math.min(min.z,o.pos.z);max.x=Math.max(max.x,o.pos.x);max.y=Math.max(max.y,o.pos.y);max.z=Math.max(max.z,o.pos.z)}
-            const size=Math.max(max.x-min.x,max.y-min.y,max.z-min.z)+1,root=new OctreeNode(new BBox(min.x,min.y,min.z,size)),theta=.2;
-            for(const o of objects)root.insert(o);
-            function force(node,body){
-                if(node.mass===0)return new Vec3();
-                if(!node.children&&node.body===body)return new Vec3();
-                const rv=node.centerOfMass.sub(body.pos),r2=rv.magSq();if(r2===0)return new Vec3();
-                const r=Math.sqrt(r2);
-                if(!node.children||(!node.box.contains(body.pos)&&(node.box.size/r)<theta)){
-                    const f=PhysicsConstants.G*node.mass/r2;return rv.mult(f/r);
-                }
-                let a=new Vec3();for(const child of node.children)a=a.add(force(child,body));return a;
-            }
-            for(let i=0;i<objects.length;i++)accels[i]=force(root,objects[i]);
-        }else{
-            for(let i=0;i<objects.length;i++)for(let j=i+1;j<objects.length;j++){const rv=objects[j].pos.sub(objects[i].pos),r2=rv.magSq();if(r2===0)continue;const r=Math.sqrt(r2),f=PhysicsConstants.G/r2,ai=rv.mult(f*objects[j].mass/r),aj=rv.mult(-f*objects[i].mass/r);accels[i]=accels[i].add(ai);accels[j]=accels[j].add(aj)}
-        }
-        return accels;
-    }
-};
-
-const CollisionEngine={
-    checkAndResolve(objects){
-        const consumed=new Set(), mergedBodies=[];
-        for(let i=0;i<objects.length;i++){
-            if(consumed.has(i)) continue;
-            for(let j=i+1;j<objects.length;j++){
-                if(consumed.has(j)) continue;
-                const a=objects[i],b=objects[j],d=a.pos.sub(b.pos).mag();
-                if(!Number.isFinite(d) || d>=a.radius+b.radius) continue;
-                const M=a.mass+b.mass;
-                const pos=a.pos.mult(a.mass).add(b.pos.mult(b.mass)).div(M);
-                const vel=a.vel.mult(a.mass).add(b.vel.mult(b.mass)).div(M);
-                const R=Math.cbrt(a.radius**3+b.radius**3);
-                let type=a.mass>=b.mass?a.type:b.type;
-                if(type!=="BLACK_HOLE"&&M>3*PhysicsConstants.M_sun) type="BLACK_HOLE";
-                else if(type==="PLANET"&&M>0.08*PhysicsConstants.M_sun) type="STAR";
-                const merged=new PhysicalBody("merge-"+Date.now()+"-"+i+"-"+j,type,M,R,pos,vel);
-                const ke=.5*a.mass*a.vel.magSq()+.5*b.mass*b.vel.magSq()-.5*M*vel.magSq();
-                merged.internalEnergy=Math.max(0,(a.internalEnergy||0)+(b.internalEnergy||0)+Math.max(0,ke));
-                const ca=a.composition||{X:.73,Y:.25,Z:.02},cb=b.composition||{X:.73,Y:.25,Z:.02};
-                merged.composition={X:(ca.X*a.mass+cb.X*b.mass)/M,Y:(ca.Y*a.mass+cb.Y*b.mass)/M,Z:(ca.Z*a.mass+cb.Z*b.mass)/M};
-                const LA=a.pos.sub(pos).cross(a.vel.sub(vel).mult(a.mass));
-                const LB=b.pos.sub(pos).cross(b.vel.sub(vel).mult(b.mass));
-                const IA=.4*a.mass*a.radius*a.radius,IB=.4*b.mass*b.radius*b.radius,I=.4*M*R*R;
-                merged.spin=I>0?LA.add(LB).add(a.spin.mult(IA)).add(b.spin.mult(IB)).div(I):new Vec3();
-                if(type==="BLACK_HOLE"){merged.radius=2*PhysicsConstants.G*M/(PhysicsConstants.c**2);merged.updateDensity();}
-                consumed.add(i);consumed.add(j);mergedBodies.push(merged);break;
-            }
-        }
-        if(consumed.size){const survivors=objects.filter((_,idx)=>!consumed.has(idx));objects.length=0;objects.push(...survivors,...mergedBodies);}
-    }
-};
-
-
-const ElectromagneticEngine = {
-        computeAccelerations: function(objects) {
-            let accels = new Array(objects.length).fill(null).map(() => new Vec3());
-            let k = 1 / (4 * Math.PI * PhysicsConstants.eps_0);
-            for(let i=0; i<objects.length; i++) {
-                if(objects[i].charge === 0) continue;
-                for(let j=i+1; j<objects.length; j++) {
-                    if(objects[j].charge === 0) continue;
-                    let rVec = objects[i].pos.sub(objects[j].pos);
-                    let rSq = rVec.magSq();
-                    if(rSq === 0) continue;
-                    let fMag = k * (objects[i].charge * objects[j].charge) / rSq;
-                    let force = rVec.mult(fMag / Math.sqrt(rSq));
-                    accels[i] = accels[i].add(force.div(objects[i].mass));
-                    accels[j] = accels[j].sub(force.div(objects[j].mass));
-                }
-            }
-            return accels;
-        }
-    }
-
-const FluidEngine={h:1e6,gamma:5/3,alphaViscosity:1,betaViscosity:2,epsilon:1e-30,kernels:{poly6(r,h){if(r<0||r>=h)return 0;const q=h*h-r*r;return 315/(64*Math.PI*h**9)*q**3},gradSpiky(rVec,h){const r=rVec.mag();if(r<=0||r>=h)return new Vec3();return rVec.div(r).mult(-45/(Math.PI*h**6)*(h-r)**2)}},computeState(objects){const gas=objects.filter(o=>o.type==="GAS_CLOUD");for(const i of gas){let rho=0;for(const j of gas)rho+=j.mass*this.kernels.poly6(i.pos.sub(j.pos).mag(),this.h);i.sph_density=Math.max(rho,this.epsilon);const u=Math.max(0,i.internalEnergy/Math.max(i.mass,this.epsilon));i.sph_pressure=(this.gamma-1)*i.sph_density*u}return gas},computeAccelerations(objects){const gas=this.computeState(objects),result=new Map();for(const i of gas){let a=new Vec3();for(const j of gas){if(i===j)continue;const rij=i.pos.sub(j.pos),r=rij.mag();if(r<=0||r>=this.h)continue;const grad=this.kernels.gradSpiky(rij,this.h),term=i.sph_pressure/i.sph_density**2+j.sph_pressure/j.sph_density**2;a=a.add(grad.mult(-j.mass*term));const vij=i.vel.sub(j.vel),rv=rij.dot(vij);if(rv<0){const mu=this.h*rv/(r*r+.01*this.h*this.h),ci=Math.sqrt(Math.max(0,this.gamma*i.sph_pressure/i.sph_density)),cj=Math.sqrt(Math.max(0,this.gamma*j.sph_pressure/j.sph_density)),pi=(-this.alphaViscosity*.5*(ci+cj)*mu+this.betaViscosity*mu*mu)/Math.max(.5*(i.sph_density+j.sph_density),this.epsilon);a=a.add(grad.mult(-j.mass*pi))}}result.set(i,a)}return result},updateInternalEnergy(objects,dt){const gas=this.computeState(objects),du=new Map(gas.map(o=>[o,0]));for(const i of gas)for(const j of gas){if(i===j)continue;const rij=i.pos.sub(j.pos),r=rij.mag();if(r<=0||r>=this.h)continue;const vij=i.vel.sub(j.vel),grad=this.kernels.gradSpiky(rij,this.h),term=i.sph_pressure/i.sph_density**2+j.sph_pressure/j.sph_density**2;let d=0.5*j.mass*term*vij.dot(grad);const rv=rij.dot(vij);if(rv<0){const mu=this.h*rv/(r*r+.01*this.h*this.h),c=.5*(Math.sqrt(Math.max(0,this.gamma*i.sph_pressure/i.sph_density))+Math.sqrt(Math.max(0,this.gamma*j.sph_pressure/j.sph_density))),pi=(-this.alphaViscosity*c*mu+this.betaViscosity*mu*mu)/Math.max(.5*(i.sph_density+j.sph_density),this.epsilon);d+=.5*j.mass*pi*vij.dot(grad)}du.set(i,du.get(i)+d)}for(const o of gas)o.internalEnergy=Math.max(0,o.internalEnergy+du.get(o)*o.mass*dt)},computeSPH(objects){const acc=this.computeAccelerations(objects);for(const[o,a]of acc)o.acc=o.acc.add(a);return acc}};
-
-const EOS = {
-    radiationConstant: 4*PhysicsConstants.sigma_sb/PhysicsConstants.c,
-    atomicMassUnit: 1.66053906660e-27,
-
-    meanMolecularWeight(comp={X:0.73,Y:0.25,Z:0.02}, ionized=true) {
-        const X=comp.X??0, Y=comp.Y??0, Z=comp.Z??0;
-        if(ionized) return 1/Math.max(1e-30,2*X+0.75*Y+0.5*Z);
-        return 1/Math.max(1e-30,X/2+Y/4+Z/16);
-    },
-
-    idealGasPressure(rho,T,mu) {
-        return rho*PhysicsConstants.k_B*T/(mu*this.atomicMassUnit);
-    },
-
-    radiationPressure(T) { return this.radiationConstant*T**4/3; },
-
-    pressure(rho,T,comp) {
-        const mu=this.meanMolecularWeight(comp,true);
-        return this.idealGasPressure(rho,T,mu)+this.radiationPressure(T);
-    },
-
-    specificInternalEnergy(rho,T,comp) {
-        const mu=this.meanMolecularWeight(comp,true);
-        return 1.5*PhysicsConstants.k_B*T/(mu*this.atomicMassUnit)+this.radiationConstant*T**4/rho;
-    },
-
-    soundSpeed(rho,T,comp) {
-        const mu=this.meanMolecularWeight(comp,true);
-        const p=this.pressure(rho,T,comp);
-        return Math.sqrt(Math.max(0,(5/3)*p/rho));
-    },
-
-    kramersOpacity(rho,T,X=0.73,Z=0.02) {
-        const Tg=Math.max(T,1);
-        return 4.0e25*(Z*(1+X))*rho*Tg**-3.5;
-    },
-
-    electronScatteringOpacity(X=0.73) { return 0.2*(1+X); },
-
-    opacity(rho,T,comp={X:0.73,Y:0.25,Z:0.02}) {
-        return Math.max(0,this.electronScatteringOpacity(comp.X)+this.kramersOpacity(rho,T,comp.X,comp.Z));
-    }
-};
-
-
-const ThermoEngine = {
-    gamma: 5/3,
-    cvPerMass(body) {
-        const mu = EOS.meanMolecularWeight(body.composition || {X:0.73,Y:0.25,Z:0.02}, true);
-        return 1.5 * PhysicsConstants.k_B / (mu * EOS.atomicMassUnit);
-    },
-    updateTemperature(objects) {
-        for (const o of objects) {
-            if (!(o.mass > 0)) continue;
-            const cv = this.cvPerMass(o);
-            if (!(o.internalEnergy > 0)) {
-                o.internalEnergy = Math.max(0, o.mass * cv * Math.max(o.temperature, 2.73));
-            }
-            o.temperature = Math.max(2.73, o.internalEnergy / (o.mass * cv));
-            o.updateDensity();
-            o.sph_pressure = EOS.pressure(o.density, o.temperature, o.composition);
-        }
-    },
-    computeRadiation(dt, objects) {
-        if (!(dt >= 0)) throw new Error("Negative thermodynamic timestep");
-        const sigma = PhysicsConstants.sigma_sb;
-        for (const o of objects) {
-            if (!(o.radius > 0) || !(o.temperature >= 0)) continue;
-            const area = 4 * Math.PI * o.radius * o.radius;
-            const blackbody = sigma * area * Math.pow(o.temperature,4);
-            o.luminosity = Number.isFinite(blackbody) ? blackbody : 0;
-            const emitted = Math.min(o.internalEnergy, o.luminosity * dt);
-            o.radiatedEnergy = (o.radiatedEnergy || 0) + emitted;
-            o.internalEnergy = Math.max(0, o.internalEnergy - emitted);
-        }
-    }
-};
-function kBPressure(T,rho) {
-    const kB=1.380649e-23, mp=1.67262192369e-27, mu=0.61;
-    return kB*T/(mu*mp);
+let nextId=1;
+class Body{
+ constructor({type,mass,radius,pos,vel,name,parent=null}){this.id=nextId++;this.type=type;this.name=name||type+" "+this.id;this.mass=mass;this.radius=radius;this.pos=pos;this.vel=vel;this.acc=new V();this.parent=parent;this.temperature=type==="STAR"?5778:288;this.X=.73;this.Y=.25;this.Z=.02;this.energy=type==="STAR"?mass*1e10:mass*1e3;this.luminosity=0}
+ clone(){const b=new Body({type:this.type,mass:this.mass,radius:this.radius,pos:this.pos.clone(),vel:this.vel.clone(),name:this.name,parent:this.parent});b.id=this.id;b.acc=this.acc.clone();b.temperature=this.temperature;b.X=this.X;b.Y=this.Y;b.Z=this.Z;b.energy=this.energy;b.luminosity=this.luminosity;return b}
+ finite(){return this.mass>0&&this.radius>0&&Number.isFinite(this.mass)&&Number.isFinite(this.radius)&&this.pos.finite()&&this.vel.finite()&&this.vel.n()<C.c&&Number.isFinite(this.temperature)&&this.X>=0&&this.Y>=0&&this.Z>=0&&Math.abs(this.X+this.Y+this.Z-1)<1e-9}
 }
-
-
-const NuclearNetwork = {
-    // Analytic stellar-rate approximations in SI. They are deliberately exposed as
-    // approximations, not tabulated laboratory cross sections.
-    ppEnergyRate(rho,T,X) {
-        const T6=Math.max(T,1)/1e6;
-        const ergPerGramPerSecond=2.4e4*rho/1e3*X*X*Math.pow(T6,-2/3)*Math.exp(-33.8*Math.pow(T6,-1/3));
-        return Math.max(0,ergPerGramPerSecond*1e-4);
-    },
-
-    cnoEnergyRate(rho,T,X,Zcno=0.01) {
-        const T6=Math.max(T,1)/1e6;
-        const ergPerGramPerSecond=8.7e27*rho/1e3*X*Zcno*Math.pow(T6,-2/3)*Math.exp(-152.28*Math.pow(T6,-1/3));
-        return Math.max(0,ergPerGramPerSecond*1e-4);
-    },
-
-    tripleAlphaEnergyRate(rho,T,Y) {
-        const T8=Math.max(T,1)/1e8;
-        const ergPerGramPerSecond=5.1e8*(rho/1e5)**2*Y**3*T8**-3*Math.exp(-44.027/T8);
-        return Math.max(0,ergPerGramPerSecond*1e-4);
-    },
-
-    rates(rho,T,comp) {
-        return {
-            pp:this.ppEnergyRate(rho,T,comp.X),
-            cno:this.cnoEnergyRate(rho,T,comp.X,comp.Z),
-            tripleAlpha:this.tripleAlphaEnergyRate(rho,T,comp.Y)
-        };
-    },
-
-    hydrogenBurning(rho,T,comp,dt) {
-        const rates=this.rates(rho,T,comp);
-        const q=0.007*PhysicsConstants.c**2;
-        const burned=Math.min(comp.X,Math.max(0,(rates.pp+rates.cno)*dt/q));
-        return {
-            rates,
-            dX:-burned,
-            dY:burned,
-            energy:burned*rho*q
-        };
-    }
-};
-
-
-const RadiationTransport={a:4*PhysicsConstants.sigma_sb/PhysicsConstants.c,opticalDepth(kappa,rho,ds){if(kappa<0||rho<0||ds<0)throw new Error("Negative optical-depth input");return kappa*rho*ds},diffusionFlux(T_left,T_right,kappa,rho,ds){const T=Math.max(1,.5*(T_left+T_right)),D=PhysicsConstants.c/(3*Math.max(kappa*rho,1e-300));return -4*this.a*T**3*D*(T_right-T_left)/Math.max(ds,1e-300)},stepGreyDiffusion(T,rho,kappa,dx,dt){if(T.length<3||rho.length!==T.length||kappa.length!==T.length||!(dx>0&&dt>=0))throw new Error("Invalid radiation grid");const out=Float64Array.from(T);for(let i=1;i<T.length-1;i++){const Dl=PhysicsConstants.c/(3*Math.max(kappa[i-1]*rho[i-1],1e-300)),Dr=PhysicsConstants.c/(3*Math.max(kappa[i]*rho[i],1e-300));const El=this.a*T[i]**4,Elp=this.a*T[i+1]**4,Elm=this.a*T[i-1]**4;const fluxR=-Dr*(Elp-El)/dx,fluxL=-Dl*(El-Elm)/dx;const dEdt=-(fluxR-fluxL)/dx;const cv=Math.max(1e-30,4200*rho[i]);out[i]=Math.max(0,T[i]+dt*dEdt/cv)}out[0]=T[0];out[out.length-1]=T[T.length-1];return out}};
-
-const MHD1D={
-    gamma:5/3,
-    flux(U,Bx){
-        const[rho,mx,my,mz,E,By,Bz]=U;
-        if(!(rho>0)||!U.every(Number.isFinite)) throw new Error("Invalid MHD conservative state");
-        const vx=mx/rho,vy=my/rho,vz=mz/rho,B2=Bx*Bx+By*By+Bz*Bz,v2=vx*vx+vy*vy+vz*vz;
-        const p=(this.gamma-1)*(E-.5*rho*v2-.5*B2/PhysicsConstants.mu_0);
-        if(!(p>0)||!Number.isFinite(p)) throw new Error("Non-positive MHD pressure");
-        const pt=p+B2/(2*PhysicsConstants.mu_0),vdB=vx*Bx+vy*By+vz*Bz;
-        return[mx,mx*vx+p+(By*By+Bz*Bz-Bx*Bx)/(2*PhysicsConstants.mu_0),my*vx-By*Bx/PhysicsConstants.mu_0,mz*vx-Bz*Bx/PhysicsConstants.mu_0,(E+pt)*vx-Bx*vdB/PhysicsConstants.mu_0,By*vx-Bx*vy,Bz*vx-Bx*vz];
-    },
-    fastSpeed(U,Bx){
-        const[rho,mx,my,mz,E,By,Bz]=U,v2=(mx*mx+my*my+mz*mz)/(rho*rho),B2=Bx*Bx+By*By+Bz*Bz;
-        const p=(this.gamma-1)*(E-.5*rho*v2-.5*B2/PhysicsConstants.mu_0);
-        if(!(rho>0&&p>0)) throw new Error("Invalid MHD state for wave speed");
-        const a2=this.gamma*p/rho,va2=B2/(PhysicsConstants.mu_0*rho),term=a2+va2,disc=Math.max(0,term*term-4*a2*Bx*Bx/(PhysicsConstants.mu_0*rho));
-        return Math.sqrt(Math.max(0,.5*(term+Math.sqrt(disc))));
-    },
-    cflDt(U,dx,Bx,cfl=.4){
-        if(!(dx>0&&cfl>0&&cfl<=1)) throw new Error("Invalid CFL parameters");
-        let s=0;for(const u of U)s=Math.max(s,Math.abs(u[1]/u[0])+this.fastSpeed(u,Bx));
-        if(!(s>0)) return Infinity;
-        return cfl*dx/s;
-    },
-    rusanovFlux(L,R,Bx){
-        const fL=this.flux(L,Bx),fR=this.flux(R,Bx),s=Math.max(Math.abs(L[1]/L[0])+this.fastSpeed(L,Bx),Math.abs(R[1]/R[0])+this.fastSpeed(R,Bx));
-        return fL.map((x,i)=>.5*(x+fR[i])-.5*s*(R[i]-L[i]));
-    },
-    step(U,dx,dt,Bx,cfl=.4){
-        if(!Array.isArray(U)||U.length<3) throw new Error("MHD grid too small");
-        const maxDt=this.cflDt(U,dx,Bx,cfl);
-        if(dt>maxDt*(1+1e-12)) throw new Error("MHD CFL violation: dt="+dt+" > "+maxDt);
-        const N=U.length,F=new Array(N+1);
-        F[0]=this.flux(U[0],Bx);
-        for(let i=0;i<N-1;i++)F[i+1]=this.rusanovFlux(U[i],U[i+1],Bx);
-        F[N]=this.flux(U[N-1],Bx);
-        const out=U.map(u=>u.slice());
-        for(let i=0;i<N;i++){for(let k=0;k<7;k++)out[i][k]-=dt/dx*(F[i+1][k]-F[i][k]);this.flux(out[i],Bx);}
-        return out;
-    }
-};
-
-const GRGeodesic={
- schwarzschildRadius(M){return 2*PhysicsConstants.G*M/(PhysicsConstants.c**2)},
- redshiftFactor(r,M){const A=1-this.schwarzschildRadius(M)/r;return A>0?Math.sqrt(A):0},
- properTimeRate(r,M){return this.redshiftFactor(r,M)},
- metric(r,M){const rs=this.schwarzschildRadius(M),A=1-rs/r;if(A<=0)throw new Error("Schwarzschild chart singular at/inside horizon");return[-A,1/A,r*r,r*r]},
- derivatives(s,M){
-  const[t,r,phi,ut,ur,up]=s,rs=this.schwarzschildRadius(M),A=1-rs/r;if(r<=rs)throw new Error("Geodesic reached Schwarzschild horizon");
-  const Ap=rs/(r*r);
-  return[ut,ur,up,-Ap/(A)*ut*ur,-(A*Ap/2)*ut*ut+(Ap/(2*A))*ur*ur+A*r*up*up,-2*ur*up/r];
- },
- rk4(s,dt,M){const add=(a,b,f)=>a.map((x,i)=>x+f*b[i]),k1=this.derivatives(s,M),k2=this.derivatives(add(s,k1,dt/2),M),k3=this.derivatives(add(s,k2,dt/2),M),k4=this.derivatives(add(s,k3,dt),M);return s.map((x,i)=>x+dt*(k1[i]+2*k2[i]+2*k3[i]+k4[i])/6)},
- nullNormalization(s,M){
-  const [t,r,phi,ut,ur,up]=s,rs=this.schwarzschildRadius(M),A=1-rs/r;
-  if(!(A>0&&r>rs))throw new Error("Invalid Schwarzschild radius");
-  return -A*ut*ut+(ur*ur/A)+r*r*up*up;
- },
- nullDerivatives(s,M){
-  const [t,r,phi,ut,ur,up]=s,rs=this.schwarzschildRadius(M),A=1-rs/r,Ap=rs/(r*r);
-  if(!(r>rs))throw new Error("Null geodesic reached horizon");
-  return [ut,ur,up,-Ap/A*ut*ur,-A*Ap/2*ut*ut+Ap/(2*A)*ur*ur+A*r*up*up,-2*ur*up/r];
- },
- rk4Null(s,dt,M){const add=(a,b,f)=>a.map((x,i)=>x+f*b[i]),k1=this.nullDerivatives(s,M),k2=this.nullDerivatives(add(s,k1,dt/2),M),k3=this.nullDerivatives(add(s,k2,dt/2),M),k4=this.nullDerivatives(add(s,k3,dt),M);return s.map((x,i)=>x+dt*(k1[i]+2*k2[i]+2*k3[i]+k4[i])/6)}
-};
-
-const StellarStructure={G:PhysicsConstants.G,integrate({rho_c,T_c,Mmax=PhysicsConstants.M_sun,dm=Mmax/4000,composition={X:.73,Y:.25,Z:.02}}={}){if(!(rho_c>0&&T_c>0&&dm>0))throw new Error("Invalid stellar central conditions");const p=[],a=4*PhysicsConstants.sigma_sb/PhysicsConstants.c;let m=dm,r=Math.cbrt(3*dm/(4*Math.PI*rho_c)),rho=rho_c,T=T_c,P=EOS.pressure(rho,T,composition),L=0;for(let k=0;k<100000&&m<=Mmax;k++,m+=dm){const rate=NuclearNetwork.rates(rho,T,composition),eps=rate.pp+rate.cno+rate.tripleAlpha;L+=eps*dm;const kap=EOS.opacity(rho,T,composition);p.push({m,r,rho,T,P,L,opacity:kap});const dPdm=-this.G*m/(4*Math.PI*r**4),drdm=1/(4*Math.PI*r*r*rho),dTdm=-3*kap*L/(64*Math.PI*Math.PI*a*PhysicsConstants.c*r**4*Math.max(T,1)**3);P+=dPdm*dm;r+=drdm*dm;T=Math.max(2.73,T+dTdm*dm);if(P<=0||!Number.isFinite(P)||r<=0||!Number.isFinite(T))break;const mu=EOS.meanMolecularWeight(composition,true);rho=Math.max(1e-20,P*mu*EOS.atomicMassUnit/(PhysicsConstants.k_B*T))}return{profile:p,mass:p.length?p[p.length-1].m:0,luminosity:L}}};
-
-const NuclearEngine={computeFusion(dt,objs){if(!(dt>=0))throw new Error("Negative nuclear timestep");for(const o of objs){if(o.type!=="STAR"||!o.composition)continue;const rho=o.density>0?o.density:Math.max(1e-20,o.mass/(4*Math.PI*Math.max(o.radius,1)**3/3));const Tc=o.temperature>0?o.temperature:PhysicsConstants.G*o.mass*1.67262192369e-27/(PhysicsConstants.k_B*Math.max(o.radius,1));o.temperature=Tc;const rates=NuclearNetwork.rates(rho,Tc,o.composition),q=0.007*PhysicsConstants.c**2,dx=Math.min(o.composition.X,Math.max(0,(rates.pp+rates.cno)*dt/q));o.composition.X-=dx;o.composition.Y+=dx;o.internalEnergy=(o.internalEnergy||0)+dx*o.mass*q;const dy=Math.min(o.composition.Y,Math.max(0,rates.tripleAlpha*dt/(0.006*PhysicsConstants.c**2)));o.composition.Y-=dy;o.composition.Z+=dy;o.internalEnergy+=dy*o.mass*0.006*PhysicsConstants.c**2}}};
-
-const RelativityEngine = {
-        computeSchwarzschildPrecession: function(objects) {
-            let accels = new Array(objects.length).fill(null).map(() => new Vec3());
-            // Assume obj 0 is the dominant mass (black hole)
-            if(objects.length < 2 || objects[0].type !== "BLACK_HOLE") return accels;
-            let M = objects[0].mass;
-            let posM = objects[0].pos;
-            for(let i=1; i<objects.length; i++) {
-                let rVec = objects[i].pos.sub(posM);
-                let r = rVec.mag();
-                let vVec = objects[i].vel;
-                let vSq = vVec.magSq();
-
-                // PN correction
-                let rDotV = rVec.dot(vVec);
-                let term1 = (4 * PhysicsConstants.G * M) / (PhysicsConstants.c * PhysicsConstants.c * r) - (vSq / (PhysicsConstants.c * PhysicsConstants.c));
-                let term2 = 4 * rDotV / (PhysicsConstants.c * PhysicsConstants.c);
-
-                let a_gr = rVec.mult(term1).add(vVec.mult(term2)).mult(PhysicsConstants.G * M / Math.pow(r, 3));
-                accels[i] = accels[i].add(a_gr);
-            }
-            return accels;
-        }
-    }
-
-const QuantumEngine={
-    _solveTridiagonalComplex(aRe,aIm,bRe,bIm,cRe,cIm,dRe,dIm){
-        const n=dRe.length,cr=new Float64Array(n),ci=new Float64Array(n),dr=new Float64Array(n),di=new Float64Array(n),den=(x,y)=>x*x+y*y,div=(xr,xi,yr,yi)=>{const q=den(yr,yi);if(q===0)throw new Error("Singular complex tridiagonal pivot");return[(xr*yr+xi*yi)/q,(xi*yr-xr*yi)/q]};
-        cr[0]=n>1?div(cRe[0],cIm[0],bRe[0],bIm[0])[0]:0;ci[0]=n>1?div(cRe[0],cIm[0],bRe[0],bIm[0])[1]:0;[dr[0],di[0]]=div(dRe[0],dIm[0],bRe[0],bIm[0]);
-        for(let i=1;i<n;i++){const pr=aRe[i]*cr[i-1]-aIm[i]*ci[i-1],pi=aRe[i]*ci[i-1]+aIm[i]*cr[i-1],br=bRe[i]-pr,bi=bIm[i]-pi,qr=aRe[i]*dr[i-1]-aIm[i]*di[i-1],qi=aRe[i]*di[i-1]+aIm[i]*dr[i-1],rr=dRe[i]-qr,ri=dIm[i]-qi;if(i<n-1)[cr[i],ci[i]]=div(cRe[i],cIm[i],br,bi);[dr[i],di[i]]=div(rr,ri,br,bi)}
-        const xr=new Float64Array(n),xi=new Float64Array(n);xr[n-1]=dr[n-1];xi[n-1]=di[n-1];for(let i=n-2;i>=0;i--){const pr=cr[i]*xr[i+1]-ci[i]*xi[i+1],pi=cr[i]*xi[i+1]+ci[i]*xr[i+1];xr[i]=dr[i]-pr;xi[i]=di[i]-pi}return{re:xr,im:xi};
-    },
-    normalize(re,im,dx){let n=0;for(let i=0;i<re.length;i++)n+=re[i]*re[i]+im[i]*im[i];n=Math.sqrt(n*dx);if(!Number.isFinite(n)||n===0)throw new Error("Quantum normalization failed");for(let i=0;i<re.length;i++){re[i]/=n;im[i]/=n}},
-    norm(re,im,dx){let n=0;for(let i=0;i<re.length;i++)n+=re[i]*re[i]+im[i]*im[i];return n*dx},
-    solve1DSchrodinger(V,dx,dt,steps,m){
-        const N=V.length;if(N<3||!(dx>0)||!(dt>0)||!(steps>=0)||!(m>0)||!V.every(Number.isFinite))throw new Error("Invalid quantum solver parameters");
-        const h=PhysicsConstants.h_bar,re=new Float64Array(N),im=new Float64Array(N),x0=(N-1)*.25,sigma=Math.max(2,N/20);for(let i=1;i<N-1;i++)re[i]=Math.exp(-Math.pow(i-x0,2)/(2*sigma*sigma));this.normalize(re,im,dx);
-        const n=N-2,t=h*h/(2*m*dx*dx),ar=new Float64Array(n),ai=new Float64Array(n),br=new Float64Array(n),bi=new Float64Array(n),cr=new Float64Array(n),ci=new Float64Array(n),dr=new Float64Array(n),di=new Float64Array(n);
-        for(let step=0;step<steps;step++){for(let j=0;j<n;j++){const i=j+1,H=2*t+V[i];ar[j]=0;ai[j]=-dt*t/(2*h);br[j]=1;bi[j]=dt*H/(2*h);cr[j]=0;ci[j]=-dt*t/(2*h);const hr=-t*re[i-1]+H*re[i]-t*re[i+1],hi=-t*im[i-1]+H*im[i]-t*im[i+1];dr[j]=re[i]+dt*hi/(2*h);di[j]=im[i]-dt*hr/(2*h)}const sol=this._solveTridiagonalComplex(ar,ai,br,bi,cr,ci,dr,di);re.fill(0);im.fill(0);for(let j=0;j<n;j++){re[j+1]=sol.re[j];im[j+1]=sol.im[j]}this.normalize(re,im,dx)}
-        return{re,im,norm:this.norm(re,im,dx),method:"Crank-Nicolson",boundary:"Dirichlet psi=0"};
-    },
-    eigenvalues1D(V,dx,m,count=4){
-        const N=V.length;if(N<4||!(dx>0&&m>0)||!V.every(Number.isFinite))throw new Error("Invalid eigenvalue problem");
-        const n=N-2,k=PhysicsConstants.h_bar**2/(2*m*dx**2),diag=new Float64Array(n),off=-k;
-        let lo=Infinity,hi=-Infinity;
-        for(let i=0;i<n;i++){diag[i]=2*k+V[i+1];lo=Math.min(lo,diag[i]-(i?Math.abs(off):0)-(i<n-1?Math.abs(off):0));hi=Math.max(hi,diag[i]+(i?Math.abs(off):0)+(i<n-1?Math.abs(off):0))}
-        const sturm=(x)=>{let count=0,p=1;for(let i=0;i<n;i++){const q=diag[i]-x-(i?p===0?1e-300:(off*off)/p:0);if(q<0)count++;p=q}return count};
-        const out=[];
-        for(let target=1;target<=Math.min(count,n);target++){
-            let a=lo,b=hi;
-            for(let iter=0;iter<90;iter++){const mid=.5*(a+b);if(sturm(mid)>=target)b=mid;else a=mid}
-            out.push(.5*(a+b));
-        }
-        return out;
-    },
-    tunnelingTransmission(V,dx,m,energy){
-        const E=energy,k=PhysicsConstants.h_bar,k2=2*m*(E-Math.max(...V));if(!(E>=Math.min(...V)))throw new Error("Energy below potential domain");
-        const barrier=V.map(v=>Math.max(0,v-E));let integral=0;for(let i=0;i<barrier.length-1;i++)integral+=.5*(Math.sqrt(2*m*barrier[i])+Math.sqrt(2*m*barrier[i+1]))*dx;
-        return Math.exp(-2*integral/k);
-    }
-};
-
-const CosmologyEngine={derivative(a,H0,Om,Or,Ol){if(!(a>0))throw new Error("Scale factor must be positive");const E2=Om*a**-3+Or*a**-4+Ol;if(E2<0)throw new Error("Friedmann H^2 became negative");return a*H0*Math.sqrt(E2)},solveFriedmann(H0_si,Omega_m,Omega_r,Omega_lambda,t_end,dt,a_initial=1){if(!(H0_si>0&&t_end>=0&&dt>0&&a_initial>0))throw new Error("Invalid Friedmann parameters");const h=(a)=>this.derivative(a,H0_si,Omega_m,Omega_r,Omega_lambda);let a=a_initial,t=0,history=[];while(t<=t_end){history.push({t,a});if(t+dt>t_end)break;const k1=h(a),k2=h(a+dt*k1/2),k3=h(a+dt*k2/2),k4=h(a+dt*k3);a+=dt*(k1+2*k2+2*k3+k4)/6;if(!(a>0&&Number.isFinite(a)))throw new Error("Friedmann integration diverged");t+=dt}return history}};
-
-const Integrators = {
-        eulerSemiImplicit: function(objects, dt, accels) {
-            for(let i=0; i<objects.length; i++) {
-                objects[i].vel = objects[i].vel.add(accels[i].mult(dt));
-                objects[i].pos = objects[i].pos.add(objects[i].vel.mult(dt));
-                objects[i].acc = accels[i];
-            }
-        },
-        verlet: function(objects, dt, getAccelsFn) {
-            if(!(dt>0)||!Number.isFinite(dt)) throw new Error("Invalid Velocity-Verlet timestep");
-            const currentAccels=getAccelsFn(objects);
-            if(currentAccels.length!==objects.length) throw new Error("Acceleration/state size mismatch");
-            for(let i=0;i<objects.length;i++){
-                objects[i].acc=currentAccels[i];
-                objects[i].pos=objects[i].pos.add(objects[i].vel.mult(dt)).add(currentAccels[i].mult(0.5*dt*dt));
-            }
-            const newAccels=getAccelsFn(objects);
-            for(let i=0;i<objects.length;i++){
-                objects[i].vel=objects[i].vel.add(currentAccels[i].add(newAccels[i]).mult(0.5*dt));
-                objects[i].acc=newAccels[i];
-            }
-        },
-        rk4: function(objects, dt, getAccelsFn) {
-            let clones = objects.map(o => o.clone());
-            let k1_v = getAccelsFn(clones); let k1_x = clones.map(o => o.vel.clone());
-            for(let i=0; i<clones.length; i++) { clones[i].pos = objects[i].pos.add(k1_x[i].mult(0.5*dt)); clones[i].vel = objects[i].vel.add(k1_v[i].mult(0.5*dt)); }
-
-            let k2_v = getAccelsFn(clones); let k2_x = clones.map(o => o.vel.clone());
-            for(let i=0; i<clones.length; i++) { clones[i].pos = objects[i].pos.add(k2_x[i].mult(0.5*dt)); clones[i].vel = objects[i].vel.add(k2_v[i].mult(0.5*dt)); }
-
-            let k3_v = getAccelsFn(clones); let k3_x = clones.map(o => o.vel.clone());
-            for(let i=0; i<clones.length; i++) { clones[i].pos = objects[i].pos.add(k3_x[i].mult(dt)); clones[i].vel = objects[i].vel.add(k3_v[i].mult(dt)); }
-
-            let k4_v = getAccelsFn(clones); let k4_x = clones.map(o => o.vel.clone());
-            for(let i=0; i<objects.length; i++) {
-                objects[i].pos = objects[i].pos.add( (k1_x[i].add(k2_x[i].mult(2)).add(k3_x[i].mult(2)).add(k4_x[i])).mult(dt/6) );
-                objects[i].vel = objects[i].vel.add( (k1_v[i].add(k2_v[i].mult(2)).add(k3_v[i].mult(2)).add(k4_v[i])).mult(dt/6) );
-                objects[i].acc = k1_v[i];
-            }
-        }
-    }
-
-const Diagnostics = {
-    initEnergy: null,
-    initialMomentum: null,
-    initialAngularMomentum: null,
-
-    getKineticEnergy(objects) {
-        return objects.reduce((sum, o) => sum + 0.5 * o.mass * o.vel.magSq(), 0);
-    },
-
-    getPotentialEnergy(objects) {
-        let u = 0;
-        for (let i = 0; i < objects.length; i++) {
-            for (let j = i + 1; j < objects.length; j++) {
-                const r = objects[i].pos.sub(objects[j].pos).mag();
-                if (r > 0) u -= PhysicsConstants.G * objects[i].mass * objects[j].mass / r;
-            }
-        }
-        return u;
-    },
-
-    getTotalMomentum(objects) {
-        return objects.reduce((sum, o) => sum.add(o.vel.mult(o.mass)), new Vec3());
-    },
-
-    getAngularMomentum(objects) {
-        return objects.reduce((sum,o)=>{
-            const orbital=o.pos.cross(o.vel.mult(o.mass));
-            const I=(2/5)*o.mass*o.radius*o.radius;
-            const spin=o.spin?o.spin.mult(I):new Vec3();
-            return sum.add(orbital).add(spin);
-        },new Vec3());
-    },
-
-    begin(objects) {
-        this.initEnergy = this.getKineticEnergy(objects) + this.getPotentialEnergy(objects);
-        this.initialMomentum = this.getTotalMomentum(objects);
-        this.initialAngularMomentum = this.getAngularMomentum(objects);
-    },
-
-    relativeError(value, reference, floor = 1e-300) {
-        return Math.abs(value - reference) / Math.max(Math.abs(reference), floor);
-    },
-
-    vectorRelativeError(v, ref, floor = 1e-300) {
-        return v.sub(ref).mag() / Math.max(ref.mag(), floor);
-    },
-
-    sample(objects) {
-        const totalE = this.getKineticEnergy(objects) + this.getPotentialEnergy(objects);
-        const mom = this.getTotalMomentum(objects);
-        const ang = this.getAngularMomentum(objects);
-        return {
-            energy: totalE,
-            energyRelativeError: this.initEnergy == null ? 0 : this.relativeError(totalE, this.initEnergy),
-            momentumRelativeError: this.initialMomentum == null ? 0 : this.vectorRelativeError(mom, this.initialMomentum),
-            angularMomentumRelativeError: this.initialAngularMomentum == null ? 0 : this.vectorRelativeError(ang, this.initialAngularMomentum)
-        };
-    },
-
-    update(objects) {
-        if (this.initEnergy == null && objects.length) this.begin(objects);
-        const s = this.sample(objects);
-        const finite = [s.energy, s.energyRelativeError, s.momentumRelativeError, s.angularMomentumRelativeError].every(Number.isFinite);
-        const statusEl = document.getElementById('diag-status');
-        const energyEl = document.getElementById('diag-energy');
-        const errEl = document.getElementById('diag-e-err');
-        const momEl = document.getElementById('diag-mom');
-        if (energyEl) energyEl.innerText = Number(s.energy).toExponential(6) + " J";
-        if (errEl) errEl.innerText = (s.energyRelativeError * 100).toExponential(6) + " %";
-        if (momEl) momEl.innerText = (momEl.dataset && momEl.dataset.vector === "true")
-            ? s.momentumRelativeError.toExponential(6)
-            : this.getTotalMomentum(objects).mag().toExponential(6);
-        if (statusEl) {
-            if (!finite) {
-                statusEl.innerText = "FAIL (비유한값)";
-                statusEl.className = "val fail";
-                Engine.status = "FAILED";
-            } else if (s.energyRelativeError > 1e-2) {
-                statusEl.innerText = "WARNING (오차)";
-                statusEl.className = "val warn";
-            } else {
-                statusEl.innerText = "STABLE";
-                statusEl.className = "val pass";
-            }
-        }
-        return s;
-    }
-};
-
-
-const Validator={
-    _assert(name,condition,metrics){return{name,status:condition?"PASS":"FAIL",...metrics};},
-    _twoBody(dt,periods){
-        const M=PhysicsConstants.M_sun,m=PhysicsConstants.M_earth,r=PhysicsConstants.AU,mu=PhysicsConstants.G*(M+m),n=Math.sqrt(mu/r**3),T=2*Math.PI/n,vc=Math.sqrt(mu/r);
-        const comR=r*m/(M+m),comV=vc*m/(M+m),A=new PhysicalBody("S","STAR",M,6.96e8,new Vec3(-comR,0,0),new Vec3(0,-comV,0)),B=new PhysicalBody("P","PLANET",m,6.371e6,new Vec3(r-comR,0,0),new Vec3(0,vc-comV,0)),objects=[A,B];
-        const steps=Math.ceil(periods*T/dt),initialE=Diagnostics.getKineticEnergy(objects)+Diagnostics.getPotentialEnergy(objects),initialP=Diagnostics.getTotalMomentum(objects),pScale=M*vc+m*vc;
-        for(let k=0;k<steps;k++)Integrators.verlet(objects,dt,obs=>GravityEngine.computeAccelerations(obs,false));
-        const finalE=Diagnostics.getKineticEnergy(objects)+Diagnostics.getPotentialEnergy(objects),finalP=Diagnostics.getTotalMomentum(objects),rel=objects[1].pos.sub(objects[0].pos);
-        return{T,initialE,finalE,initialP,finalP,energyError:Math.abs((finalE-initialE)/initialE),momentumError:finalP.sub(initialP).mag()/pScale,radiusError:Math.abs(rel.mag()-r)/r};
-    },
-    tests:[
-        {name:"Kepler two-body: 10-period radius stability",run(){const x=Validator._twoBody(1800,10);return Validator._assert(this.name,x.radiusError<2e-3,{error:x.radiusError,tolerance:"<2e-3"});}},
-        {name:"Kepler timestep convergence (second order)",run(){const run=(dt)=>{const M=PhysicsConstants.M_sun,m=PhysicsConstants.M_earth,r=PhysicsConstants.AU,mu=PhysicsConstants.G*(M+m),T=2*Math.PI*Math.sqrt(r**3/mu),vc=Math.sqrt(mu/r),cr=r*m/(M+m),cv=vc*m/(M+m),A=new PhysicalBody("S","STAR",M,6.96e8,new Vec3(-cr,0,0),new Vec3(0,-cv,0)),B=new PhysicalBody("P","PLANET",m,6.371e6,new Vec3(r-cr,0,0),new Vec3(0,vc-cv,0)),o=[A,B],x0=B.pos.sub(A.pos);for(let k=0;k<Math.ceil(2*T/dt);k++)Integrators.verlet(o,dt,z=>GravityEngine.computeAccelerations(z,false));return o[1].pos.sub(o[0].pos).sub(x0).mag()/r;};const coarse=run(14400),fine=run(7200),ratio=coarse/Math.max(fine,1e-300);return Validator._assert(this.name,ratio>1.7&&ratio<2.3,{error:ratio,tolerance:"1.7 < coarse/fine error ratio < 2.3"});}},
-        {name:"Restricted three-body momentum/energy regression",run(){const M=PhysicsConstants.M_sun,m=PhysicsConstants.M_earth,r=PhysicsConstants.AU,mu=PhysicsConstants.G*(M+m),vc=Math.sqrt(mu/r),cr=r*m/(M+m),cv=vc*m/(M+m),A=new PhysicalBody("S","STAR",M,6.96e8,new Vec3(-cr,0,0),new Vec3(0,-cv,0)),B=new PhysicalBody("P","PLANET",m,6.371e6,new Vec3(r-cr,0,0),new Vec3(0,vc-cv,0)),test=new PhysicalBody("T","PLANET",1e10,1,new Vec3(r*1.01,0,0),new Vec3(0,vc*.995,0)),o=[A,B,test],E0=Diagnostics.getKineticEnergy(o)+Diagnostics.getPotentialEnergy(o);for(let k=0;k<2000;k++)Integrators.verlet(o,21600,z=>GravityEngine.computeAccelerations(z,false));const E1=Diagnostics.getKineticEnergy(o)+Diagnostics.getPotentialEnergy(o),e=Math.abs((E1-E0)/E0);return Validator._assert(this.name,Number.isFinite(e)&&e<2e-5,{error:e,tolerance:"<2e-5 over 2000 steps"});}},        {name:"Linear momentum conservation",run(){const x=Validator._twoBody(3600,10);return Validator._assert(this.name,x.momentumError<1e-12,{error:x.momentumError,tolerance:"<1e-12"});}},
-        {name:"Mechanical energy conservation",run(){const x=Validator._twoBody(3600,10);return Validator._assert(this.name,x.energyError<1e-5,{error:x.energyError,tolerance:"<1e-5"});}},
-        {name:"Collision merger linear + angular momentum",run(){const a=new PhysicalBody("a","PLANET",1e10,10,new Vec3(-8,0,0),new Vec3(0,-2,0)),b=new PhysicalBody("b","PLANET",2e10,10,new Vec3(8,0,0),new Vec3(0,1,0)),p0=a.vel.mult(a.mass).add(b.vel.mult(b.mass)),L0=a.pos.cross(a.vel.mult(a.mass)).add(b.pos.cross(b.vel.mult(b.mass))),o=[a,b];CollisionEngine.checkAndResolve(o);const p1=o[0].vel.mult(o[0].mass),L1=o[0].pos.cross(p1).add(o[0].spin.mult((2/5)*o[0].mass*o[0].radius**2)),pe=p1.sub(p0).mag()/Math.max(p0.mag(),1),le=L1.sub(L0).mag()/Math.max(L0.mag(),1);return Validator._assert(this.name,pe<1e-14&&le<1e-12,{error:Math.max(pe,le),tolerance:"linear <1e-14, angular <1e-12"});}},
-        {name:"Barnes-Hut deterministic convergence",run(){const make=[];for(let i=0;i<128;i++){const a=2*Math.PI*i/128,r=1e10*(1+.25*Math.sin(3*a));make.push(new PhysicalBody(String(i),"PLANET",1e20,1e5,new Vec3(r*Math.cos(a),r*Math.sin(a),0),new Vec3()));}const direct=GravityEngine.computeAccelerations(make,false),bh=GravityEngine.computeAccelerations(make,true);let max=0;for(let i=0;i<make.length;i++)max=Math.max(max,bh[i].sub(direct[i]).mag()/Math.max(direct[i].mag(),1e-300));return Validator._assert(this.name,max<.03,{error:max,tolerance:"<3%"});}},
-        {name:"Quantum Crank-Nicolson norm conservation",run(){const V=new Float64Array(128),q=QuantumEngine.solve1DSchrodinger(V,1e-10,1e-20,100,9.1093837015e-31);return Validator._assert(this.name,Math.abs(q.norm-1)<1e-10,{error:Math.abs(q.norm-1),tolerance:"<1e-10"});}},
-        {name:"MHD CFL + conserved-state finite-volume step",run(){const Bx=1e-3,U=[];for(let i=0;i<32;i++){const rho=i<16?1:.8,p=i<16?1:.8,By=1e-3,E=p/(5/3-1)+.5*(Bx*Bx+By*By)/PhysicsConstants.mu_0;U.push([rho,0,0,0,E,By,0]);}const maxDt=MHD1D.cflDt(U,1,Bx),out=MHD1D.step(U,1,.25*maxDt,Bx),finite=out.flat().every(Number.isFinite)&&out.every(u=>u[0]>0);return Validator._assert(this.name,finite,{error:finite?0:1,tolerance:"CFL-respecting, finite, rho>0"});}},
-        {name:"Radiation optical-depth positivity",run(){const tau=RadiationTransport.opticalDepth(.34,1e-4,1e7);return Validator._assert(this.name,tau>=0,{error:tau,tolerance:">=0"});}},
-        {name:"Schwarzschild redshift analytic check",run(){const M=PhysicsConstants.M_sun,r=10*GRGeodesic.schwarzschildRadius(M),z=1/GRGeodesic.redshiftFactor(r,M)-1,expected=1/Math.sqrt(.9)-1;return Validator._assert(this.name,Math.abs(z-expected)<1e-14,{error:Math.abs(z-expected),tolerance:"<1e-14"});}},
-        {name:"Cosmology matter-only analytic scaling",run(){const H0=PhysicsConstants.H0_s,history=CosmologyEngine.solveFriedmann(H0,1,0,0,PhysicsConstants.yr*1e9,PhysicsConstants.yr*1e7,1),t=history[history.length-1].t,a=history[history.length-1].a,expected=Math.pow(1+1.5*H0*t,2/3),e=Math.abs(a-expected)/Math.max(Math.abs(expected),1e-300);return Validator._assert(this.name,e<2e-5,{error:e,tolerance:"<2e-5"});}},
-        {name:"Radiation diffusion manufactured linear profile",run(){const T=new Float64Array([100,304.52616464756693,361.61715709603743,400]),rho=new Float64Array(4).fill(1),k=new Float64Array(4).fill(1),out=RadiationTransport.stepGreyDiffusion(T,rho,k,1,1e-6),e=Math.max(...out.map((v,i)=>Math.abs(v-T[i])));return Validator._assert(this.name,e<1e-8,{error:e,tolerance:"<1e-8"});}},
-        {name:"Stellar hydrostatic profile finite",run(){const m=StellarStructure.integrate({rho_c:1.6e5,T_c:1.5e7,Mmax:PhysicsConstants.M_sun,dm:PhysicsConstants.M_sun/2000}),finite=m.profile.length>10&&m.profile.every(x=>[x.m,x.r,x.rho,x.T,x.P].every(Number.isFinite)&&x.r>0&&x.rho>0&&x.T>0);return Validator._assert(this.name,finite,{error:finite?0:1,tolerance:"all profile state finite and positive"});}},
-        {name:"Quantum stationary harmonic-oscillator eigenvalue",run(){const N=96,dx=2e-10,m=9.1093837015e-31,V=new Float64Array(N);for(let i=0;i<N;i++){const xx=(i-(N-1)/2)*dx;V[i]=.5*m*(1e15**2)*xx*xx}const e=QuantumEngine.eigenvalues1D(V,dx,m,2),expected=[.5,1.5].map(n=>PhysicsConstants.h_bar*1e15*n);const err=Math.abs(e[0]-expected[0])/expected[0];return Validator._assert(this.name,err<.08,{error:err,tolerance:"<8% finite-domain/discretization error"});}},
-        {name:"GR null geodesic invariant",run(){const M=PhysicsConstants.M_sun,r=20*GRGeodesic.schwarzschildRadius(M),A=1-GRGeodesic.schwarzschildRadius(M)/r,s=[0,r,0,1/A,1,0],n=GRGeodesic.rk4Null(s,1,M),inv=Math.abs(GRGeodesic.nullNormalization(n,M));return Validator._assert(this.name,inv<1e-8,{error:inv,tolerance:"<1e-8"});}},
-        {name:"Radiation optical-depth composition scaling",run(){const a=RadiationTransport.opticalDepth(.34,1e-4,1e7),b=RadiationTransport.opticalDepth(.68,1e-4,1e7);return Validator._assert(this.name,Math.abs(b/a-2)<1e-14,{error:Math.abs(b/a-2),tolerance:"<1e-14"});}},
-        {name:"Kepler angular momentum conservation",run(){const x=Validator._twoBody(1800,10);const M=PhysicsConstants.M_sun,m=PhysicsConstants.M_earth,r=PhysicsConstants.AU,mu=PhysicsConstants.G*(M+m),vc=Math.sqrt(mu/r),A=new PhysicalBody("S","STAR",M,6.96e8,new Vec3(-r*m/(M+m),0,0),new Vec3(0,-vc*m/(M+m),0)),B=new PhysicalBody("P","PLANET",m,6.371e6,new Vec3(r-r*m/(M+m),0,0),new Vec3(0,vc-vc*m/(M+m),0)),o=[A,B],L0=Diagnostics.getAngularMomentum(o);for(let k=0;k<Math.ceil(10*2*Math.PI*Math.sqrt(r**3/mu)/1800);k++)Integrators.verlet(o,1800,z=>GravityEngine.computeAccelerations(z,false));const e=Diagnostics.getAngularMomentum(o).sub(L0).mag()/Math.max(L0.mag(),1);return Validator._assert(this.name,e<1e-10,{error:e,tolerance:"<1e-10"});}},
-        {name:"MHD total mass conservation",run(){const Bx=1e-3,U=[];for(let i=0;i<24;i++){const rho=1+(i%5)*.01,p=1e5,By=1e-3,E=p/(5/3-1)+.5*(Bx*Bx+By*By)/PhysicsConstants.mu_0;U.push([rho,0,0,0,E,By,0]);}const dt=.2*MHD1D.cflDt(U,1,Bx),out=MHD1D.step(U,1,dt,Bx),a=U.reduce((s,u)=>s+u[0],0),b=out.reduce((s,u)=>s+u[0],0),e=Math.abs(a-b)/a;return Validator._assert(this.name,e<1e-14,{error:e,tolerance:"<1e-14"});}},
-        {name:"Nuclear hydrogen-burning composition conservation",run(){const o=new PhysicalBody("star","STAR",PhysicsConstants.M_sun,6.96e8,new Vec3(),new Vec3());o.temperature=1.5e7;const before=o.composition.X+o.composition.Y+o.composition.Z;NuclearEngine.computeFusion(1e10,[o]);const after=o.composition.X+o.composition.Y+o.composition.Z;return Validator._assert(this.name,Math.abs(after-before)<1e-12,{error:Math.abs(after-before),tolerance:"<1e-12"});}},
-        {name:"SPH density symmetry",run(){const a=new PhysicalBody("a","GAS_CLOUD",1,1,new Vec3(-1,0,0),new Vec3()),b=new PhysicalBody("b","GAS_CLOUD",1,1,new Vec3(1,0,0),new Vec3());FluidEngine.h=4;FluidEngine.computeState([a,b]);const e=Math.abs(a.sph_density-b.sph_density)/Math.max(a.sph_density,b.sph_density);return Validator._assert(this.name,e<1e-14,{error:e,tolerance:"<1e-14"});}}
-    ],
-    runAllTests(returnResults=false){const results=[];for(const test of this.tests){try{results.push(test.run())}catch(e){results.push({name:test.name,status:"FAIL",error:Infinity,tolerance:"exception: "+e.message})}}return returnResults?results:results.every(r=>r.status==="PASS");}
-};
-
-const Labs = {
-    current:"GRAVITY",
-    loadLab:function(labName){
-        this.current=labName; Engine.objects=[]; Diagnostics.initEnergy=null; Diagnostics.initialMomentum=null; Diagnostics.initialAngularMomentum=null; Engine.time=0; Engine.status="STABLE"; Engine.paused=false;
-        Engine.activeModels=["Gravity","Collision","Nuclear","Thermodynamics"];
-        document.querySelectorAll(".lab-module").forEach(b=>b.classList.remove("active"));
-        try{document.getElementById("btn-lab-"+labName).classList.add("active")}catch(e){}
-        let info="";
-        if(labName==="GALAXY"){
-            info="은하 N-Body 역학 (Barnes-Hut 트리 알고리즘 O(N log N) 사용)."; Engine.gravityAlgorithm="BARNES_HUT"; document.getElementById("sys-gravity").value="BARNES_HUT";
-            const smbhMass=1e35; Engine.objects.push(new PhysicalBody("SMBH","BLACK_HOLE",smbhMass,1e9,new Vec3(),new Vec3()));
-            for(let i=0;i<300;i++){const r=1e11+Math.random()*1e12,theta=Math.random()*Math.PI*2,v=Math.sqrt(PhysicsConstants.G*smbhMass/r);Engine.objects.push(new PhysicalBody("S"+i,"STAR",PhysicsConstants.M_sun,1e8,new Vec3(r*Math.cos(theta),0,r*Math.sin(theta)),new Vec3(-v*Math.sin(theta),0,v*Math.cos(theta))));}
-            Engine.dt=1; Renderer.scale=1e-10;
-        } else if(labName==="GRAVITY"){
-            info="표준 N-body 중력 (태양계 내부 근사)."; Engine.gravityAlgorithm="DIRECT"; document.getElementById("sys-gravity").value="DIRECT";
-            Engine.objects.push(new PhysicalBody("Sun","STAR",PhysicsConstants.M_sun,6.96e8,new Vec3(),new Vec3()));
-            Engine.objects.push(new PhysicalBody("Earth","PLANET",PhysicsConstants.M_earth,6.37e6,new Vec3(PhysicsConstants.AU,0,0),new Vec3(0,29780,0))); Engine.dt=21600; Renderer.scale=1e-9;
-        } else if(labName==="SPH_FLUID"){
-            info="SPH 유체역학."; Engine.activeModels=["Fluid","Thermodynamics"];
-            for(let i=0;i<50;i++) Engine.objects.push(new PhysicalBody("G"+i,"GAS_CLOUD",1e20,1e5,new Vec3((Math.random()-.5)*1e6,(Math.random()-.5)*1e6,0),new Vec3()));
-            Engine.dt=1; Renderer.scale=1e-4;
-        } else if(labName==="NUCLEAR"){
-            info="항성 구조 및 핵융합 (PP/CNO 반응률 모델)."; Engine.activeModels=["Nuclear","Thermodynamics"];
-            Engine.objects.push(new PhysicalBody("Star","STAR",PhysicsConstants.M_sun,6.96e8,new Vec3(),new Vec3())); Engine.dt=3.15e7*1e6; Renderer.scale=1e-9;
-        } else if(labName==="QUANTUM"){
-            info="1차원 시간의존/고유값 슈뢰딩거 방정식 (Crank-Nicolson + Jacobi eigensolver, Dirichlet 경계).";
-            const N=128,V=new Float64Array(N); V[62]=1e-18;V[63]=1e-18;V[64]=1e-18;V[65]=1e-18;V[66]=1e-18;
-            const q=QuantumEngine.solve1DSchrodinger(V,1e-10,1e-20,100,9.1093837015e-31);
-            const eig=QuantumEngine.eigenvalues1D(V,1e-10,9.1093837015e-31,4); info+="<br><br>[QUANTUM STATE]<br>Norm: "+q.norm.toExponential(6)+"<br>Eigenvalues: "+eig.map(x=>x.toExponential(4)).join(", ")+" J<br>Method: "+q.method;
-        } else if(labName==="MHD"){
-            info="1D ideal MHD conservative finite-volume laboratory (Rusanov flux + CFL control)."; Engine.activeModels=[];
-            const N=64,dx=1e7,Bx=1e-3,U=[];
-            for(let i=0;i<N;i++){const left=i<N/2,rho=left?1e-6:1.25e-6,p=left?1e5:1e4,By=left?1e-3:-1e-3,E=p/(5/3-1)+.5*(Bx*Bx+By*By)/PhysicsConstants.mu_0;U.push([rho,0,0,0,E,By,0]);}
-            const dt=Math.min(100,MHD1D.cflDt(U,dx,Bx)*.5),evolved=MHD1D.step(U,dx,dt,Bx); Diagnostics.mhdState=evolved;
-            info+="<br><br>[MHD STATE]<br>64-cell conservative update completed.<br>CFL dt: "+dt.toExponential(3)+" s";
-        } else if(labName==="RADIATION"){
-            info="Grey radiative diffusion laboratory with optical-depth diagnostics."; Engine.activeModels=[];
-            const N=64,T=new Float64Array(N),rho=new Float64Array(N),k=new Float64Array(N); for(let i=0;i<N;i++){T[i]=300+7000*Math.exp(-(((i-N/2)/(N/6))**2));rho[i]=1e-4;k[i]=.34;}
-            Diagnostics.radiationTemperature=RadiationTransport.stepGreyDiffusion(T,rho,k,1e7,10); info+="<br><br>[RADIATION STATE]<br>Grey diffusion step completed.";
-        } else if(labName==="STELLAR"){
-            info="1D hydrostatic stellar structure (EOS + opacity + reaction-rate source terms)."; Engine.activeModels=[];
-            const model=StellarStructure.integrate({rho_c:1.6e5,T_c:1.5e7,Mmax:PhysicsConstants.M_sun,dm:PhysicsConstants.M_sun/4000}); Diagnostics.stellarProfile=model.profile;
-            info+="<br><br>[STELLAR STATE]<br>Integrated shells: "+model.profile.length+"<br>Enclosed mass: "+model.mass.toExponential(3)+" kg<br>Luminosity: "+model.luminosity.toExponential(3)+" W";
-        } else if(labName==="GR"){
-            info="Schwarzschild timelike + null geodesic laboratory with invariant checks."; Engine.activeModels=[];
-            const M=PhysicsConstants.M_sun,r0=10*GRGeodesic.schwarzschildRadius(M),A=1-GRGeodesic.schwarzschildRadius(M)/r0,state=[0,r0,0,1/Math.sqrt(A),0,0.0001];
-            let s=state;for(let i=0;i<100;i++)s=GRGeodesic.rk4(s,1,M);const nullState=[0,r0,0,1/(1-GRGeodesic.schwarzschildRadius(M)/r0),1,0];let ns=nullState;for(let i=0;i<100;i++)ns=GRGeodesic.rk4Null(ns,1,M);Diagnostics.grState={timelike:s,null:ns,nullInvariant:GRGeodesic.nullNormalization(ns,M)};info+="<br><br>[GR STATE]<br>Timelike geodesic integration completed; redshift factor: "+GRGeodesic.redshiftFactor(r0,M).toExponential(6);
-        } else if(labName==="COSMOLOGY"){
-            info="빅뱅 팽창 (프리드만 우주론).";Engine.activeModels=[];
-            const history=CosmologyEngine.solveFriedmann(PhysicsConstants.H0_s,.3,0,.7,PhysicsConstants.yr*1e9,PhysicsConstants.yr*1e7,.1);Diagnostics.cosmologyHistory=history;
-            info+="<br><br>[COSMOLOGY STATE]<br>1 Byr integration complete.<br>Scale Factor: "+history[history.length-1].a.toFixed(4);
-        }
-        const ins=document.getElementById("inspector-data");if(ins)ins.innerHTML="<b>모듈: "+labName+"</b><br><p>"+info+"</p><br><i>활성 엔진:</i><br>"+Engine.activeModels.join("<br>");
-        const dt=document.getElementById("sys-dt");if(dt)dt.value=Engine.dt;
-    }
-};
-
-const Renderer={canvas:null,ctx:null,cameraRot:{x:0,y:0},cameraPan:{x:0,y:0},scale:1e-9,isDragging:false,pointerId:null,lastMouse:{x:0,y:0},downPoint:{x:0,y:0},dragMoved:false,
-init(){this.canvas=document.getElementById("universe-canvas");if(!this.canvas)throw new Error("Universe canvas missing");this.ctx=this.canvas.getContext("2d");this.resize();window.addEventListener("resize",()=>this.resize(),{passive:true});this.canvas.style.touchAction="none";
-this.canvas.addEventListener("pointerdown",e=>{if(e.pointerType==="mouse"&&e.button!==0)return;this.isDragging=true;this.pointerId=e.pointerId;this.dragMoved=false;this.lastMouse={x:e.clientX,y:e.clientY};this.downPoint={x:e.clientX,y:e.clientY};try{this.canvas.setPointerCapture(e.pointerId)}catch(_){}});
-this.canvas.addEventListener("pointermove",e=>{if(!this.isDragging||e.pointerId!==this.pointerId)return;const dx=e.clientX-this.lastMouse.x,dy=e.clientY-this.lastMouse.y;if(Math.hypot(e.clientX-this.downPoint.x,e.clientY-this.downPoint.y)>6)this.dragMoved=true;this.cameraRot.y+=dx*.01;this.cameraRot.x=Math.max(-Math.PI/2,Math.min(Math.PI/2,this.cameraRot.x+dy*.01));this.lastMouse={x:e.clientX,y:e.clientY};});
-const end=e=>{if(e.pointerId!==this.pointerId)return;const click=!this.dragMoved;this.isDragging=false;this.pointerId=null;try{this.canvas.releasePointerCapture(e.pointerId)}catch(_){}if(click&&e.type==="pointerup")UI.handleCanvasTap(e.clientX,e.clientY);};this.canvas.addEventListener("pointerup",end);this.canvas.addEventListener("pointercancel",end);
-this.canvas.addEventListener("wheel",e=>{e.preventDefault();this.scale=Math.min(1e-2,Math.max(1e-18,this.scale*Math.exp(-e.deltaY*.001)));},{passive:false});},
-resize(){const r=this.canvas.parentElement.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);this.canvas.width=Math.max(1,Math.round(r.width*dpr));this.canvas.height=Math.max(1,Math.round(r.height*dpr));this.canvas.style.width=r.width+"px";this.canvas.style.height=r.height+"px";this.ctx.setTransform(dpr,0,0,dpr,0,0);},
-projectObjects(){const w=this.canvas.clientWidth||1,h=this.canvas.clientHeight||1,cx=w/2+this.cameraPan.x,cy=h/2+this.cameraPan.y,sx=Math.sin(this.cameraRot.x),cxr=Math.cos(this.cameraRot.x),sy=Math.sin(this.cameraRot.y),cyr=Math.cos(this.cameraRot.y);return Engine.objects.map(o=>{const x1=o.pos.x*cyr-o.pos.z*sy,z1=o.pos.z*cyr+o.pos.x*sy,y2=o.pos.y*cxr-z1*sx,z2=z1*cxr+o.pos.y*sx;return{obj:o,px:cx+x1*this.scale,py:cy+y2*this.scale,pz:z2,pr:Math.max(1.5,o.radius*this.scale)};});},
-draw(){const w=this.canvas.clientWidth||1,h=this.canvas.clientHeight||1;this.ctx.fillStyle="#000";this.ctx.fillRect(0,0,w,h);for(const x of this.projectObjects().sort((a,b)=>a.pz-b.pz)){this.ctx.beginPath();this.ctx.arc(x.px,x.py,x.pr,0,Math.PI*2);if(x.obj.type==="STAR"){this.ctx.fillStyle="#facc15";this.ctx.shadowBlur=12;this.ctx.shadowColor="#facc15";}else if(x.obj.type==="PLANET"){this.ctx.fillStyle="#0ea5e9";this.ctx.shadowBlur=0;}else if(x.obj.type==="BLACK_HOLE"){this.ctx.fillStyle="#000";this.ctx.shadowBlur=0;this.ctx.strokeStyle="#fff";this.ctx.stroke();}else if(x.obj.type==="GAS_CLOUD"){this.ctx.fillStyle="rgba(16,185,129,.5)";this.ctx.shadowBlur=0;}else{this.ctx.fillStyle="#aaa";this.ctx.shadowBlur=0;}this.ctx.fill();this.ctx.shadowBlur=0;if(UI.selectedId===x.obj.id){this.ctx.beginPath();this.ctx.arc(x.px,x.py,Math.max(8,x.pr+5),0,Math.PI*2);this.ctx.strokeStyle="#fff";this.ctx.lineWidth=1.5;this.ctx.stroke();}}}};
-
-
-const UI={
-    selectedId:null,
-    init(){
-        const tabs=[["__CREATOR__","생성기"],["__INSPECTOR__","진단"],["GRAVITY","중력/궤도"],["GALAXY","은하 N-body"],["SPH_FLUID","SPH 유체"],["NUCLEAR","항성/핵"],["QUANTUM","양자"],["MHD","MHD"],["RADIATION","복사수송"],["STELLAR","항성구조"],["GR","GR"],["COSMOLOGY","우주론"]];
-        const bar=document.getElementById("module-bar");if(!bar)throw new Error("module-bar missing");
-        bar.replaceChildren(...tabs.map(([id,label])=>{const b=document.createElement("button");b.type="button";b.id=id.startsWith("__")?"btn-"+id.slice(2).toLowerCase():"btn-lab-"+id;b.className=id.startsWith("__")?"mobile-drawer-btn":"lab-module";b.textContent=label;
-            b.addEventListener("click",()=>id.startsWith("__")?this.togglePanel(id==="__CREATOR__"?"creator":"inspector"):Labs.loadLab(id));return b;}));
-        this.syncModelControls();this.updateInspector();
-    },
-    screenToWorld(clientX,clientY,depth=0){
-        const r=Renderer.canvas.getBoundingClientRect(),px=clientX-r.left,py=clientY-r.top,w=Renderer.canvas.clientWidth||r.width||1,h=Renderer.canvas.clientHeight||r.height||1;
-        const sx=Math.sin(Renderer.cameraRot.x),cx=Math.cos(Renderer.cameraRot.x),sy=Math.sin(Renderer.cameraRot.y),cy=Math.cos(Renderer.cameraRot.y);
-        const x=(px-w/2-Renderer.cameraPan.x)/Renderer.scale,y2=(py-h/2-Renderer.cameraPan.y)/Renderer.scale;
-        const y=y2*cx+depth*sx,z=-y2*sx+depth*cx;
-        return new Vec3(x*cy+z*sy,y,-x*sy+z*cy);
-    },
-    findReferenceStar(){
-        return Engine.objects.filter(o=>o.type==="STAR"||o.type==="BLACK_HOLE").sort((a,b)=>b.mass-a.mass)[0]||null;
-    },
-    circularOrbitVelocity(bodyPos,center){
-        const rvec=bodyPos.sub(center.pos),r=rvec.mag();
-        if(!(r>0)||!(center.mass>0)) return new Vec3();
-        const mu=PhysicsConstants.G*(center.mass);
-        const speed=Math.sqrt(mu/r);
-        let normal=new Vec3(0,0,1),tangent=normal.cross(rvec).normalize();
-        if(tangent.magSq()<1e-24)tangent=new Vec3(0,1,0).cross(rvec).normalize();
-        return center.vel.add(tangent.mult(speed));
-    },
-    safePlacementAround(center,radius){
-        const minGap=center.radius+radius;
-        const preferred=Math.max(PhysicsConstants.AU,10*minGap);
-        return center.pos.add(new Vec3(preferred,0,0));
-    },
-    validatePlacement(pos,radius,ignoreId=null){
-        for(const o of Engine.objects){
-            if(o.id===ignoreId)continue;
-            if(pos.sub(o.pos).mag()<radius+o.radius) return {ok:false,object:o};
-        }
-        return {ok:true};
-    },
-    createObject(clientX=null,clientY=null){
-        const type=(document.getElementById("type")||{value:"PLANET"}).value;
-        const num=(id,f)=>{const e=document.getElementById(id),v=Number(e&&e.value);return Number.isFinite(v)?v:f;};
-        const mass=num("mass",5.9722e24),rad=num("radius",6.371e6);
-        if(!(mass>0)||!(rad>0))throw new Error("질량과 반지름은 0보다 커야 합니다.");
-        const ref=this.findReferenceStar();
-        let p,v;
-        const hasScreen=Number.isFinite(clientX)&&Number.isFinite(clientY);
-        if(hasScreen){p=this.screenToWorld(clientX,clientY,0);v=ref?this.circularOrbitVelocity(p,ref):new Vec3();}
-        else if(type==="PLANET"&&ref){p=this.safePlacementAround(ref,rad);v=this.circularOrbitVelocity(p,ref);}
-        else {const r=Renderer.canvas.getBoundingClientRect();p=this.screenToWorld(r.left+r.width/2,r.top+r.height/2,0);v=new Vec3(num("vel_x",0),num("vel_y",0),num("vel_z",0));}
-        const placement=this.validatePlacement(p,rad);
-        if(!placement.ok){this.selectedId=placement.object.id;this.updateInspector();return placement.object;}
-        const body=new PhysicalBody("user-"+Date.now()+"-"+Engine.objects.length,type,mass,rad,p,v);
-        if(type==="STAR")body.temperature=5778;
-        Engine.objects.push(body);this.selectedId=body.id;Engine.status="STABLE";Engine.paused=false;Engine.syncPauseButton();Diagnostics.begin(Engine.objects);this.updateInspector();return body;
-    },
-    handleCanvasTap(clientX,clientY){
-        const r=Renderer.canvas.getBoundingClientRect(),x=clientX-r.left,y=clientY-r.top;
-        let best=null,bestD=Infinity;
-        for(const q of Renderer.projectObjects()){const d=Math.hypot(q.px-x,q.py-y),hit=Math.max(14,q.pr+8);if(d<=hit&&d<bestD){best=q;bestD=d;}}
-        if(best){this.selectedId=best.obj.id;this.updateInspector();return{action:"select",object:best.obj};}
-        return{action:"create",object:this.createObject(clientX,clientY)};
-    },
-    selectAtScreen(clientX,clientY){const r=Renderer.canvas.getBoundingClientRect();let best=null,bestD=Infinity;for(const q of Renderer.projectObjects()){const d=Math.hypot(q.px-(clientX-r.left),q.py-(clientY-r.top)),hit=Math.max(14,q.pr+8);if(d<=hit&&d<bestD){best=q;bestD=d;}}this.selectedId=best?best.obj.id:null;this.updateInspector();},
-    syncModelControls(){document.querySelectorAll("[data-model]").forEach(e=>e.checked=Engine.activeModels.includes(e.dataset.model));},
-    toggleModel(name,enabled){Engine.setModel(name,enabled);this.syncModelControls();},
-    updateInspector(){
-        const ins=document.getElementById("inspector-data");if(!ins||typeof Engine==="undefined")return;
-        const o=this.selectedId?Engine.objects.find(x=>x.id===this.selectedId):Engine.objects[Engine.objects.length-1];
-        if(!o){ins.textContent="선택된 객체 없음";return;}
-        const f=(v,u)=>Number.isFinite(v)?v.toExponential(5)+" "+u:"—";
-        ins.innerHTML="<b>"+o.type+"</b><br>Mass: "+f(o.mass,"kg")+"<br>Radius: "+f(o.radius,"m")+"<br>Position: ["+f(o.pos.x,"m")+", "+f(o.pos.y,"m")+", "+f(o.pos.z,"m")+"]<br>Velocity: ["+f(o.vel.x,"m/s")+", "+f(o.vel.y,"m/s")+", "+f(o.vel.z,"m/s")+"]<br>Temperature: "+f(o.temperature,"K");
-    },
-    togglePanel(which){const el=document.getElementById(which==="creator"?"creator-panel":"inspector-panel");if(!el)return;el.dataset.open=el.dataset.open==="true"?"false":"true";},
-    showAudit(){const results=Validator.runAllTests(true)||[];let html="<h4>과학적 검증</h4><ul style='list-style:none;padding:0'>",all=results.length>0;for(const r of results){const p=r.status==="PASS";if(!p)all=false;html+="<li><b>"+(p?"[PASS]":"[FAIL]")+"</b> "+r.name+"<br><small>Error: "+(Number.isFinite(r.error)?r.error.toExponential(3):String(r.error))+" | Tol: "+r.tolerance+"</small></li>"}html+="</ul><b>"+(all?"모든 등록 검증 PASS":"실패/미완료 검증 존재")+"</b>";document.getElementById("validation-results").innerHTML=html;document.getElementById("validation-modal").style.display="block";}
-};
-
-
-const Engine={
-    objects:[],time:0,dt:21600,paused:false,status:"STABLE",integratorType:"verlet",gravityAlgorithm:"DIRECT",
-    activeModels:["Gravity","Collision","Nuclear","Thermodynamics"],minDt:1e-6,maxDt:3.154e12,adaptiveDt:false,safety:.1,
-    getAccelerations(objs){
-        const a=objs.map(()=>new Vec3());
-        if(this.activeModels.includes("Gravity")){const g=GravityEngine.computeAccelerations(objs,this.gravityAlgorithm==="BARNES_HUT");for(let i=0;i<objs.length;i++)a[i]=a[i].add(g[i]);}
-        if(this.activeModels.includes("Relativity")){const g=RelativityEngine.computeSchwarzschildPrecession(objs);for(let i=0;i<objs.length;i++)a[i]=a[i].add(g[i]);}
-        if(this.activeModels.includes("Electromagnetic")){const g=ElectromagneticEngine.computeAccelerations(objs);for(let i=0;i<objs.length;i++)a[i]=a[i].add(g[i]);}
-        return a;
-    },
-    validateState(){
-        for(const o of this.objects){
-            if(!o.isFiniteState()) throw new Error("비유한/잘못된 객체 상태: "+o.id);
-            if(o.vel.magSq()>=PhysicsConstants.c**2) throw new Error("광속 초과: "+o.id);
-            if(o.composition && Math.abs((o.composition.X||0)+(o.composition.Y||0)+(o.composition.Z||0)-1)>1e-10) throw new Error("조성 보존 실패: "+o.id);
-        }
-    },
-    step(){
-        if(this.status==="FAILED"||this.paused)return;
-        const snapshot=this.objects.map(o=>o.clone()),oldTime=this.time,oldDt=this.dt;
-        try{
-            this.validateState();
-            if(!(this.dt>0&&Number.isFinite(this.dt)&&this.dt>=this.minDt&&this.dt<=this.maxDt))throw new Error("잘못된 timestep");
-            const t=String(this.integratorType).toLowerCase();
-            if(t==="euler")Integrators.eulerSemiImplicit(this.objects,this.dt,this.getAccelerations(this.objects));
-            else if(t==="verlet")Integrators.verlet(this.objects,this.dt,obs=>this.getAccelerations(obs));
-            else if(t==="rk4")Integrators.rk4(this.objects,this.dt,obs=>this.getAccelerations(obs));
-            else throw new Error("알 수 없는 integrator: "+this.integratorType);
-            if(this.activeModels.includes("Fluid"))FluidEngine.computeSPH(this.objects);
-            if(this.activeModels.includes("Nuclear"))NuclearEngine.computeFusion(this.dt,this.objects);
-            if(this.activeModels.includes("Collision"))CollisionEngine.checkAndResolve(this.objects);
-            if(this.activeModels.includes("Thermodynamics")){ThermoEngine.updateTemperature(this.objects);ThermoEngine.computeRadiation(this.dt,this.objects);}
-            this.validateState();
-            this.time+=this.dt;
-            Diagnostics.update(this.objects);UI.updateInspector();
-        }catch(err){
-            this.objects=snapshot;
-            this.time=oldTime;this.dt=oldDt;
-            this.status="FAILED";this.paused=true;this.lastError=err&&err.message?err.message:String(err);
-            this.syncPauseButton();this.updateFailureUI();throw err;
-        }
-    },
-    togglePause(){
-        if(this.status==="FAILED"){this.status="STABLE";this.paused=false;this.lastError="";Diagnostics.begin(this.objects);}
-        else this.paused=!this.paused;
-        this.syncPauseButton();
-    },
-    resetFailure(){this.status="STABLE";this.paused=false;this.lastError="";Diagnostics.begin(this.objects);this.syncPauseButton();},
-    syncPauseButton(){const b=document.getElementById("btn-pause");if(b)b.innerText=this.paused?"재개 (RESUME)":"일시정지 (PAUSE)";},
-    updateFailureUI(){const s=document.getElementById("diag-status");if(s){s.innerText="FAILED: "+(this.lastError||"unknown");s.className="val fail";}},
-    setModel(name,enabled){const i=this.activeModels.indexOf(name);if(enabled&&i<0)this.activeModels.push(name);if(!enabled&&i>=0)this.activeModels.splice(i,1);},
-    loop(){requestAnimationFrame(()=>this.loop());if(!this.paused){try{this.step();}catch(_){}}Renderer.draw();}
-};
-
-
-
-window.addEventListener('DOMContentLoaded', () => { UI.init(); Renderer.init(); Labs.loadLab('GRAVITY'); Engine.loop(); });
-
-    </script>
+const S={bodies:[],time:0,paused:false,dt:3600,integrator:"verlet",engines:{gravity:true,collision:true,nuclear:true,thermal:true},focus:null,lastError:"",stepCount:0};
+function grav(bs){const a=bs.map(()=>new V());for(let i=0;i<bs.length;i++)for(let j=i+1;j<bs.length;j++){const d=bs[j].pos.sub(bs[i].pos),r2=d.n2(),r=Math.sqrt(r2);if(!(r>0)||!Number.isFinite(r))throw Error("중력 거리 비정상");const f=C.G/(r2*r);const ai=d.mul(f*bs[j].mass),aj=d.mul(-f*bs[i].mass);a[i]=a[i].add(ai);a[j]=a[j].add(aj)}return a}
+function accelerations(bs){return S.engines.gravity?grav(bs):bs.map(()=>new V())}
+function verlet(bs,dt){const a=accelerations(bs);for(let i=0;i<bs.length;i++){bs[i].pos=bs[i].pos.add(bs[i].vel.mul(dt)).add(a[i].mul(.5*dt*dt));bs[i].acc=a[i]}const b=accelerations(bs);for(let i=0;i<bs.length;i++){bs[i].vel=bs[i].vel.add(a[i].add(b[i]).mul(.5*dt));bs[i].acc=b[i]}}
+function rk4(bs,dt){
+ const x0=bs.map(b=>({p:b.pos.clone(),v:b.vel.clone()}));
+ const A=(p)=>{const tmp=bs.map((b,i)=>{const q=b.clone();q.pos=p[i].p;q.vel=p[i].v;return q});return accelerations(tmp)};
+ const k1v=A(x0),k1p=x0.map(q=>q.v);
+ const mk=(h,kp,kv)=>x0.map((q,i)=>({p:q.p.add(kp[i].mul(h)),v:q.v.add(kv[i].mul(h))}));
+ const q2=mk(dt/2,k1p,k1v),k2v=A(q2),k2p=q2.map(q=>q.v);
+ const q3=mk(dt/2,k2p,k2v),k3v=A(q3),k3p=q3.map(q=>q.v);
+ const q4=mk(dt,k3p,k3v),k4v=A(q4),k4p=q4.map(q=>q.v);
+ for(let i=0;i<bs.length;i++){bs[i].pos=x0[i].p.add(k1p[i].add(k2p[i].mul(2)).add(k3p[i].mul(2)).add(k4p[i]).mul(dt/6));bs[i].vel=x0[i].v.add(k1v[i].add(k2v[i].mul(2)).add(k3v[i].mul(2)).add(k4v[i]).mul(dt/6))}
+}
+function collisions(){
+ if(!S.engines.collision)return;
+ const gone=new Set(),add=[];
+ for(let i=0;i<S.bodies.length;i++)for(let j=i+1;j<S.bodies.length;j++){if(gone.has(i)||gone.has(j))continue;const a=S.bodies[i],b=S.bodies[j],d=a.pos.sub(b.pos).n();if(d>=a.radius+b.radius)continue;
+  const M=a.mass+b.mass,p=a.pos.mul(a.mass).add(b.pos.mul(b.mass)).div(M),v=a.vel.mul(a.mass).add(b.vel.mul(b.mass)).div(M);
+  const dominant=a.mass>=b.mass?a:b, type=dominant.type==="BLACK_HOLE"?"BLACK_HOLE":(M>0.08*C.Ms?"STAR":dominant.type);
+  const r=Math.cbrt(a.radius**3+b.radius**3);const q=new Body({type,mass:M,radius:r,pos:p,vel:v,name:a.name+" + "+b.name});
+  q.energy=a.energy+b.energy; q.temperature=(a.temperature*a.mass+b.temperature*b.mass)/M;q.X=(a.X*a.mass+b.X*b.mass)/M;q.Y=(a.Y*a.mass+b.Y*b.mass)/M;q.Z=1-q.X-q.Y;
+  if(type==="BLACK_HOLE"){q.radius=2*C.G*M/C.c**2}
+  gone.add(i);gone.add(j);add.push(q);
+  }
+ if(gone.size)S.bodies=S.bodies.filter((_,i)=>!gone.has(i)).concat(add)
+}
+function nuclear(dt){if(!S.engines.nuclear)return;for(const b of S.bodies){if(b.type!=="STAR")continue;const rho=b.mass/(4*Math.PI*b.radius**3/3),T=Math.max(b.temperature,1e6);const rate=1.07e-7*rho*Math.pow(T/1e7,4)*b.X*b.X;const burned=Math.min(b.X,Math.max(0,rate*dt/(.007*C.c*C.c)));b.X-=burned;b.Y+=burned;b.energy+=burned*b.mass*.007*C.c*C.c;b.temperature+=burned*1e5}}
+function thermal(dt){if(!S.engines.thermal)return;const sig=5.670374419e-8;for(const b of S.bodies){if(b.type!=="STAR")continue;const L=4*Math.PI*b.radius*b.radius*sig*Math.pow(Math.max(b.temperature,2.73),4);b.luminosity=L;b.energy=Math.max(0,b.energy-L*dt)}}
+function valid(){for(const b of S.bodies)if(!b.finite())throw Error("비유한 상태: "+b.name)}
+function snapshot(){return S.bodies.map(b=>b.clone())}
+function step(){
+ if(S.paused)return;
+ const old=snapshot(),t=S.time;
+ try{
+  valid();const dt=Math.min(S.dt,adaptiveDt());S.integrator==="rk4"?rk4(S.bodies,dt):verlet(S.bodies,dt);
+  nuclear(dt);thermal(dt);collisions();valid();S.time+=dt;S.stepCount++;
+ }catch(e){S.bodies=old;S.time=t;S.paused=true;S.lastError=e.message||String(e)}
+}
+function adaptiveDt(){
+ if(S.bodies.length<2)return S.dt;
+ let lim=S.dt;
+ for(const b of S.bodies){const a=b.acc.n();if(a>0){const dyn=Math.sqrt(b.radius/Math.max(a,1e-300));if(Number.isFinite(dyn))lim=Math.min(lim,.02*dyn)}}
+ return Math.max(1e-6,lim);
+}
+const canvas=document.getElementById("canvas"),ctx=canvas.getContext("2d");let W=1,H=1,scale=1e-9,rotX=.35,rotY=-.45,panX=0,panY=0,drag=false,lastX=0,lastY=0,moved=false;
+function resize(){const r=canvas.getBoundingClientRect(),d=devicePixelRatio||1;W=r.width;H=r.height;canvas.width=Math.max(1,Math.round(W*d));canvas.height=Math.max(1,Math.round(H*d));ctx.setTransform(d,0,0,d,0,0)}addEventListener("resize",resize);resize();
+function project(p){let x=p.x,y=p.y,z=p.z;const cy=Math.cos(rotY),sy=Math.sin(rotY),cx=Math.cos(rotX),sx=Math.sin(rotX);let X=x*cy-z*sy,Z=x*sy+z*cy,Y=y*cx-Z*sx;Z=y*sx+Z*cx;return{x:W/2+panX+X*scale,y:H/2+panY-Y*scale,z:Z}}
+function draw(){ctx.clearRect(0,0,W,H);ctx.fillStyle="#000";ctx.fillRect(0,0,W,H);const ps=S.bodies.map(b=>({b,p:project(b.pos)})).sort((a,b)=>a.p.z-b.p.z);for(const q of ps){const b=q.b,r=Math.max(2,Math.min(28,b.radius*scale*5));ctx.beginPath();ctx.arc(q.p.x,q.p.y,r,0,Math.PI*2);ctx.fillStyle=b.type==="STAR"?"#ffd166":b.type==="BLACK_HOLE"?"#8b5cf6":b.type==="MOON"?"#aeb8c6":"#4da3ff";ctx.fill();if(S.focus===b.id){ctx.strokeStyle="#fff";ctx.lineWidth=1;ctx.stroke()}}hud();requestAnimationFrame(draw)}
+function hud(){document.getElementById("hud").textContent="T = "+S.time.toExponential(5)+" s\nN = "+S.bodies.length+"\nDT = "+S.dt.toExponential(3)+" s"+(S.paused?"\nPAUSED":"\nRUNNING")+(S.lastError?"\nFAILED: "+S.lastError:"")}
+function parentOptions(){const e=document.getElementById("parent");const cur=e.value;e.innerHTML="";for(const b of S.bodies){const o=document.createElement("option");o.value=b.id;o.textContent=b.name;e.appendChild(o)}if([...e.options].some(o=>o.value===cur))e.value=cur}
+function centerFor(kind){const p=Number(document.getElementById("parent").value);return S.bodies.find(b=>b.id===p)||S.bodies.filter(b=>b.type==="STAR"||b.type==="BLACK_HOLE").sort((a,b)=>b.mass-a.mass)[0]||null}
+function create(){
+ const type=document.getElementById("kind").value,m=Number(document.getElementById("mass").value),r=Number(document.getElementById("radius").value),dist=Number(document.getElementById("distance").value);
+ if(!(m>0&&r>0))return alert("질량과 반지름은 양수여야 합니다.");
+ let center=centerFor(type),pos,vel=new V();
+ if(type==="STAR"||!center){pos=new V((S.bodies.length?Math.max(...S.bodies.map(b=>b.radius))*12:0)+dist,0,0)}
+ else{const rr=Math.max(dist,center.radius+r+1);pos=center.pos.add(new V(rr,0,0));const speed=Math.sqrt(C.G*(center.mass+m)/rr);vel=center.vel.add(new V(0,speed,0))}
+ for(const b of S.bodies)if(pos.sub(b.pos).n()<r+b.radius){return alert("생성 위치가 기존 객체와 겹칩니다. 거리를 늘리세요.")}
+ const b=new Body({type,mass:m,radius:r,pos,vel,name:type+" "+nextId,parent:center?center.id:null});S.bodies.push(b);S.focus=b.id;S.lastError="";S.paused=false;parentOptions();renderInspector()
+}
+function renderInspector(){const b=S.bodies.find(x=>x.id===S.focus),i=document.getElementById("inspector");if(!b){i.textContent="객체를 선택하세요.";return}i.innerHTML="<b>"+b.name+"</b><br>type: "+b.type+"<br>mass: "+b.mass.toExponential(5)+" kg<br>radius: "+b.radius.toExponential(5)+" m<br>r: "+b.pos.n().toExponential(5)+" m<br>v: "+b.vel.n().toExponential(5)+" m/s<br>T: "+b.temperature.toExponential(4)+" K<br>parent: "+(b.parent||"—")}
+function renderList(){const e=document.getElementById("objects");e.innerHTML="";for(const b of S.bodies){const x=document.createElement("button");x.style.width="100%";x.style.margin="3px 0";x.textContent=b.name+" · "+b.mass.toExponential(3)+" kg";x.onclick=()=>{S.focus=b.id;renderInspector()};e.appendChild(x)}document.getElementById("siminfo").textContent="time "+S.time.toExponential(5)+" s\nsteps "+S.stepCount+"\nstatus "+(S.lastError?"FAILED":"STABLE")}
+document.getElementById("create").onclick=create;document.getElementById("reset").onclick=()=>{S.bodies=[];S.time=0;S.stepCount=0;S.paused=false;S.lastError="";S.focus=null;parentOptions();renderInspector();renderList()};
+document.getElementById("pause").onclick=()=>{S.paused=!S.paused;document.getElementById("pause").textContent=S.paused?"재개":"일시정지"};
+document.getElementById("step").onclick=()=>{const was=S.paused;S.paused=false;step();S.paused=was;renderInspector();renderList()};
+document.getElementById("focus").onclick=()=>{if(S.focus){const b=S.bodies.find(x=>x.id===S.focus);if(b){panX=W/2-project(b.pos).x;panY=H/2-project(b.pos).y}}};
+document.getElementById("dt").onchange=e=>{const v=Number(e.target.value);if(v>0)S.dt=v};document.getElementById("integrator").onchange=e=>S.integrator=e.target.value;
+document.querySelectorAll("[data-engine]").forEach(e=>e.onchange=()=>S.engines[e.dataset.engine]=e.checked);
+document.getElementById("mLeft").onclick=()=>document.getElementById("left").classList.toggle("open");document.getElementById("mRight").onclick=()=>document.getElementById("right").classList.toggle("open");
+canvas.addEventListener("pointerdown",e=>{drag=true;moved=false;lastX=e.clientX;lastY=e.clientY;canvas.setPointerCapture(e.pointerId)});
+canvas.addEventListener("pointermove",e=>{if(!drag)return;const dx=e.clientX-lastX,dy=e.clientY-lastY;if(Math.abs(dx)+Math.abs(dy)>4)moved=true;rotY+=dx*.006;rotX+=dy*.006;lastX=e.clientX;lastY=e.clientY});
+canvas.addEventListener("pointerup",e=>{if(!drag)return;drag=false;if(moved)return;const r=canvas.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;let best=null,bd=Infinity;for(const b of S.bodies){const p=project(b.pos),d=Math.hypot(p.x-x,p.y-y);if(d<Math.max(16,b.radius*scale*5+8)&&d<bd){best=b;bd=d}}if(best){S.focus=best.id;renderInspector();return}const ref=centerFor("PLANET");if(ref){const wx=(x-W/2-panX)/scale,wy=-(y-H/2-panY)/scale;const pos=new V(wx,wy,0),dist=pos.sub(ref.pos).n();if(dist>ref.radius+6.4e6){document.getElementById("kind").value="PLANET";document.getElementById("distance").value=dist;create()}}});
+parentOptions();renderInspector();renderList();draw();
+</script>
 </body>
 </html>
