@@ -1167,7 +1167,7 @@ const UI = {
 
 const Engine = {
     objects: [], time: 0, dt: 120, integratorType: "RK4", gravityAlgorithm: "BARNES_HUT",
-    status: "STABLE", paused: false, frames: 0, lastFpsTime: 0,
+    status: "STABLE", paused: false, frames: 0, lastFpsTime: 0, adaptiveDt: false, minDt: 1e-6, maxDt: 1e12, safety: 0.2,
     activeModels: ["Gravity", "Collision", "Thermodynamics"],
     setIntegrator: function(type) { this.integratorType = String(type).toUpperCase(); },
     getAccelerations: function(objs) {
@@ -1193,7 +1193,7 @@ const Engine = {
             if(!finite){this.status="FAILED";throw new Error("Non-finite state detected");}
             if(o.vel.magSq()>=PhysicsConstants.c*PhysicsConstants.c){this.status="FAILED";throw new Error("Superluminal velocity detected");}
         }
-        if(!(this.dt>0)||!Number.isFinite(this.dt)){this.status="FAILED";throw new Error("Invalid timestep");}
+        if(!(this.dt>0)||!Number.isFinite(this.dt)){this.status="FAILED";throw new Error("Invalid timestep");} if(this.dt<this.minDt||this.dt>this.maxDt){this.status="FAILED";throw new Error("Timestep outside configured safety bounds");}
         const t_integrator=String(this.integratorType).toLowerCase();
         if(t_integrator==="euler") Integrators.eulerSemiImplicit(this.objects,this.dt,this.getAccelerations(this.objects));
         else if(t_integrator==="verlet") Integrators.verlet(this.objects,this.dt,obs=>this.getAccelerations(obs));
@@ -1206,7 +1206,7 @@ const Engine = {
             ThermoEngine.updateTemperature(this.objects);
             ThermoEngine.computeRadiation(this.dt,this.objects);
         }
-        this.time+=this.dt;
+        if(this.adaptiveDt){let amin=Infinity;for(const o of this.objects){const a=o.acc.mag();if(a>0)amin=Math.min(amin,Math.sqrt(Math.max(o.radius,1)/a));}if(Number.isFinite(amin))this.dt=Math.max(this.minDt,Math.min(this.maxDt,this.safety*amin));} this.time+=this.dt;
         Diagnostics.update(this.objects);
         UI.updateInspector();
     },
