@@ -53,6 +53,40 @@
 
             /* Audit UI */
             .audit-tag { display: inline-block; padding: 2px 6px; margin: 2px; border-radius: 3px; font-size: 10px; background: var(--success); color: #000; font-weight: bold; }
+
+/* Universe Creator runtime layout: these IDs are the canonical standalone HTML surface. */
+html,body,#layout-container{width:100%;height:100%;min-width:0;min-height:0}
+#layout-container{position:relative;display:grid;grid-template-columns:minmax(220px,280px) minmax(0,1fr) minmax(220px,280px);grid-template-rows:auto minmax(0,1fr) auto;background:#000;overflow:hidden;isolation:isolate}
+#module-bar{grid-column:1/-1;grid-row:1;display:flex;align-items:center;gap:4px;min-width:0;overflow-x:auto;overflow-y:hidden;padding:5px 7px;background:rgba(10,10,15,.96);border-bottom:1px solid var(--border);z-index:30;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;touch-action:pan-x}
+#module-bar .lab-module{flex:0 0 auto;width:auto;min-width:max-content;margin:0;padding:8px 10px;border-radius:4px;touch-action:manipulation}
+#viewport-container{grid-column:2;grid-row:2;position:relative;min-width:0;min-height:0;overflow:hidden;background:#000;z-index:1}
+#universe-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:1;touch-action:none}
+#diagnostics-overlay{position:absolute;top:8px;left:8px;z-index:5;pointer-events:none;font-size:11px;white-space:pre-line;text-shadow:0 1px 2px #000}
+.side-panel{position:relative;z-index:20;min-width:0;overflow-y:auto;overflow-x:hidden;padding:10px;background:var(--panel);font-size:12px;box-sizing:border-box;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+#creator-panel{grid-column:1;grid-row:2;border-right:1px solid var(--border)}
+#inspector-panel{grid-column:3;grid-row:2;border-left:1px solid var(--border)}
+#control-bar{grid-column:1/-1;grid-row:3;display:flex;align-items:center;gap:6px;min-width:0;overflow-x:auto;padding:5px 7px;background:rgba(10,10,15,.96);border-top:1px solid var(--border);z-index:30;box-sizing:border-box;touch-action:pan-x}
+#control-bar>*{flex:0 0 auto}
+#control-bar button,#control-bar select,#control-bar input{width:auto;margin:0}
+#validation-modal{position:fixed!important;z-index:10000!important;box-sizing:border-box;overscroll-behavior:contain;touch-action:pan-y}
+#validation-modal button{touch-action:manipulation}
+@media (max-width:900px){
+  #layout-container{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto}
+  #viewport-container{grid-column:1;grid-row:2}
+  #creator-panel,#inspector-panel{position:absolute;top:0;bottom:0;width:min(86vw,330px);z-index:40;box-shadow:0 0 24px #000;transform:translateX(-105%);transition:transform .16s ease}
+  #creator-panel{left:0}
+  #inspector-panel{right:0;transform:translateX(105%)}
+  #control-bar{grid-column:1;grid-row:3}
+}
+@media (max-width:600px){
+  #module-bar{padding:4px}
+  #module-bar .lab-module{padding:9px 11px;font-size:12px}
+  #control-bar{gap:4px;padding:4px}
+  #control-bar button,#control-bar select,#control-bar input{min-height:38px}
+  #validation-modal{top:3%!important;left:3%!important;width:94%!important;height:94%!important;padding:12px!important}
+  input,select,button{font-size:16px}
+}
+
     </style>
 </head>
 <body>
@@ -649,6 +683,45 @@ const EOS = {
         return Math.max(0,this.electronScatteringOpacity(comp.X)+this.kramersOpacity(rho,T,comp.X,comp.Z));
     }
 };
+
+
+const ThermoEngine = {
+    gamma: 5/3,
+    cvPerMass(body) {
+        const mu = 0.61;
+        const kB = 1.380649e-23;
+        const mp = 1.67262192369e-27;
+        return 1.5 * kB / (mu * mp);
+    },
+    updateTemperature(objects) {
+        for (const o of objects) {
+            if (!(o.mass > 0)) continue;
+            const cv = this.cvPerMass(o);
+            if (!(o.internalEnergy > 0)) {
+                o.internalEnergy = Math.max(0, o.mass * cv * Math.max(o.temperature, 2.73));
+            }
+            o.temperature = Math.max(2.73, o.internalEnergy / (o.mass * cv));
+            o.updateDensity();
+            o.sph_pressure = o.density * kBPressure(o.temperature, o.density);
+        }
+    },
+    computeRadiation(dt, objects) {
+        if (!(dt >= 0)) throw new Error("Negative thermodynamic timestep");
+        const sigma = PhysicsConstants.sigma_sb;
+        for (const o of objects) {
+            if (!(o.radius > 0) || !(o.temperature >= 0)) continue;
+            const area = 4 * Math.PI * o.radius * o.radius;
+            const blackbody = sigma * area * Math.pow(o.temperature,4);
+            o.luminosity = Number.isFinite(blackbody) ? blackbody : 0;
+            const emitted = Math.min(o.internalEnergy, o.luminosity * dt);
+            o.internalEnergy = Math.max(0, o.internalEnergy - emitted);
+        }
+    }
+};
+function kBPressure(T,rho) {
+    const kB=1.380649e-23, mp=1.67262192369e-27, mu=0.61;
+    return kB*T/(mu*mp);
+}
 
 
 const NuclearNetwork = {
