@@ -318,6 +318,213 @@ const el=UI.$("diag");
 if(el)el.innerHTML="ΔE "+d.energy.toExponential(3)+"<br>ΔP "+d.momentum.toExponential(3)+"<br>ΔL "+d.angularMomentum.toExponential(3)+"<br>충돌 에너지 손실 "+d.collisionEnergyLoss.toExponential(3)+" J";
 }
 requestAnimationFrame(loop)}loop();
+
+/* ===================== UNIVERSE CREATOR / ULTIMATE HTML ENGINE =====================
+   Single-file upgrade. All additions are namespaced under UCX.
+   Models are explicitly reduced-order unless stated otherwise.
+============================================================================= */
+const UCX={
+  version:"3.0.0-html-max",
+  method:"verlet",
+  theta:0.65,
+  bhThreshold:96,
+  adaptiveTol:1e-9,
+  dtMin:1e-6,
+  dtMax:86400*365,
+  maxSubsteps:64,
+  trails:true,
+  trailMax:180,
+  trailMap:new Map(),
+  camera:{yaw:0,pitch:0,zoom:1,px:0,py:0},
+  exactDiagnostics:null,
+  events:[],
+  lastAdaptive:null,
+  lab:null
+};
+const UCV={
+  finite(v){return v instanceof V&&Number.isFinite(v.x)&&Number.isFinite(v.y)&&Number.isFinite(v.z)},
+  state(){for(const b of Sim.bodies){if(!(Number.isFinite(b.mass)&&b.mass>0&&Number.isFinite(b.radius)&&b.radius>0))throw new Error("INVALID_BODY_PARAMETERS");if(!UCV.finite(b.pos)||!UCV.finite(b.vel))throw new Error("NONFINITE_BODY_STATE");if(b.vel.mag()>=C)throw new Error("SUPERLUMINAL_STATE")}return true},
+  snap(bodies=Sim.bodies){let M=0,P=new V(),L=new V(),K=0,U=0,Q=0;for(const b of bodies){M+=b.mass;P=P.add(b.vel.mul(b.mass));L=L.add(b.pos.cross(b.vel.mul(b.mass)));K+=.5*b.mass*b.vel.mag2();Q+=b.charge}
+    for(let i=0;i<bodies.length;i++)for(let j=i+1;j<bodies.length;j++){const a=bodies[i],b=bodies[j],d=a.pos.sub(b.pos).mag();if(d>0){U-=G*a.mass*b.mass/d;U+=KE*a.charge*b.charge/d}}
+    return {M,P,L,K,U,E:K+U,Q};
+  },
+  rel(a,b){const den=Math.max(Math.abs(b),1e-300);return Math.abs(a-b)/den},
+  vrel(a,b){const d=b.sub(a);return d.mag()/Math.max(a.mag(),b.mag(),1e-300)}
+};
+function ucContactTime(a,b,h){
+  const r=b.pos.sub(a.pos),v=b.vel.sub(a.vel),R=a.radius+b.radius;
+  const A=v.mag2(),B=2*r.dot(v),Cq=r.mag2()-R*R;
+  if(Cq<=0)return 0;if(A<=0||B>=0)return Infinity;
+  const D=B*B-4*A*Cq;if(D<0)return Infinity;
+  const t=(-B-Math.sqrt(D))/(2*A);
+  return t>=0&&t<=h?t:Infinity;
+}
+class UCOctree{
+  constructor(items,center,half,depth=0){this.center=center;this.half=half;this.items=items;this.children=null;this.mass=0;this.com=new V();this.depth=depth;this.build()}
+  build(){
+    for(const b of this.items){this.mass+=b.mass;this.com=this.com.add(b.pos.mul(b.mass))}
+    if(this.mass)this.com=this.com.mul(1/this.mass);
+    if(this.items.length<=1||this.depth>=24)return;
+    const buckets=Array.from({length:8},()=>[]);
+    for(const b of this.items){let k=(b.pos.x>=this.center.x?1:0)|(b.pos.y>=this.center.y?2:0)|(b.pos.z>=this.center.z?4:0);buckets[k].push(b)}
+    if(buckets.filter(x=>x.length).length===1)return;
+    const h=this.half/2;this.children=buckets.map((arr,k)=>{if(!arr.length)return null;return new UCOctree(arr,new V(this.center.x+(k&1?h:-h),this.center.y+(k&2?h:-h),this.center.z+(k&4?h:-h)),h,this.depth+1)});this.items=null;
+  }
+  accel(target,theta){
+    const d=this.com.sub(target.pos),r=d.mag();if(!(r>0)||this.mass===0)return new V();
+    const contains=target.pos.x>=this.center.x-this.half&&target.pos.x<=this.center.x+this.half&&target.pos.y>=this.center.y-this.half&&target.pos.y<=this.center.y+this.half&&target.pos.z>=this.center.z-this.half&&target.pos.z<=this.center.z+this.half;
+    if(!contains&&this.half*2/r<theta)return d.mul(G*this.mass/(r*r*r));
+    if(this.children){let a=new V();for(const c of this.children)if(c)a=a.add(c.accel(target,theta));return a}
+    let a=new V();for(const b of (this.items||[])){if(b===target)continue;const q=b.pos.sub(target.pos),rr=q.mag();if(rr>0)a=a.add(q.mul(G*b.mass/(rr*rr*rr)))}return a;
+  }
+}
+function ucBounds(bodies){
+  if(!bodies.length)return {c:new V(),h:1};
+  let minX=Infinity,minY=Infinity,minZ=Infinity,maxX=-Infinity,maxY=-Infinity,maxZ=-Infinity;
+  for(const b of bodies){minX=Math.min(minX,b.pos.x);minY=Math.min(minY,b.pos.y);minZ=Math.min(minZ,b.pos.z);maxX=Math.max(maxX,b.pos.x);maxY=Math.max(maxY,b.pos.y);maxZ=Math.max(maxZ,b.pos.z)}
+  const c=new V((minX+maxX)/2,(minY+maxY)/2,(minZ+maxZ)/2),h=Math.max(maxX-minX,maxY-minY,maxZ-minZ,1)/2*1.0001;return {c,h};
+}
+function ucGravity(bodies){
+  if(bodies.length<UCX.bhThreshold)return Sim.accel(bodies);
+  const {c,h}=ucBounds(bodies),tree=new UCOctree(bodies,c,h),a=bodies.map(()=>new V());
+  for(let i=0;i<bodies.length;i++)a[i]=tree.accel(bodies[i],UCX.theta);
+  // Coulomb is always evaluated pairwise because this engine does not approximate electrostatics.
+  for(let i=0;i<bodies.length;i++)for(let j=i+1;j<bodies.length;j++){
+    const r=bodies[j].pos.sub(bodies[i].pos),r2=r.mag2();if(!(r2>0))continue;const inv=1/Math.sqrt(r2),f=KE*bodies[i].charge*bodies[j].charge*inv*inv;
+    a[i]=a[i].add(r.mul(f*inv/bodies[i].mass));a[j]=a[j].add(r.mul(-f*inv/bodies[j].mass));
+  }return a;
+}
+function ucSetAcc(bodies,a){for(let i=0;i<bodies.length;i++)bodies[i].acc=a[i]}
+function ucVV(dt){
+ const b=Sim.bodies,a0=ucGravity(b);for(let i=0;i<b.length;i++){b[i].vel=b[i].vel.add(a0[i].mul(.5*dt));b[i].pos=b[i].pos.add(b[i].vel.mul(dt))}
+ const a1=ucGravity(b);for(let i=0;i<b.length;i++)b[i].vel=b[i].vel.add(a1[i].mul(.5*dt));ucSetAcc(b,a1);
+}
+function ucEuler(dt){const b=Sim.bodies,a=ucGravity(b);for(let i=0;i<b.length;i++){b[i].pos=b[i].pos.add(b[i].vel.mul(dt));b[i].vel=b[i].vel.add(a[i].mul(dt))}ucSetAcc(b,ucGravity(b))}
+function ucStateCopy(b){return b.map(x=>({p:x.pos.clone(),v:x.vel.clone()}))}
+function ucRestore(b,s){for(let i=0;i<b.length;i++){b[i].pos=s[i].p.clone();b[i].vel=s[i].v.clone()}}
+function ucRK4Raw(dt){
+ const b=Sim.bodies,n=b.length;if(!n)return;
+ const s=ucStateCopy(b),a0=ucGravity(b);
+ const set=(fac,k)=>{for(let i=0;i<n;i++){b[i].pos=s[i].p.add(k[i].p.mul(fac));b[i].vel=s[i].v.add(k[i].v.mul(fac))}};
+ const k1=b.map((_,i)=>({p:s[i].v.clone(),v:a0[i].clone()}));
+ set(dt/2,k1);const a1=ucGravity(b),k2=b.map((_,i)=>({p:b[i].vel.clone(),v:a1[i].clone()}));
+ set(dt/2,k2);const a2=ucGravity(b),k3=b.map((_,i)=>({p:b[i].vel.clone(),v:a2[i].clone()}));
+ set(dt,k3);const a3=ucGravity(b),k4=b.map((_,i)=>({p:b[i].vel.clone(),v:a3[i].clone()}));
+ for(let i=0;i<n;i++){b[i].pos=s[i].p.add(k1[i].p.add(k2[i].p.mul(2)).add(k3[i].p.mul(2)).add(k4[i].p).mul(dt/6));b[i].vel=s[i].v.add(k1[i].v.add(k2[i].v.mul(2)).add(k3[i].v.mul(2)).add(k4[i].v).mul(dt/6))}
+ ucSetAcc(b,ucGravity(b));
+}
+function ucAdaptive(dt){
+ const b=Sim.bodies;if(!b.length){Sim.time+=dt;return}
+ let h=Math.min(dt,UCX.dtMax),used=0,attempts=0,maxErr=0;
+ while(used<dt-1e-15){
+   h=Math.min(h,dt-used);if(h<UCX.dtMin)throw new Error("ADAPTIVE_DT_UNDERFLOW");
+   const s=ucStateCopy(b);ucRK4Raw(h);const big=ucStateCopy(b);ucRestore(b,s);ucRK4Raw(h/2);ucRK4Raw(h/2);
+   let err=0;for(let i=0;i<b.length;i++){err=Math.max(err,UCV.vrel(big[i].p,b[i].pos),UCV.vrel(big[i].v,b[i].vel))}
+   maxErr=Math.max(maxErr,err);attempts++;
+   if(!Number.isFinite(err))throw new Error("ADAPTIVE_NONFINITE");
+   if(err>UCX.adaptiveTol&&h>UCX.dtMin*1.01){ucRestore(b,s);h*=.5;continue}
+   used+=h;Sim.time+=h;const fac=err===0?2:Math.min(2,Math.max(.25,.9*Math.pow(UCX.adaptiveTol/err,.2)));h=Math.min(UCX.dtMax,h*fac);
+   if(attempts>2000)throw new Error("ADAPTIVE_MAX_ATTEMPTS");
+ }
+ UCX.lastAdaptive={error:maxErr,attempts};
+}
+const ucRawStep=Sim.step.bind(Sim);
+Sim.step=function(dt){
+  if(!Number.isFinite(dt)||dt<=0)throw new Error("INVALID_DT");
+  UCV.state();
+  if(UCX.method==="adaptive"){ucAdaptive(dt);this.collide();UCV.state();return}
+  let remain=dt,sub=0;
+  while(remain>1e-12){
+    if(++sub>UCX.maxSubsteps)throw new Error("EVENT_SUBSTEP_LIMIT");
+    let h=remain;
+    for(let i=0;i<this.bodies.length;i++)for(let j=i+1;j<this.bodies.length;j++)h=Math.min(h,ucContactTime(this.bodies[i],this.bodies[j],h));
+    if(h===0){this.collide();continue}
+    if(UCX.method==="euler")ucEuler(h);else if(UCX.method==="rk4")ucRK4Raw(h);else ucVV(h);
+    this.time+=h;remain-=h;this.collide();UCV.state();
+  }
+  const s=UCV.snap();this.lastDiagnostics=this.lastDiagnostics||{};this.lastDiagnostics.extended=s;
+};
+function ucProjected(p){
+ const cy=Math.cos(UCX.camera.yaw),sy=Math.sin(UCX.camera.yaw),cp=Math.cos(UCX.camera.pitch),sp=Math.sin(UCX.camera.pitch);
+ const x=p.x*cy-p.z*sy,z=p.x*sy+p.z*cy,y=p.y*cp-z*sp;
+ return {x:x*UCX.camera.zoom+UCX.camera.px,y:y*UCX.camera.zoom+UCX.camera.py,z:z*cp+p.y*sp};
+}
+function ucDraw(){
+ const c=UI.$("canvas"),ctx=c.getContext("2d"),r=c.parentElement.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2);
+ c.width=Math.max(1,Math.round(r.width*d));c.height=Math.max(1,Math.round(r.height*d));ctx.setTransform(d,0,0,d,0,0);ctx.fillStyle="#010204";ctx.fillRect(0,0,r.width,r.height);
+ const cx=r.width/2+Sim.panX,cy=r.height/2+Sim.panY;
+ if(UCX.trails)for(const b of Sim.bodies){const tr=UCX.trailMap.get(b.id)||[];if(tr.length>1){ctx.beginPath();for(let i=0;i<tr.length;i++){const q=ucProjected(tr[i]),x=cx+q.x*Sim.scale,y=cy+q.y*Sim.scale;i?ctx.lineTo(x,y):ctx.moveTo(x,y)}ctx.strokeStyle="#33465c";ctx.lineWidth=1;ctx.stroke()}}
+ const sorted=Sim.bodies.map(b=>({b,q:ucProjected(b.pos)})).sort((a,b)=>a.q.z-b.q.z);
+ for(const {b,q} of sorted){const x=cx+q.x*Sim.scale,y=cy+q.y*Sim.scale,rr=Math.max(3,Math.min(30,b.radius*Sim.scale*(1+Math.max(-.5,Math.min(.8,q.z*Sim.scale*1e-4)))));
+   ctx.beginPath();ctx.arc(x,y,rr,0,Math.PI*2);ctx.fillStyle=b.type==="STAR"?"#ffd45a":b.type==="BLACK_HOLE"?"#000":b.type==="MOON"?"#d6d6d6":b.type==="ASTEROID"?"#8b8175":"#48aef5";ctx.fill();
+   if(b.type==="BLACK_HOLE"){ctx.strokeStyle="#d9e7ff";ctx.lineWidth=1;ctx.stroke()}
+   if(b.id===Sim.selected){ctx.beginPath();ctx.arc(x,y,Math.max(9,rr+5),0,Math.PI*2);ctx.strokeStyle="#fff";ctx.stroke()}
+ }
+ UI.$("status").textContent="N="+Sim.bodies.length+" | t="+Sim.time.toExponential(4)+" s | dt="+Number(UI.$("dt").value).toExponential(3)+" | solver="+UCX.method+" | "+(Sim.bodies.length>=UCX.bhThreshold?"Barnes–Hut":"Direct");
+}
+UI.draw=ucDraw;
+function ucTrailTick(){for(const b of Sim.bodies){let t=UCX.trailMap.get(b.id);if(!t)UCX.trailMap.set(b.id,t=[]);if(!t.length||t[t.length-1].sub(b.pos).mag()>0)t.push(b.pos.clone());if(t.length>UCX.trailMax)t.splice(0,t.length-UCX.trailMax)}for(const k of [...UCX.trailMap.keys()])if(!Sim.bodies.some(b=>b.id===k))UCX.trailMap.delete(k)}
+function ucAddPanel(){
+ if(document.getElementById("ucxPanel"))return;
+ const p=document.createElement("aside");p.id="ucxPanel";p.className="panel";p.style.cssText="position:absolute;right:8px;top:58px;width:min(92vw,390px);max-height:calc(100% - 120px);overflow:auto;z-index:20;background:#0b1018ee;border:1px solid #2a3445;border-radius:12px;padding:12px;color:#dbe5f0;display:none;box-shadow:0 18px 60px #000a";
+ p.innerHTML='<h3 style="margin-top:0">통합 연구 콘솔</h3><div id="ucxBtns" style="display:grid;grid-template-columns:1fr 1fr;gap:6px"></div><div id="ucxOut" style="font:11px/1.55 ui-monospace,monospace;margin-top:10px;white-space:pre-wrap;word-break:break-word"></div><input id="ucxFile" type="file" accept="application/json" style="display:none">';
+ document.getElementById("view").appendChild(p);
+ const b=p.querySelector("#ucxBtns"),add=(id,txt,fn)=>{const x=document.createElement("button");x.id=id;x.textContent=txt;x.onclick=fn;b.appendChild(x)};
+ add("ucxVerify","전체 검증",ucVerify);add("ucxExact","BH↔Exact",ucCompareBH);add("ucxAdaptive","Adaptive RK4",()=>{UCX.method="adaptive";ucOut("solver=adaptive RK4; tolerance="+UCX.adaptiveTol)});add("ucxVerlet","Velocity Verlet",()=>{UCX.method="verlet";ucOut("solver=Velocity Verlet")});add("ucxRK4","RK4",()=>{UCX.method="rk4";ucOut("solver=RK4")});add("ucxExport","상태 내보내기",ucExport);add("ucxImport","상태 불러오기",()=>document.getElementById("ucxFile").click());add("ucxTrails","궤적 ON/OFF",()=>{UCX.trails=!UCX.trails;ucOut("trails="+UCX.trails)});add("ucxLabs","수치 연구실",ucNumericalLabs);
+ document.getElementById("ucxFile").onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{ucImport(rd.result)}catch(err){ucOut("IMPORT FAILED: "+err.message)}};rd.readAsText(f)};
+ const btn=document.createElement("button");btn.id="ucxOpen";btn.textContent="研究コンソール";btn.style.cssText="position:absolute;right:8px;top:8px;z-index:25";document.getElementById("view").appendChild(btn);btn.onclick=()=>{p.style.display=p.style.display==="none"?"block":"none"};
+}
+function ucOut(x){const o=document.getElementById("ucxOut");if(o)o.textContent=String(x)}
+function ucExport(){
+ const data={version:UCX.version,time:Sim.time,paused:Sim.paused,scale:Sim.scale,panX:Sim.panX,panY:Sim.panY,camera:UCX.camera,bodies:Sim.bodies.map(b=>({id:b.id,type:b.type,mass:b.mass,radius:b.radius,charge:b.charge,temperature:b.temperature,pos:[b.pos.x,b.pos.y,b.pos.z],vel:[b.vel.x,b.vel.y,b.vel.z]}))};
+ const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="universe-state.json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);ucOut("exported "+data.bodies.length+" bodies");
+}
+function ucImport(txt){
+ const d=JSON.parse(txt);if(!Array.isArray(d.bodies))throw new Error("INVALID_FILE");
+ const nb=d.bodies.map(x=>{if(!(x.mass>0&&x.radius>0))throw new Error("INVALID_BODY");return Object.assign(new Body(x.type,x.mass,x.radius,new V(...x.pos),new V(...x.vel),x.charge||0,x.temperature||0),{id:x.id||crypto.randomUUID()})});
+ Sim.bodies=nb;Sim.time=Number(d.time)||0;Sim.paused=true;Sim.scale=Number(d.scale)||Sim.scale;Sim.panX=Number(d.panX)||0;Sim.panY=Number(d.panY)||0;if(d.camera)Object.assign(UCX.camera,d.camera);Sim.selected=nb[0]?.id||null;UI.render();ucOut("imported "+nb.length+" bodies");
+}
+function ucTwoBody(){
+ const a=new Body("STAR",MS,6.9634e8,new V(),new V()),b=new Body("PLANET",ME,RE,new V(AU,0,0),new V(0,Math.sqrt(G*(MS+ME)/AU),0)),old=Sim.bodies;
+ Sim.bodies=[a,b];Sim.time=0;const E0=UCV.snap(),period=2*Math.PI*Math.sqrt(AU**3/(G*(MS+ME))),dt=period/800;
+ for(let i=0;i<800*2;i++)ucVV(dt);
+ const E1=UCV.snap();Sim.bodies=old;return {period,energyRel:UCV.rel(E1.E,E0.E),momentum:E1.P.sub(E0.P).mag()/Math.max(E0.P.mag(),1e-300),angular:E1.L.sub(E0.L).mag()/Math.max(E0.L.mag(),1e-300)};
+}
+function ucVerify(){
+ const tests=[];const run=(name,fn)=>{try{const v=fn();tests.push("PASS  "+name+"  "+(typeof v==="string"?v:JSON.stringify(v)))}catch(e){tests.push("FAIL  "+name+"  "+e.message)}};
+ run("Kepler / 2 orbits",()=>{const x=ucTwoBody();return "dE="+x.energyRel.toExponential(3)+" dP="+x.momentum.toExponential(3)+" dL="+x.angular.toExponential(3)});
+ run("Schwarzschild(Msun)",()=>{const r=2*G*MS/(C*C);if(Math.abs(r-2953.3)/2953.3>2e-3)throw new Error("residual");return r.toExponential(6)+" m"});
+ run("Coulomb force symmetry",()=>{const a=new Body("ASTEROID",1,1,new V(-1,0,0),new V(),1,0),b=new Body("ASTEROID",1,1,new V(1,0,0),new V(),-1,0),aa=Sim.accel([a,b]);const net=aa[0].add(aa[1]);if(net.mag()>1e-14)throw new Error("net acceleration "+net.mag());return "net="+net.mag().toExponential(3)});
+ run("charge conservation merge",()=>{const a=new Body("ASTEROID",1,2,new V(),new V(),3,10),b=new Body("ASTEROID",1,2,new V(3,0,0),new V(),-2,10),old=Sim.bodies;Sim.bodies=[a,b];Sim.collide();const q=Sim.bodies.reduce((s,x)=>s+x.charge,0);Sim.bodies=old;if(q!==1)throw new Error("Q="+q);return "Q="+q});
+ run("Adaptive RK4 finite",()=>{const old=UCX.method;UCX.method="adaptive";const oldB=Sim.bodies,oldT=Sim.time;const a=new Body("STAR",MS,6.9634e8,new V(),new V()),b=new Body("PLANET",ME,RE,new V(AU,0,0),new V(0,Math.sqrt(G*MS/AU),0));Sim.bodies=[a,b];Sim.time=0;Sim.step(86400);const ok=UCV.state();Sim.bodies=oldB;Sim.time=oldT;UCX.method=old;return "finite="+ok+" err="+(UCX.lastAdaptive?.error||0).toExponential(3)});
+ run("No superluminal state",()=>{for(const b of Sim.bodies)if(b.vel.mag()>=C)throw new Error("superluminal");return "OK"});
+ const s=tests.join("\n");ucOut(s);return s;
+}
+function ucCompareBH(){
+ if(Sim.bodies.length<2){ucOut("BH↔Exact requires at least 2 bodies");return}
+ const old=UCX.theta,exact=Sim.accel(Sim.bodies),bh=ucGravity(Sim.bodies),errs=exact.map((a,i)=>UCV.vrel(a,bh[i])),m=Math.max(...errs);UCX.theta=old;ucOut("Barnes–Hut vs exact\nN="+Sim.bodies.length+"\nmax relative acceleration error="+m.toExponential(6)+"\ntheta="+UCX.theta+"\nNote: Coulomb remains exact pairwise; gravity is the approximated term for N≥"+UCX.bhThreshold);
+}
+function ucNumericalLabs(){
+ const out=[];
+ // Radiation diffusion: explicit 1D heat-like diffusion, CFL constrained.
+ let n=64,dx=1,dt=.2,D=.1,u=Array.from({length:n},(_,i)=>Math.exp(-((i-n/2)/8)**2)),e0=u.reduce((a,b)=>a+b,0);
+ for(let step=0;step<200;step++){const un=u.slice();for(let i=1;i<n-1;i++)u[i]+=D*dt/(dx*dx)*(un[i+1]-2*un[i]+un[i-1])}
+ const e1=u.reduce((a,b)=>a+b,0);out.push("Radiation diffusion 1D: Δintegral="+(e1-e0).toExponential(3));
+ // SPH density: compact cubic kernel in 1D and symmetric pressure force.
+ const x=Array.from({length:32},(_,i)=>i-.5*31),h=2.2,rho=x.map((xi)=>x.reduce((s,xj)=>{const q=Math.abs(xi-xj)/h;return s+(q<1?(1-1.5*q*q+.75*q**3):q<2?.25*(2-q)**3:0)},0));
+ out.push("SPH density symmetry sample: rho[min,max]="+Math.min(...rho).toFixed(6)+", "+Math.max(...rho).toFixed(6));
+ // MHD Alfvén wave: linearized wave equation with CFL.
+ let y=Array.from({length:n},(_,i)=>Math.sin(2*Math.PI*i/n)),v=new Array(n).fill(0),va=1,cfl=.2;
+ for(let s=0;s<100;s++){const yn=y.slice(),vn=v.slice();for(let i=1;i<n-1;i++){v[i]+=va*va*cfl*(yn[i+1]-2*yn[i]+yn[i-1]);y[i]+=cfl*v[i]}}
+ out.push("MHD Alfvén reduced wave: finite="+y.every(Number.isFinite)+", max|δB|="+Math.max(...y.map(Math.abs)).toExponential(3));
+ // 1-zone stellar thermal balance: dU/dt = nuclear - luminosity.
+ let T=1.57e7,M=MS,rho=1.5,X=.7,dtS=1e10,energy=0;for(let k=0;k<20;k++){const q=PhysicsLab.Nuclear.ppEnergyRate(rho,T,X),L=4*Math.PI*(6.96e8)**2*5.67e-8*T**4;const dU=M*q-L;energy+=dU*dtS;T=Math.max(1e5,T+dU*dtS/(1.5*1.38e-23*M/1.67e-27));if(!Number.isFinite(T))break}out.push("1-zone stellar thermal toy model: T="+T.toExponential(4)+" K");
+ // Cosmology quadrature: flat ΛCDM age integral.
+ const H0=2.2e-18,Om=.3,Ol=.7;let age=0;const N=2000,amin=1e-4,da=(1-amin)/N;for(let i=0;i<N;i++){const a=amin+(i+.5)*da;age+=da/(a*H0*Math.sqrt(Om/a**3+Ol))}out.push("Flat ΛCDM numerical age integral="+(age/3.15576e16).toFixed(3)+" Gyr (H0/Ωm/ΩΛ inputs are fixed in this lab)");
+ ucOut(out.join("\n"));
+}
+ucAddPanel();
+
 </script>
 </body>
 </html>
