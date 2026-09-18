@@ -11,7 +11,7 @@ const files=[
 const sandbox={console,Math,Float64Array,Float32Array,Map,Set,Array,Number,Date,Error,Infinity,performance:{now:()=>0},
 document:{getElementById:()=>({innerText:"",className:"",dataset:{}})},Engine:{status:"STABLE"}}; sandbox.global=sandbox; sandbox.self=sandbox; sandbox.exports={}; sandbox.module={exports:sandbox.exports};
 vm.createContext(sandbox);
-for(const f of files) vm.runInContext(fs.readFileSync(path.join(root,f),"utf8"),sandbox,{filename:f});
+for(const f of files){ vm.runInContext(fs.readFileSync(path.join(root,f),"utf8"),sandbox,{filename:f}); if(f==="vendor/astronomy-engine.min.js") sandbox.Astronomy=sandbox.module.exports; }
 const results=vm.runInContext("Validator.runAllTests(true)",sandbox);
 if (results.some(r=>r.status==="FAIL")) {
   console.error("Scientific regression failure detected.");
