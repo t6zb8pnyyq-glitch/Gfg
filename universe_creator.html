@@ -1149,13 +1149,22 @@ const UI = {
             });
             // Each control owns exactly one listener; no document-level duplicate dispatch.
         },
-        createObject: function() {
+        createObject: function(screenX=null,screenY=null) {
             const type=document.getElementById('type').value;
             const mass=Number(document.getElementById('mass').value),rad=Number(document.getElementById('radius').value);
             const vx=Number(document.getElementById('vel_x').value),vy=Number(document.getElementById('vel_y').value),vz=Number(document.getElementById('vel_z').value);
             if(!Number.isFinite(mass)||mass<=0||!Number.isFinite(rad)||rad<=0||![vx,vy,vz].every(Number.isFinite)){this.setMessage("생성 실패: 유한한 SI 값이 필요합니다.","danger");return false;}
             const vel=new Vec3(vx,vy,vz);if(vel.magSq()>=PhysicsConstants.c**2){this.setMessage("생성 실패: 광속 이상 속도입니다.","danger");return false;}
-            const d=1e8,pos=new Vec3(d*Math.sin(camera.rot.y),d*Math.sin(-camera.rot.x),-d*Math.cos(camera.rot.y));
+            const d=1e8;
+            let pos;
+            if(Number.isFinite(screenX)&&Number.isFinite(screenY)){
+                const r=Renderer.canvas.getBoundingClientRect(),sx=(screenX-r.left-(Renderer.canvas.clientWidth/2+Renderer.cameraPan.x))/Renderer.scale,sy=(screenY-r.top-(Renderer.canvas.clientHeight/2+Renderer.cameraPan.y))/Renderer.scale;
+                const x=sx,y=sy,z=-d,cy=Math.cos(Renderer.cameraRot.y),syaw=Math.sin(Renderer.cameraRot.y),cx=Math.cos(Renderer.cameraRot.x),sxaw=Math.sin(Renderer.cameraRot.x);
+                const z1=z*cx-sy*sxaw,posX=x*cy+z1*syaw,posZ=-x*syaw+z1*cy,posY=sy*cx+z*sxaw;
+                pos=new Vec3(posX,posY,posZ);
+            }else{
+                pos=new Vec3(d*Math.sin(camera.rot.y),d*Math.sin(-camera.rot.x),-d*Math.cos(camera.rot.y));
+            }
             const id=(globalThis.crypto&&typeof crypto.randomUUID==='function')?crypto.randomUUID():Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
             const body=new PhysicalBody('body-'+id,type,mass,rad,pos,vel);
             if(type==='STAR'){body.temperature=1.57e7;body.surfaceTemperature=5778;}
