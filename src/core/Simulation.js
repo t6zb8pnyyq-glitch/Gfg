@@ -27,7 +27,7 @@ const Engine={
             else if(t==="rk4"){
                 if(this.adaptiveDt){
                     const r=Integrators.rk4Adaptive(this.objects,this.dt,obs=>this.getAccelerations(obs),this.adaptiveTolerance,this.minDt,this.maxAdaptiveAttempts);
-                    this.dt=r.nextDt;
+                    this.dt=Math.min(this.maxDt,r.nextDt);
                     this._acceptedDt=r.acceptedDt;
                     this._adaptiveError=r.error;
                 }else{
