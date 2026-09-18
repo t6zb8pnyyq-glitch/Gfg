@@ -66,7 +66,7 @@ html,body,#layout-container{width:100%;height:100%;min-width:0;min-height:0}
 #creator-panel{grid-column:1;grid-row:2;border-right:1px solid var(--border)}
 #inspector-panel{grid-column:3;grid-row:2;border-left:1px solid var(--border)}
 #control-bar{grid-column:1/-1;grid-row:3;display:flex;align-items:center;gap:6px;min-width:0;overflow-x:auto;padding:5px 7px;background:rgba(10,10,15,.96);border-top:1px solid var(--border);z-index:30;box-sizing:border-box;touch-action:pan-x}
-#control-bar>*{flex:0 0 auto}
+#control-bar>*{flex:0 0 auto}.model-row{display:flex;align-items:center;gap:6px;padding:4px 0;touch-action:manipulation}.model-row input{width:18px;height:18px;margin:0;flex:0 0 auto}
 #control-bar button,#control-bar select,#control-bar input{width:auto;margin:0}
 #validation-modal{position:fixed!important;z-index:10000!important;box-sizing:border-box;overscroll-behavior:contain;touch-action:pan-y}
 #validation-modal button{touch-action:manipulation}
@@ -133,9 +133,9 @@ html,body,#layout-container{width:100%;height:100%;min-width:0;min-height:0}
             <input type="number" id="vel_y" value="0">
             <label>속도 Z (m/s)</label>
             <input type="number" id="vel_z" value="0">
-            <button onclick="UI.createObject()">생성 (CREATE)</button>
+            <button onclick="UI.createObject()">생성 (CREATE)</button><section class="section"><h3>활성 물리 엔진</h3><label class="model-row"><input type="checkbox" data-model="Gravity" checked onchange="UI.toggleModel('Gravity',this.checked)">중력 / N-body</label><label class="model-row"><input type="checkbox" data-model="Collision" checked onchange="UI.toggleModel('Collision',this.checked)">충돌 / 병합</label><label class="model-row"><input type="checkbox" data-model="Nuclear" checked onchange="UI.toggleModel('Nuclear',this.checked)">핵반응 / 핵융합</label><label class="model-row"><input type="checkbox" data-model="Thermodynamics" checked onchange="UI.toggleModel('Thermodynamics',this.checked)">열역학 / 복사</label><label class="model-row"><input type="checkbox" data-model="Fluid" onchange="UI.toggleModel('Fluid',this.checked)">SPH 유체</label><label class="model-row"><input type="checkbox" data-model="Electromagnetic" onchange="UI.toggleModel('Electromagnetic',this.checked)">전자기력</label><label class="model-row"><input type="checkbox" data-model="Relativity" onchange="UI.toggleModel('Relativity',this.checked)">상대론 보정</label></section>
             <hr>
-            <p style="font-size:10px; color:#aaa;">* 모바일: 화면을 더블 탭하여 생성 가능</p>
+            <p style="font-size:10px; color:#aaa;">* 모바일/마우스: 빈 공간을 한 번 탭/클릭하면 해당 위치에 객체 생성 · 기존 객체를 탭하면 선택 · 드래그하면 카메라 회전</p>
         </div>
 
         <div id="inspector-panel" class="side-panel">
@@ -1105,7 +1105,6 @@ resize(){const r=this.canvas.parentElement.getBoundingClientRect(),dpr=Math.min(
 projectObjects(){const w=this.canvas.clientWidth||1,h=this.canvas.clientHeight||1,cx=w/2+this.cameraPan.x,cy=h/2+this.cameraPan.y,sx=Math.sin(this.cameraRot.x),cxr=Math.cos(this.cameraRot.x),sy=Math.sin(this.cameraRot.y),cyr=Math.cos(this.cameraRot.y);return Engine.objects.map(o=>{const x1=o.pos.x*cyr-o.pos.z*sy,z1=o.pos.z*cyr+o.pos.x*sy,y2=o.pos.y*cxr-z1*sx,z2=z1*cxr+o.pos.y*sx;return{obj:o,px:cx+x1*this.scale,py:cy+y2*this.scale,pz:z2,pr:Math.max(1.5,o.radius*this.scale)};});},
 draw(){const w=this.canvas.clientWidth||1,h=this.canvas.clientHeight||1;this.ctx.fillStyle="#000";this.ctx.fillRect(0,0,w,h);for(const x of this.projectObjects().sort((a,b)=>a.pz-b.pz)){this.ctx.beginPath();this.ctx.arc(x.px,x.py,x.pr,0,Math.PI*2);if(x.obj.type==="STAR"){this.ctx.fillStyle="#facc15";this.ctx.shadowBlur=12;this.ctx.shadowColor="#facc15";}else if(x.obj.type==="PLANET"){this.ctx.fillStyle="#0ea5e9";this.ctx.shadowBlur=0;}else if(x.obj.type==="BLACK_HOLE"){this.ctx.fillStyle="#000";this.ctx.shadowBlur=0;this.ctx.strokeStyle="#fff";this.ctx.stroke();}else if(x.obj.type==="GAS_CLOUD"){this.ctx.fillStyle="rgba(16,185,129,.5)";this.ctx.shadowBlur=0;}else{this.ctx.fillStyle="#aaa";this.ctx.shadowBlur=0;}this.ctx.fill();this.ctx.shadowBlur=0;if(UI.selectedId===x.obj.id){this.ctx.beginPath();this.ctx.arc(x.px,x.py,Math.max(8,x.pr+5),0,Math.PI*2);this.ctx.strokeStyle="#fff";this.ctx.lineWidth=1.5;this.ctx.stroke();}}}};
 
-
 const UI = {
     selectedId: null,
     init: function() {
@@ -1152,8 +1151,6 @@ resetFailure:function(){this.status="STABLE";this.paused=false;Diagnostics.begin
 syncPauseButton:function(){const b=document.getElementById("btn-pause");if(b)b.innerText=this.paused?"재개 (RESUME)":"일시정지 (PAUSE)";},
 setModel:function(name,enabled){const i=this.activeModels.indexOf(name);if(enabled&&i<0)this.activeModels.push(name);if(!enabled&&i>=0)this.activeModels.splice(i,1);},
 loop:function(){requestAnimationFrame(()=>this.loop());if(!this.paused){try{this.step();}catch(e){this.status="FAILED";this.paused=true;this.syncPauseButton();const statusEl=document.getElementById("diag-status");if(statusEl){statusEl.innerText="FAILED";statusEl.className="val fail";}}}Renderer.draw();}};
-
-
 
 window.addEventListener('DOMContentLoaded', () => { UI.init(); Renderer.init(); Labs.loadLab('GRAVITY'); Engine.loop(); });
 
