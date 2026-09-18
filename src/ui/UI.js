@@ -59,6 +59,13 @@ const UI = {
           "Mass: "+fmt(o.mass,"kg")+"<br>Radius: "+fmt(o.radius,"m")+"<br>"+
           "Temperature: "+fmt(o.temperature,"K")+"<br>Luminosity: "+fmt(o.luminosity,"W");
     },
+    togglePanel: function(which) {
+        const el=document.getElementById(which==="creator"?"creator-panel":"inspector-panel");
+        if(!el) return;
+        const open=el.dataset.open==="true";
+        el.dataset.open=open?"false":"true";
+        el.style.transform=which==="creator"?(open?"translateX(-105%)":"translateX(0)"):(open?"translateX(105%)":"translateX(0)");
+    },
     showAudit: function() {
         const results=Validator.runAllTests(true)||[];
         let html="<h4>과학적 검증 프레임워크</h4><ul style='list-style:none;padding:0'>";
