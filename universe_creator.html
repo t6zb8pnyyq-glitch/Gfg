@@ -416,6 +416,7 @@ class PhysicalBody {
 
         // --- Radiation ---
         this.luminosity = 0;              // [W] (J/s)
+        this.radiativeLuminosity = 0;      // [W] blackbody estimate
     }
 
     updateDensity() {
@@ -449,6 +450,7 @@ class PhysicalBody {
         b.charge = this.charge;
         b.magneticField = this.magneticField.clone();
         b.luminosity = this.luminosity;
+        b.radiativeLuminosity = this.radiativeLuminosity;
         return b;
     }
 }
@@ -589,21 +591,25 @@ const CollisionEngine = {
     }
 
 const ElectromagneticEngine = {
-        computeAccelerations: function(objects) {
-            let accels = new Array(objects.length).fill(null).map(() => new Vec3());
-            let k = 1 / (4 * Math.PI * PhysicsConstants.eps_0);
-            for(let i=0; i<objects.length; i++) {
-                if(objects[i].charge === 0) continue;
-                for(let j=i+1; j<objects.length; j++) {
-                    if(objects[j].charge === 0) continue;
-                    let rVec = objects[i].pos.sub(objects[j].pos);
-                    let rSq = rVec.magSq();
-                    if(rSq === 0) continue;
-                    let fMag = k * (objects[i].charge * objects[j].charge) / rSq;
-                    let force = rVec.mult(fMag / Math.sqrt(rSq));
-                    accels[i] = accels[i].add(force.div(objects[i].mass));
-                    accels[j] = accels[j].sub(force.div(objects[j].mass));
+        // Quasi-static point-charge model: Coulomb + Biot-Savart magnetic force.
+        computeAccelerations:function(objects){
+            const accels=objects.map(()=>new Vec3()),ke=1/(4*Math.PI*PhysicsConstants.eps_0),km=PhysicsConstants.mu_0/(4*Math.PI);
+            for(let i=0;i<objects.length;i++){
+                const qi=objects[i].charge;if(qi===0)continue;
+                for(let j=i+1;j<objects.length;j++){
+                    const qj=objects[j].charge;if(qj===0)continue;
+                    const rij=objects[i].pos.sub(objects[j].pos),r2=rij.magSq();if(!(r2>0))continue;
+                    const invR=Math.sqrt(1/r2),invR3=invR/r2;
+                    const eForce=rij.mult(ke*qi*qj*invR3);
+                    accels[i]=accels[i].add(eForce.div(objects[i].mass));
+                    accels[j]=accels[j].sub(eForce.div(objects[j].mass));
+                    const Bj=objects[j].vel.cross(rij).mult(km*qj*invR3);
+                    const Bi=objects[i].vel.cross(rij.mult(-1)).mult(km*qi*invR3);
+                    accels[i]=accels[i].add(objects[i].vel.cross(Bj).mult(qi/objects[i].mass));
+                    accels[j]=accels[j].add(objects[j].vel.cross(Bi).mult(qj/objects[j].mass));
                 }
+                const Bext=objects[i].magneticField;
+                if(Bext&&Bext.magSq()>0)accels[i]=accels[i].add(objects[i].vel.cross(Bext).mult(qi/objects[i].mass));
             }
             return accels;
         }
@@ -614,7 +620,10 @@ const FluidEngine = {
  computeAccelerations:function(objects){
   const gas=objects.filter(o=>o.type==="GAS_CLOUD"),acc=new Map();for(const o of gas)acc.set(o.id,new Vec3());if(!gas.length)return acc;
   const h=this.h,h2=h*h,kernel=315/(64*Math.PI*Math.pow(h,9));
-  for(const i of gas){let rho=0;for(const j of gas){const r2=i.pos.sub(j.pos).magSq();if(r2<h2)rho+=j.mass*Math.pow(h2-r2,3)*kernel;}i.sph_density=Math.max(rho,Number.MIN_VALUE);const u=Math.max(0,i.internalEnergy/Math.max(i.mass,Number.MIN_VALUE));i.sph_pressure=(this.gamma-1)*i.sph_density*u;}
+  for(const i of gas){let rho=0;for(const j of gas){const r2=i.pos.sub(j.pos).magSq();if(r2<h2)rho+=j.mass*Math.pow(h2-r2,3)*kernel;}i.sph_density=Math.max(rho,Number.MIN_VALUE);const u=Math.max(0,i.internalEnergy/Math.max(i.mass,Number.MIN_VALUE));const gasPressure=(this.gamma-1)*i.sph_density*u;
+  const T=Math.max(2.73,(2/3)*u*0.61*1.67262192369e-27/PhysicsConstants.k_B);
+  const radiationPressure=(4*PhysicsConstants.sigma_sb/(3*PhysicsConstants.c))*T**4;
+  i.sph_pressure=gasPressure+radiationPressure;}
   const gradCoeff=-45/(Math.PI*Math.pow(h,6));
   for(let a=0;a<gas.length;a++){const i=gas[a],ai=acc.get(i);for(let b=a+1;b<gas.length;b++){const j=gas[b],rv=i.pos.sub(j.pos),r=rv.mag();if(!(r>0&&r<h))continue;const grad=rv.div(r).mult(gradCoeff*Math.pow(h-r,2));const fP=grad.mult(-i.mass*j.mass*(i.sph_pressure/(i.sph_density*i.sph_density)+j.sph_pressure/(j.sph_density*j.sph_density)));ai.x+=fP.x/i.mass;ai.y+=fP.y/i.mass;ai.z+=fP.z/i.mass;const aj=acc.get(j);aj.x-=fP.x/j.mass;aj.y-=fP.y/j.mass;aj.z-=fP.z/j.mass;const vij=i.vel.sub(j.vel),vdotr=vij.dot(rv);if(vdotr<0){const cs=Math.sqrt(Math.max(0,this.gamma*Math.max(i.sph_pressure/i.sph_density,j.sph_pressure/j.sph_density))),mu=h*vdotr/(r*r+0.01*h2),rhoij=0.5*(i.sph_density+j.sph_density),Pi=-this.alphaVisc*cs*mu/rhoij,fV=grad.mult(-i.mass*j.mass*Pi);ai.x+=fV.x/i.mass;ai.y+=fV.y/i.mass;ai.z+=fV.z/i.mass;aj.x-=fV.x/j.mass;aj.y-=fV.y/j.mass;aj.z-=fV.z/j.mass;}}}return acc;
  },
@@ -936,7 +945,7 @@ const Labs = {
                 const q=1e-6,m=1e20,d=1e7;
                 const a=new PhysicalBody("Q+","PLANET",m,1e5,new Vec3(-d/2,0,0),new Vec3(0,1e4,0));
                 const b=new PhysicalBody("Q-","PLANET",m,1e5,new Vec3(d/2,0,0),new Vec3(0,-1e4,0));
-                a.charge=q;b.charge=-q;Engine.objects.push(a,b);Engine.dt=1;Renderer.scale=1e-5;
+                a.charge=q;b.charge=-q;a.magneticField=new Vec3(0,0,1e-3);b.magneticField=new Vec3(0,0,1e-3);Engine.objects.push(a,b);Engine.dt=1;Renderer.scale=1e-5;
             }
             else if(labName === 'GRAVITY') {
                 info = "표준 N-Body 중력 (태양계 내부 근사).";
