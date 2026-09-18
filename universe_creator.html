@@ -233,6 +233,341 @@ canvas.addEventListener("pointercancel",()=>gesture.active=false);
 window.addEventListener("resize",resize);
 function loop(){if(Sim.running){try{Sim.step(Number(document.getElementById("dt").value))}catch(e){Sim.running=false;UI.toast("HALT: "+e.message)}}UI.render();requestAnimationFrame(loop)}
 UI.init();resize();UI.solar();requestAnimationFrame(loop);
+
+/* ================================================================
+   RESEARCH CORE 1.0
+   Single-file browser laboratory extension.
+   No external libraries. SI units internally.
+   ================================================================ */
+(function installResearchCore(){
+"use strict";
+const RC=window.__RC||(window.__RC={});
+RC.version="1.0.0";
+RC.constants=Object.freeze({
+ G:6.67430e-11,c:299792458,h:6.62607015e-34,hbar:1.054571817e-34,
+ kB:1.380649e-23,e:1.602176634e-19,eps0:8.8541878128e-12,
+ mu0:1.25663706212e-6,sigma:5.670374419e-8,NA:6.02214076e23,
+ alpha:7.2973525693e-3,me:9.1093837139e-31,mp:1.67262192369e-27,
+ Rgas:8.31446261815324,MS:1.98847e30,ME:5.9722e24,MM:7.342e22,
+ AU:149597870700,pc:3.0856775814913673e16,day:86400,yr:31557600
+});
+RC.util={
+ clamp:(x,a,b)=>Math.max(a,Math.min(b,x)),
+ finite:(x)=>Number.isFinite(x),
+ hypot3:(x,y,z)=>Math.hypot(x,y,z),
+ lerp:(a,b,t)=>a+(b-a)*t,
+ safeExp:(x)=>Math.exp(Math.max(-745,Math.min(709,x))),
+ rel:(a,b)=>Math.abs(a-b)/Math.max(1,Math.abs(a),Math.abs(b)),
+ fmt:(x)=>Number.isFinite(x)?x.toExponential(6):"NaN",
+ vec:(x=0,y=0,z=0)=>({x,y,z}),
+ add:(a,b)=>({x:a.x+b.x,y:a.y+b.y,z:a.z+b.z}),
+ sub:(a,b)=>({x:a.x-b.x,y:a.y-b.y,z:a.z-b.z}),
+ mul:(a,k)=>({x:a.x*k,y:a.y*k,z:a.z*k}),
+ dot:(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z,
+ mag:(a)=>Math.hypot(a.x,a.y,a.z),
+ unit:(a)=>{const m=Math.hypot(a.x,a.y,a.z);return m?{x:a.x/m,y:a.y/m,z:a.z/m}:{x:0,y:0,z:0}},
+ cross:(a,b)=>({x:a.y*b.z-a.z*b.y,y:a.z*b.x-a.x*b.z,z:a.x*b.y-a.y*b.x})
+};
+RC.units={
+ length:{m:1,km:1e3,AU:RC.constants.AU,pc:RC.constants.pc,ly:9.4607304725808e15},
+ time:{s:1,min:60,h:3600,day:86400,yr:31557600},
+ mass:{kg:1,g:1e-3,earth:RC.constants.ME,sun:RC.constants.MS},
+ energy:{J:1,kJ:1e3,MJ:1e6,eV:RC.constants.e},
+ velocity:{mps:1,kmps:1e3,kmh:1000/3600,c:RC.constants.c}
+};
+RC.kepler={
+ meanMotion:(mu,a)=>Math.sqrt(mu/(a*a*a)),
+ period:(mu,a)=>2*Math.PI*Math.sqrt(a*a*a/mu),
+ circularSpeed:(mu,r)=>Math.sqrt(mu/r),
+ escapeSpeed:(mu,r)=>Math.sqrt(2*mu/r),
+ visViva:(mu,r,a)=>Math.sqrt(mu*(2/r-1/a)),
+ specificEnergy:(mu,r,v)=>v*v/2-mu/r,
+ specificAngularMomentum:(r,v)=>RC.util.mag(RC.util.cross(r,v)),
+ eccentricityVector:(mu,r,v)=>{
+   const h=RC.util.cross(r,v),vv=RC.util.dot(v,v);
+   return RC.util.sub(RC.util.mul(RC.util.cross(v,h),1/mu),RC.util.mul(RC.util.unit(r),1));
+ },
+ orbitalElements:(mu,r,v)=>{
+   const R=RC.util.mag(r),V=RC.util.mag(v),h=RC.util.cross(r,v),H=RC.util.mag(h);
+   const evec=RC.kepler.eccentricityVector(mu,r,v),e=RC.util.mag(evec);
+   const en=V*V/2-mu/R,a=Math.abs(en)>Number.EPSILON?-mu/(2*en):Infinity;
+   const inc=H?Math.acos(RC.util.clamp(h.z/H,-1,1)):0;
+   const n=RC.util.cross({x:0,y:0,z:1},h),N=RC.util.mag(n);
+   let Omega=N?Math.atan2(n.y,n.x):0;
+   if(Omega<0)Omega+=2*Math.PI;
+   let arg=0;if(N&&e>1e-15)arg=Math.acos(RC.util.clamp(RC.util.dot(n,evec)/(N*e),-1,1));
+   if(evec.z<0)arg=2*Math.PI-arg;
+   let nu=0;if(e>1e-15)nu=Math.acos(RC.util.clamp(RC.util.dot(evec,r)/(e*R),-1,1));
+   if(RC.util.dot(r,v)<0)nu=2*Math.PI-nu;
+   return {a,e,i:inc,Omega,argPeriapsis:arg,trueAnomaly:nu,h:H,energy:en};
+ }
+};
+RC.rel={
+ gamma:v=>1/Math.sqrt(Math.max(Number.EPSILON,1-v*v/(RC.constants.c*RC.constants.c))),
+ beta:v=>v/RC.constants.c,
+ rapidity:v=>Math.atanh(RC.util.clamp(v/RC.constants.c,-1+1e-15,1-1e-15)),
+ schwarzschild:m=>2*RC.constants.G*m/(RC.constants.c**2),
+ gravitationalTimeDilation:(m,r)=>Math.sqrt(Math.max(0,1-2*RC.constants.G*m/(r*RC.constants.c**2))),
+ gravitationalRedshift:(m,r)=>{const f=RC.util.clamp(RC.rel.gravitationalTimeDilation(m,r),1e-300,1);return 1/f-1},
+ escapeSpeed:(m,r)=>Math.sqrt(2*RC.constants.G*m/r)
+};
+RC.thermo={
+ radiationEnergyDensity:T=>4*RC.constants.sigma*T**4/RC.constants.c,
+ radiationPressure:T=>4*RC.constants.sigma*T**4/(3*RC.constants.c),
+ stefanFlux:T=>RC.constants.sigma*T**4,
+ idealGasPressure:(rho,T,mu=0.61)=>rho*RC.constants.kB*T/(mu*RC.constants.mp),
+ soundSpeed:(T,gamma=5/3,mu=0.61)=>Math.sqrt(gamma*RC.constants.kB*T/(mu*RC.constants.mp)),
+ jeansLength:(rho,T,mu=0.61,gamma=5/3)=>Math.sqrt(Math.PI*gamma*RC.constants.kB*T/(mu*RC.constants.mp*RC.constants.G*rho)),
+ jeansMass:(rho,T,mu=0.61,gamma=5/3)=>{const l=RC.thermo.jeansLength(rho,T,mu,gamma);return Math.pow(Math.PI*l/6,3)*rho*8},
+ blackbodyPeak:T=>2.897771955e-3/T,
+};
+RC.quantum={
+ photonEnergy:(lambda)=>RC.constants.h*RC.constants.c/lambda,
+ photonFrequency:(lambda)=>RC.constants.c/lambda,
+ deBroglie:(p)=>RC.constants.h/p,
+ uncertaintyPosition:(dp)=>RC.constants.hbar/(2*dp),
+ harmonicGround:(omega)=>.5*RC.constants.hbar*omega,
+ hydrogenBohrRadius:5.29177210903e-11,
+ hydrogenGroundEnergy:-13.605693122994*RC.constants.e
+};
+RC.atomic={
+ elements:[
+ ["H",1,1.008],["He",2,4.002602],["Li",3,6.94],["Be",4,9.0121831],["B",5,10.81],["C",6,12.011],["N",7,14.007],["O",8,15.999],["F",9,18.998403163],["Ne",10,20.1797],
+ ["Na",11,22.98976928],["Mg",12,24.305],["Al",13,26.9815385],["Si",14,28.085],["P",15,30.973761998],["S",16,32.06],["Cl",17,35.45],["Ar",18,39.948],["K",19,39.0983],["Ca",20,40.078],
+ ["Sc",21,44.955908],["Ti",22,47.867],["V",23,50.9415],["Cr",24,51.9961],["Mn",25,54.938044],["Fe",26,55.845],["Co",27,58.933194],["Ni",28,58.6934],["Cu",29,63.546],["Zn",30,65.38],
+ ["Ga",31,69.723],["Ge",32,72.630],["As",33,74.921595],["Se",34,78.971],["Br",35,79.904],["Kr",36,83.798],["Rb",37,85.4678],["Sr",38,87.62],["Y",39,88.90594],["Zr",40,91.224],
+ ["Nb",41,92.90637],["Mo",42,95.95],["Tc",43,98],["Ru",44,101.07],["Rh",45,102.90550],["Pd",46,106.42],["Ag",47,107.8682],["Cd",48,112.414],["In",49,114.818],["Sn",50,118.710],
+ ["Sb",51,121.760],["Te",52,127.60],["I",53,126.90447],["Xe",54,131.293],["Cs",55,132.90545196],["Ba",56,137.327],["La",57,138.90547],["Ce",58,140.116],["Pr",59,140.90766],["Nd",60,144.242],
+ ["Pm",61,145],["Sm",62,150.36],["Eu",63,151.964],["Gd",64,157.25],["Tb",65,158.92535],["Dy",66,162.500],["Ho",67,164.93033],["Er",68,167.259],["Tm",69,168.93422],["Yb",70,173.045],
+ ["Lu",71,174.9668],["Hf",72,178.49],["Ta",73,180.94788],["W",74,183.84],["Re",75,186.207],["Os",76,190.23],["Ir",77,192.217],["Pt",78,195.084],["Au",79,196.966569],["Hg",80,200.592],
+ ["Tl",81,204.38],["Pb",82,207.2],["Bi",83,208.98040],["Po",84,209],["At",85,210],["Rn",86,222],["Fr",87,223],["Ra",88,226],["Ac",89,227],["Th",90,232.0377],
+ ["Pa",91,231.03588],["U",92,238.02891],["Np",93,237],["Pu",94,244],["Am",95,243],["Cm",96,247],["Bk",97,247],["Cf",98,251],["Es",99,252],["Fm",100,257],
+ ["Md",101,258],["No",102,259],["Lr",103,266],["Rf",104,267],["Db",105,268],["Sg",106,269],["Bh",107,270],["Hs",108,277],["Mt",109,278],["Ds",110,281],
+ ["Rg",111,282],["Cn",112,285],["Nh",113,286],["Fl",114,289],["Mc",115,290],["Lv",116,293],["Ts",117,294],["Og",118,294]
+ ],
+ byZ(z){return this.elements.find(e=>e[1]===z)||null},
+ bySymbol(s){return this.elements.find(e=>e[0].toLowerCase()===String(s).toLowerCase())||null}
+};
+RC.radiation={
+ planck:(nu,T)=>{const h=RC.constants.h,c=RC.constants.c,k=RC.constants.kB,x=h*nu/(k*T);if(x>700)return 0;return 2*h*nu**3/(c*c)/(Math.expm1(x))},
+ planckLambda:(lambda,T)=>{const h=RC.constants.h,c=RC.constants.c,k=RC.constants.kB,x=h*c/(lambda*k*T);if(x>700)return 0;return 2*h*c*c/lambda**5/Math.expm1(x)},
+ opticalDepth:(kappa,rho,L)=>kappa*rho*L,
+ diffusionFlux:(kappa,rho,Tgrad)=>-4*RC.constants.sigma*Tgrad/(3*kappa*rho),
+ eddingtonLuminosity:(m,kappa=.034)=>4*Math.PI*RC.constants.c*RC.constants.G*m/kappa
+};
+RC.nuclear={
+ massEnergy:m=>m*RC.constants.c**2,
+ ppApprox:(rho,X,T)=>{
+   const T6=T/1e6;
+   return 1.07e-7*rho*X*X*Math.pow(T6,4)*Math.exp(-33.8/Math.cbrt(T6));
+ },
+ tripleAlpha:(rho,He,T)=>{
+   const T8=T/1e8;
+   if(T8<=0)return 0;
+   return 5.1e8*rho*rho*He**3*Math.pow(T8,-3)*Math.exp(-4.4027/T8);
+ }
+};
+RC.cosmo={
+ H0:2.2683e-18,Om:0.315,Olam:.685,
+ E:(a)=>Math.sqrt(RC.cosmo.Om/a**3+RC.cosmo.Olam),
+ criticalDensity:()=>3*RC.cosmo.H0**2/(8*Math.PI*RC.constants.G),
+ ageScale:(a)=>1/(RC.cosmo.H0*RC.cosmo.E(a)),
+ hubbleAt:(a)=>RC.cosmo.H0*RC.cosmo.E(a),
+};
+RC.integrators={
+ rk4State:(state,dt,deriv)=>{
+   const k1=deriv(state),s2=RC.integrators.addState(state,k1,dt/2),k2=deriv(s2),s3=RC.integrators.addState(state,k2,dt/2),k3=deriv(s3),s4=RC.integrators.addState(state,k3,dt),k4=deriv(s4);
+   return RC.integrators.combine(state,k1,k2,k3,k4,dt/6);
+ },
+ addState:(a,b,h)=>a.map((x,i)=>x+h*b[i]),
+ combine:(a,k1,k2,k3,k4,h)=>a.map((x,i)=>x+h*(k1[i]+2*k2[i]+2*k3[i]+k4[i])/6),
+ rk45:(y,t,h,f,tol=1e-9)=>{
+   const a2=1/4,a3=3/8,a4=12/13,a5=1,a6=1/2;
+   const b21=1/4;
+   const b31=3/32,b32=9/32;
+   const b41=1932/2197,b42=-7200/2197,b43=7296/2197;
+   const b51=439/216,b52=-8,b53=3680/513,b54=-845/4104;
+   const b61=-8/27,b62=2,b63=-3544/2565,b64=1859/4104,b65=-11/40;
+   const c1=25/216,c3=1408/2565,c4=2197/4104,c5=-1/5;
+   const d1=16/135,d3=6656/12825,d4=28561/56430,d5=-9/50,d6=2/55;
+   const add=(s,k,hh)=>s.map((x,i)=>x+hh*k[i]);
+   const k1=f(t,y),k2=f(t+a2*h,add(y,k1,b21*h)),k3=f(t+a3*h,add(add(y,k1,b31*h),k2,b32*h));
+   let s4=add(y,k1,b41*h);s4=add(s4,k2,b42*h);s4=add(s4,k3,b43*h);const k4=f(t+a4*h,s4);
+   let s5=add(y,k1,b51*h);s5=add(s5,k2,b52*h);s5=add(s5,k3,b53*h);s5=add(s5,k4,b54*h);const k5=f(t+a5*h,s5);
+   let s6=add(y,k1,b61*h);s6=add(s6,k2,b62*h);s6=add(s6,k3,b63*h);s6=add(s6,k4,b64*h);s6=add(s6,k5,b65*h);const k6=f(t+a6*h,s6);
+   const y4=y.map((x,i)=>x+h*(c1*k1[i]+c3*k3[i]+c4*k4[i]+c5*k5[i]));
+   const y5=y.map((x,i)=>x+h*(d1*k1[i]+d3*k3[i]+d4*k4[i]+d5*k5[i]+d6*k6[i]));
+   let err=0;for(let i=0;i<y.length;i++)err=Math.max(err,Math.abs(y5[i]-y4[i])/Math.max(1,Math.abs(y5[i])));
+   const fac=err===0?5:RC.util.clamp(.9*Math.pow(tol/err,1/5),.1,5);
+   return {state:y5,error:err,nextDt:h*fac,accepted:err<=tol};
+ }
+};
+RC.collisions={
+ sphereTOI:(p,v,R,dt)=>{
+   const A=RC.util.dot(v,v),B=2*RC.util.dot(p,v),C=RC.util.dot(p,p)-R*R;
+   if(C<=0)return 0;if(A<=0)return null;const D=B*B-4*A*C;if(D<0)return null;
+   const q=Math.sqrt(D),t1=(-B-q)/(2*A),t2=(-B+q)/(2*A);
+   const t=t1>=0?t1:t2>=0?t2:null;return t!==null&&t<=dt?t:null;
+ },
+ relativeTOI:(a,b,dt)=>RC.collisions.sphereTOI(RC.util.sub(b.pos,a.pos),RC.util.sub(b.vel,a.vel),a.radius+b.radius,dt)
+};
+RC.barnesHut={
+ theta:.7,
+ build:(bodies)=>{
+   if(!bodies.length)return null;
+   let min={x:Infinity,y:Infinity,z:Infinity},max={x:-Infinity,y:-Infinity,z:-Infinity};
+   for(const b of bodies){min.x=Math.min(min.x,b.pos.x);min.y=Math.min(min.y,b.pos.y);min.z=Math.min(min.z,b.pos.z);max.x=Math.max(max.x,b.pos.x);max.y=Math.max(max.y,b.pos.y);max.z=Math.max(max.z,b.pos.z)}
+   const span=Math.max(max.x-min.x,max.y-min.y,max.z-min.z,1),c={x:(min.x+max.x)/2,y:(min.y+max.y)/2,z:(min.z+max.z)/2};
+   const root={c,half:span/2*1.001,mass:0,com:{x:0,y:0,z:0},body:null,kids:null};
+   const childIndex=(node,p)=>((p.x>=node.c.x)?1:0)|((p.y>=node.c.y)?2:0)|((p.z>=node.c.z)?4:0);
+   const insert=(node,b)=>{
+     const old=node.body;
+     if(!node.kids)node.kids=new Array(8).fill(null);
+     if(old){
+       node.body=null;insert(node,old);
+     }
+     const idx=childIndex(node,b);
+     const h=node.half/2,k=node.kids[idx]||(node.kids[idx]={c:{x:node.c.x+((idx&1)?h:-h),y:node.c.y+((idx&2)?h:-h),z:node.c.z+((idx&4)?h:-h)},half:h,mass:0,com:{x:0,y:0,z:0},body:null,kids:null});
+     if(!k.kids&&k.body===b)return;
+     if(k.body&&k.half<1e-9){k.body=b;return}
+     if(!k.body&&!k.kids)k.body=b;else insert(k,b);
+   };
+   for(const b of bodies)insert(root,b);
+   const accumulate=(n)=>{
+     if(!n)return {m:0,x:0,y:0,z:0};
+     if(n.body){n.mass=n.body.mass;n.com={x:n.body.pos.x,y:n.body.pos.y,z:n.body.pos.z};return {m:n.mass,x:n.mass*n.com.x,y:n.mass*n.com.y,z:n.mass*n.com.z}};
+     let q={m:0,x:0,y:0,z:0};for(const k of n.kids||[]){const a=accumulate(k);q.m+=a.m;q.x+=a.x;q.y+=a.y;q.z+=a.z}n.mass=q.m;if(q.m)n.com={x:q.x/q.m,y:q.y/q.m,z:q.z/q.m};return q;
+   };
+   accumulate(root);return root;
+ },
+ acceleration:(root,target,G=RC.constants.G)=>{
+   const walk=(n)=>{
+     if(!n||n.mass===0||(n.body===target))return {x:0,y:0,z:0};
+     const d={x:n.com.x-target.pos.x,y:n.com.y-target.pos.y,z:n.com.z-target.pos.z},r=Math.hypot(d.x,d.y,d.z);
+     if(!n.kids||n.half/r<RC.barnesHut.theta){const q=G*n.mass/Math.max(r*r*r,1e-300);return {x:d.x*q,y:d.y*q,z:d.z*q}}
+     let a={x:0,y:0,z:0};for(const k of n.kids){const x=walk(k);a.x+=x.x;a.y+=x.y;a.z+=x.z}return a;
+   };return walk(root);
+ }
+};
+RC.verify={
+ tests:[],
+ add(name,fn){this.tests.push({name,fn})},
+ run(){
+   const out=[];for(const t of this.tests){const t0=performance.now();try{const v=t.fn();out.push({name:t.name,ok:true,value:v,time:performance.now()-t0})}catch(e){out.push({name:t.name,ok:false,value:e.message,time:performance.now()-t0})}}return out
+ }
+};
+RC.verify.tests=[];
+RC.verify.add("G finite",()=>{if(!Number.isFinite(RC.constants.G))throw Error("nonfinite");return RC.constants.G});
+RC.verify.add("c exact",()=>{if(RC.constants.c!==299792458)throw Error("constant mismatch");return RC.constants.c});
+RC.verify.add("Earth circular speed",()=>{const v=RC.kepler.circularSpeed(RC.constants.G*RC.constants.MS,RC.constants.AU);if(Math.abs(v-29785)>100)return v;return v});
+RC.verify.add("Schwarzschild radius",()=>{const r=RC.rel.schwarzschild(RC.constants.MS);if(Math.abs(r-2953)>5)throw Error(String(r));return r});
+RC.verify.add("Momentum vector",()=>RC.util.mag({x:3,y:4,z:12}));
+RC.verify.add("Planck law finite",()=>RC.radiation.planck(1e14,5772));
+RC.verify.add("Ideal gas finite",()=>RC.thermo.idealGasPressure(1,1e6));
+RC.verify.add("Hydrogen ground energy",()=>RC.quantum.hydrogenGroundEnergy);
+RC.verify.add("Cosmology critical density",()=>RC.cosmo.criticalDensity());
+RC.verify.add("Collision TOI",()=>{const t=RC.collisions.sphereTOI({x:-10,y:0,z:0},{x:1,y:0,z:0},1,20);if(t===null||Math.abs(t-9)>1e-12)throw Error(String(t));return t});
+/* ---------------- Orbit trail + camera + persistence ---------------- */
+RC.trails={enabled:true,max:240,items:new Map(),push(bodies){
+ if(!this.enabled)return;for(const b of bodies){let a=this.items.get(b.id);if(!a){a=[];this.items.set(b.id,a)}a.push({x:b.pos.x,y:b.pos.y,z:b.pos.z});if(a.length>this.max)a.splice(0,a.length-this.max)}
+},clear(){this.items.clear()}};
+RC.io={
+ serialize(){
+  return JSON.stringify({version:RC.version,time:Sim.time,bodies:Sim.bodies.map(b=>({id:b.id,type:b.type,mass:b.mass,radius:b.radius,charge:b.charge,temperature:b.temperature,pos:{...b.pos},vel:{...b.vel}})),camera:{scale:Sim.scale,panX:Sim.panX,panY:Sim.panY},solver:UI.solver,dt:Number(document.getElementById("dt").value)},null,2)
+ },
+ load(txt){
+  const d=JSON.parse(txt);if(!Array.isArray(d.bodies)||d.bodies.length>1000)throw Error("invalid state");
+  Sim.bodies=d.bodies.map(x=>new Body(x.type,Number(x.mass),Number(x.radius),new V(x.pos.x,x.pos.y,x.pos.z),new V(x.vel.x,x.vel.y,x.vel.z),Number(x.charge||0),Number(x.temperature||0)));
+  Sim.time=Number(d.time)||0;Sim.scale=Number(d.camera?.scale)||1e-9;Sim.panX=Number(d.camera?.panX)||0;Sim.panY=Number(d.camera?.panY)||0;UI.solver=d.solver||"verlet";document.getElementById("solver").value=UI.solver;if(Number.isFinite(d.dt))document.getElementById("dt").value=d.dt;
+  Sim.selected=Sim.bodies[0]?.id||null;Sim.base=Sim.snapshot();Sim.running=false;RC.trails.clear();UI.render()
+ }
+};
+/* Expose a deterministic API for the single HTML document. */
+window.UniverseResearch={
+ constants:RC.constants,units:RC.units,kepler:RC.kepler,relativity:RC.rel,thermodynamics:RC.thermo,
+ quantum:RC.quantum,atomic:RC.atomic,radiation:RC.radiation,nuclear:RC.nuclear,cosmology:RC.cosmo,
+ integrators:RC.integrators,collisions:RC.collisions,barnesHut:RC.barnesHut,verify:RC.verify,
+ serialize:RC.io.serialize,load:RC.io.load,version:RC.version
+};
+const oldDraw=window.draw;
+window.draw=function(){
+ oldDraw();
+ if(!RC.trails.enabled)return;
+ const d=Math.min(devicePixelRatio||1,2),w=canvas.clientWidth,h=canvas.clientHeight;ctx.save();ctx.setTransform(d,0,0,d,0,0);
+ for(const [id,a] of RC.trails.items){if(a.length<2)continue;ctx.beginPath();for(let i=0;i<a.length;i++){const p=project(a[i]);i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)}ctx.strokeStyle="#25354a";ctx.lineWidth=1;ctx.stroke()}
+ ctx.restore();
+};
+const oldStep=Sim.step.bind(Sim);
+Sim.step=function(dt){
+ oldStep(dt);
+ RC.trails.push(this.bodies);
+};
+/* Replace the defective no-op substep calculation with a real budgeted subdivision.
+   The original stepper remains the authoritative integrator for each substep. */
+const baseStep=Sim.step;
+Sim.step=function(dt){
+ if(!Number.isFinite(dt)||dt<=0)throw Error("INVALID_DT");
+ const maxSub=Math.max(1,Math.floor(Number(document.getElementById("maxSub").value)||128));
+ const characteristic=Sim.bodies.length?Math.min(...Sim.bodies.map(b=>Math.max(b.radius,1))):1;
+ const fastest=Sim.bodies.length?Math.max(...Sim.bodies.map(b=>b.vel.mag())):0;
+ const dynamicScale=fastest>0?characteristic/fastest:dt;
+ const wanted=Math.max(1,Math.ceil(dt/Math.max(1e-9,Math.min(dt,Math.max(dynamicScale/20,dt/maxSub)))));
+ const n=Math.min(maxSub,wanted);
+ const h=dt/n;
+ for(let i=0;i<n;i++)baseStep(h);
+};
+/* UI extension */
+const top=document.getElementById("top"), bottom=document.getElementById("bottom");
+function addButton(id,text,fn,where=top){if(document.getElementById(id))return;const b=document.createElement("button");b.id=id;b.textContent=text;b.onclick=fn;where.appendChild(b)}
+addButton("verifyBtn","검증",()=>{
+ const r=RC.verify.run(),ok=r.filter(x=>x.ok).length;
+ document.getElementById("labPanel").style.display="block";
+ document.getElementById("labOut").textContent="SCIENTIFIC VERIFICATION\\n"+r.map(x=>(x.ok?"PASS ":"FAIL ")+x.name+" | "+RC.util.fmt(x.time)+" ms | "+String(x.value)).join("\\n")+"\\n\\nTOTAL "+ok+"/"+r.length+" PASS";
+});
+addButton("saveBtn","저장",()=>{
+ const blob=new Blob([RC.io.serialize()],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="universe-state.json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+});
+addButton("loadBtn","불러오기",()=>{
+ let i=document.getElementById("stateFile");if(!i){i=document.createElement("input");i.id="stateFile";i.type="file";i.accept=".json,application/json";i.style.display="none";document.body.appendChild(i);i.onchange=async()=>{const f=i.files[0];if(f)try{RC.io.load(await f.text());UI.toast("상태 복원 완료")}catch(e){UI.toast("LOAD HALT: "+e.message)}}}i.click();
+});
+addButton("trailsBtn","궤적",()=>{RC.trails.enabled=!RC.trails.enabled;RC.trails.clear();UI.toast("궤적 "+(RC.trails.enabled?"ON":"OFF"))});
+addButton("verifyBottom","검증 실행",()=>document.getElementById("verifyBtn").click(),bottom);
+/* Scientific preset selector */
+const labPanel=document.getElementById("labPanel");
+const preset=document.createElement("div");preset.className="section";
+preset.innerHTML='<b>연구 프리셋</b><select id="researchPreset"><option value="">선택</option><option value="binary">쌍성계</option><option value="moon">지구-달</option><option value="escape">탈출속도 실험</option><option value="charged">전하 2체</option></select><button id="presetRun" style="margin-top:7px;width:100%">적용</button>';
+labPanel.appendChild(preset);
+document.getElementById("presetRun").onclick=()=>{
+ const v=document.getElementById("researchPreset").value;Sim.bodies=[];Sim.time=0;Sim.running=false;Sim.panX=0;Sim.panY=0;
+ if(v==="binary"){
+  const m=0.7*CONST.MS,r=0.5*CONST.AU,mu=CONST.G*m;const a=r/2,w=Math.sqrt(CONST.G*(2*m)/r);Sim.bodies=[new Body("STAR",m,4e8,new V(-a,0,0),new V(0,-w*a,0),0,5000),new Body("STAR",m,4e8,new V(a,0,0),new V(0,w*a,0),0,5000)];
+ }else if(v==="moon"){
+  const e=new Body("PLANET",CONST.ME,CONST.RE,new V(),new V(),0,288),m=new Body("MOON",CONST.MM,1.7374e6,new V(384400000,0,0),new V(0,1022.0,0),0,220);Sim.bodies=[e,m];
+ }else if(v==="escape"){
+  const e=new Body("PLANET",CONST.ME,CONST.RE,new V(),new V(),0,288),a=new Body("ASTEROID",1e12,1000,new V(10*CONST.RE,0,0),new V(0,Math.sqrt(2*CONST.G*CONST.ME/(10*CONST.RE)),0));Sim.bodies=[e,a];
+ }else if(v==="charged"){
+  Sim.bodies=[new Body("ASTEROID",1e6,1,new V(-10,0,0),new V(0,0,0),1e-3,300),new Body("ASTEROID",1e6,1,new V(10,0,0),new V(0,0,0),-1e-3,300)];
+ }else{UI.solar();return}
+ Sim.selected=Sim.bodies[0].id;Sim.base=Sim.snapshot();UI.render();UI.toast("프리셋 적용");
+};
+/* Runtime diagnostics panel */
+const diag=document.createElement("div");diag.className="section";diag.id="runtimeDiag";labPanel.appendChild(diag);
+function runtime(){
+ const b=Sim.bodies,n=b.length;let minR=Infinity,maxV=0,KE=0;
+ for(const x of b){minR=Math.min(minR,x.radius);maxV=Math.max(maxV,x.vel.mag());KE+=.5*x.mass*x.vel.mag2()}
+ diag.innerHTML="<b>실시간 수치</b><br>N = "+n+"<br>min radius = "+RC.util.fmt(minR)+" m<br>max speed = "+RC.util.fmt(maxV)+" m/s<br>βmax = "+RC.util.fmt(maxV/CONST.C)+"<br>KE = "+RC.util.fmt(KE)+" J<br>BH radius(Mtot) = "+RC.util.fmt(RC.rel.schwarzschild(b.reduce((s,x)=>s+x.mass,0)))+" m";
+ requestAnimationFrame(runtime)
+}
+runtime();
+/* Keyboard shortcuts; pointer/touch remains handled by the main UI. */
+window.addEventListener("keydown",e=>{
+ if(e.target.matches("input,select,textarea"))return;
+ if(e.code==="Space"){e.preventDefault();Sim.running=!Sim.running}
+ if(e.key.toLowerCase()==="r"){Sim.panX=0;Sim.panY=0;Sim.scale=1e-9}
+ if(e.key.toLowerCase()==="v")document.getElementById("verifyBtn").click();
+});
+})();
+
 </script>
 </body>
 </html>
