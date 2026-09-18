@@ -16,18 +16,17 @@ const QuantumEngine={
     },
     eigenvalues1D(V,dx,m,count=4){
         const N=V.length;if(N<4||!(dx>0&&m>0)||!V.every(Number.isFinite))throw new Error("Invalid eigenvalue problem");
-        const n=N-2,kappa=PhysicsConstants.h_bar**2/(2*m*dx**2);
-        const A=Array.from({length:n},(_,i)=>{const row=new Float64Array(n);row[i]=2*kappa+V[i+1];if(i)row[i-1]=-kappa;if(i<n-1)row[i+1]=-kappa;return row});
-        const maxIter=30*n*n,tol=1e-12;
-        for(let iter=0;iter<maxIter;iter++){
-            let p=0,q=1,max=0;
-            for(let i=0;i<n;i++)for(let j=i+1;j<n;j++){const v=Math.abs(A[i][j]);if(v>max){max=v;p=i;q=j}}
-            if(max<tol*Math.max(1,Math.max(...A.map((r,i)=>Math.abs(r[i])))))break;
-            const phi=.5*Math.atan2(2*A[p][q],A[q][q]-A[p][p]),c=Math.cos(phi),s=Math.sin(phi);
-            for(let i=0;i<n;i++){if(i===p||i===q)continue;const aip=A[i][p],aiq=A[i][q];A[i][p]=A[p][i]=c*aip-s*aiq;A[i][q]=A[q][i]=s*aip+c*aiq}
-            const app=A[p][p],aqq=A[q][q],apq=A[p][q];A[p][p]=c*c*app-2*s*c*apq+s*s*aqq;A[q][q]=s*s*app+2*s*c*apq+c*c*aqq;A[p][q]=A[q][p]=0;
+        const n=N-2,k=PhysicsConstants.h_bar**2/(2*m*dx**2),diag=new Float64Array(n),off=-k;
+        let lo=Infinity,hi=-Infinity;
+        for(let i=0;i<n;i++){diag[i]=2*k+V[i+1];lo=Math.min(lo,diag[i]-Math.abs(off));hi=Math.max(hi,diag[i]+Math.abs(off))}
+        const sturm=(x)=>{let count=0,p=1;for(let i=0;i<n;i++){const q=diag[i]-x-(i?p===0?1e-300:(off*off)/p:0);if(q<0)count++;p=q}return count};
+        const out=[];
+        for(let target=1;target<=Math.min(count,n);target++){
+            let a=lo,b=hi;
+            for(let iter=0;iter<90;iter++){const mid=.5*(a+b);if(sturm(mid)>=target)b=mid;else a=mid}
+            out.push(.5*(a+b));
         }
-        return Array.from(A,(r,i)=>r[i]).sort((a,b)=>a-b).slice(0,Math.min(count,n));
+        return out;
     },
     tunnelingTransmission(V,dx,m,energy){
         const E=energy,k=PhysicsConstants.h_bar,k2=2*m*(E-Math.max(...V));if(!(E>=Math.min(...V)))throw new Error("Energy below potential domain");
