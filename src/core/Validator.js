@@ -1,114 +1,28 @@
-const Validator = {
-    _assert(name, condition, metrics) {
-        return {name, status: condition ? "PASS" : "FAIL", ...metrics};
+const Validator={
+    _assert(name,condition,metrics){return{name,status:condition?"PASS":"FAIL",...metrics};},
+    _twoBody(dt,periods){
+        const M=PhysicsConstants.M_sun,m=PhysicsConstants.M_earth,r=PhysicsConstants.AU,mu=PhysicsConstants.G*(M+m),n=Math.sqrt(mu/r**3),T=2*Math.PI/n,vc=Math.sqrt(mu/r);
+        const comR=r*m/(M+m),comV=vc*m/(M+m),A=new PhysicalBody("S","STAR",M,6.96e8,new Vec3(-comR,0,0),new Vec3(0,-comV,0)),B=new PhysicalBody("P","PLANET",m,6.371e6,new Vec3(r-comR,0,0),new Vec3(0,vc-comV,0)),objects=[A,B];
+        const steps=Math.ceil(periods*T/dt),initialE=Diagnostics.getKineticEnergy(objects)+Diagnostics.getPotentialEnergy(objects),initialP=Diagnostics.getTotalMomentum(objects),pScale=M*vc+m*vc;
+        for(let k=0;k<steps;k++)Integrators.verlet(objects,dt,obs=>GravityEngine.computeAccelerations(obs,false));
+        const finalE=Diagnostics.getKineticEnergy(objects)+Diagnostics.getPotentialEnergy(objects),finalP=Diagnostics.getTotalMomentum(objects),rel=objects[1].pos.sub(objects[0].pos);
+        return{T,initialE,finalE,initialP,finalP,energyError:Math.abs((finalE-initialE)/initialE),momentumError:finalP.sub(initialP).mag()/pScale,radiusError:Math.abs(rel.mag()-r)/r};
     },
-
-    _twoBody(dt, periods) {
-        const M=PhysicsConstants.M_sun, m=PhysicsConstants.M_earth, r=PhysicsConstants.AU;
-        const mu=PhysicsConstants.G*(M+m), n=Math.sqrt(mu/r**3), T=2*Math.PI/n;
-        const vc=Math.sqrt(mu/r);
-        const comR=r*m/(M+m), comV=vc*m/(M+m);
-        const A=new PhysicalBody("S","STAR",M,6.96e8,new Vec3(-comR,0,0),new Vec3(0,-comV,0));
-        const B=new PhysicalBody("P","PLANET",m,6.371e6,new Vec3(r-comR,0,0),new Vec3(0,vc-comV,0));
-        const objects=[A,B];
-        const steps=Math.ceil(periods*T/dt);
-        const initialE=Diagnostics.getKineticEnergy(objects)+Diagnostics.getPotentialEnergy(objects);
-        const initialP=Diagnostics.getTotalMomentum(objects);
-        for(let k=0;k<steps;k++) Integrators.verlet(objects,dt,obs=>GravityEngine.computeAccelerations(obs,false));
-        const finalE=Diagnostics.getKineticEnergy(objects)+Diagnostics.getPotentialEnergy(objects);
-        const finalP=Diagnostics.getTotalMomentum(objects);
-        const rel=objects[1].pos.sub(objects[0].pos);
-        const phaseError=Math.abs(rel.mag()-r)/r;
-        return {T, initialE, finalE, initialP, finalP, energyError:Math.abs((finalE-initialE)/initialE), momentumError:finalP.sub(initialP).mag()/Math.max(initialP.mag(),1), radiusError:phaseError};
-    },
-
-    tests: [
-        {name:"Kepler two-body: 10-period radius stability", run(){
-            const x=Validator._twoBody(1800,10);
-            return Validator._assert(this.name,x.radiusError<2e-3,{error:x.radiusError,tolerance:"<2e-3"});
-        }},
-        {name:"Kepler timestep convergence", run(){
-            const a=Validator._twoBody(3600,2), b=Validator._twoBody(1800,2);
-            const ratio=Math.abs(b.radiusError-a.radiusError)/Math.max(a.radiusError,1e-15);
-            return Validator._assert(this.name,b.radiusError<a.radiusError*1.25+1e-8,{error:ratio,tolerance:"refinement must not materially worsen error"});
-        }},
-        {name:"Linear momentum conservation", run(){
-            const x=Validator._twoBody(3600,10);
-            return Validator._assert(this.name,x.momentumError<1e-12,{error:x.momentumError,tolerance:"<1e-12"});
-        }},
-        {name:"Mechanical energy conservation", run(){
-            const x=Validator._twoBody(3600,10);
-            return Validator._assert(this.name,x.energyError<1e-5,{error:x.energyError,tolerance:"<1e-5"});
-        }},
-        {name:"Collision merger linear + angular momentum", run(){
-            const a=new PhysicalBody("a","PLANET",1e10,10,new Vec3(-8,0,0),new Vec3(0,-2,0));
-            const b=new PhysicalBody("b","PLANET",2e10,10,new Vec3(8,0,0),new Vec3(0,1,0));
-            const p0=a.vel.mult(a.mass).add(b.vel.mult(b.mass));
-            const L0=a.pos.cross(a.vel.mult(a.mass)).add(b.pos.cross(b.vel.mult(b.mass)));
-            const o=[a,b]; CollisionEngine.checkAndResolve(o);
-            const p1=o[0].vel.mult(o[0].mass);
-            const L1=o[0].pos.cross(o[0].vel.mult(o[0].mass)).add(o[0].spin.mult((2/5)*o[0].mass*o[0].radius**2));
-            const pe=p1.sub(p0).mag()/Math.max(p0.mag(),1);
-            const le=L1.sub(L0).mag()/Math.max(L0.mag(),1);
-            return Validator._assert(this.name,pe<1e-14&&le<1e-12,{error:Math.max(pe,le),tolerance:"linear <1e-14, angular <1e-12"});
-        }},
-        {name:"Barnes-Hut deterministic convergence", run(){
-            const make=[];
-            for(let i=0;i<128;i++){
-                const a=2*Math.PI*i/128, r=1e10*(1+0.25*Math.sin(3*a));
-                make.push(new PhysicalBody(String(i),"PLANET",1e20,1e5,new Vec3(r*Math.cos(a),r*Math.sin(a),0),new Vec3()));
-            }
-            const direct=GravityEngine.computeAccelerations(make,false);
-            const bh=GravityEngine.computeAccelerations(make,true);
-            let max=0;
-            for(let i=0;i<make.length;i++) max=Math.max(max,bh[i].sub(direct[i]).mag()/Math.max(direct[i].mag(),1e-300));
-            return Validator._assert(this.name,max<0.03,{error:max,tolerance:"<3%"});
-        }},
-        {name:"Quantum Crank-Nicolson norm conservation", run(){
-            const V=new Float64Array(128);
-            const q=QuantumEngine.solve1DSchrodinger(V,1e-10,1e-20,100,9.1093837015e-31);
-            return Validator._assert(this.name,Math.abs(q.norm-1)<1e-10,{error:Math.abs(q.norm-1),tolerance:"<1e-10"});
-        }},
-
-        {name:"MHD conserved-state finite-volume step", run(){
-            const Bx=1e-3,U=[];for(let i=0;i<32;i++){const rho=i<16?1:.8,p=i<16?1:.8,By=1e-3,E=p/(5/3-1)+.5*(Bx*Bx+By*By)/PhysicsConstants.mu_0;U.push([rho,0,0,0,E,By,0]);}
-            const out=MHD1D.step(U,1,1e-4,Bx),finite=out.flat().every(Number.isFinite)&&out.every(u=>u[0]>0);
-            return Validator._assert(this.name,finite,{error:finite?0:1,tolerance:"all finite, rho>0"});
-        }},
-        {name:"Radiation optical-depth positivity", run(){const tau=RadiationTransport.opticalDepth(.34,1e-4,1e7);return Validator._assert(this.name,tau>=0,{error:tau,tolerance:">=0"});}},
-        {name:"Schwarzschild redshift analytic check", run(){const M=PhysicsConstants.M_sun,r=10*GRGeodesic.schwarzschildRadius(M),z=1/GRGeodesic.redshiftFactor(r,M)-1,expected=1/Math.sqrt(.9)-1;return Validator._assert(this.name,Math.abs(z-expected)<1e-14,{error:Math.abs(z-expected),tolerance:"<1e-14"});}},        {name:"Cosmology matter-only analytic scaling", run(){
-            const H0=PhysicsConstants.H0_s, history=CosmologyEngine.solveFriedmann(H0,1,0,0,PhysicsConstants.yr*1e9,PhysicsConstants.yr*1e7,1);
-            const t=history[history.length-1].t, a=history[history.length-1].a;
-            const expected=Math.pow(1+1.5*H0*t,2/3);
-            const e=Math.abs(a-expected)/Math.max(Math.abs(expected),1e-300);
-            return Validator._assert(this.name,e<2e-5,{error:e,tolerance:"<2e-5"});
-        }},
-        {name:"Radiation diffusion manufactured linear profile", run(){
-            const T=new Float64Array([100,200,300,400]),rho=new Float64Array(4).fill(1),k=new Float64Array(4).fill(1);
-            const out=RadiationTransport.stepGreyDiffusion(T,rho,k,1,1e-6);
-            const e=Math.max(...out.map((v,i)=>Math.abs(v-T[i])));
-            return Validator._assert(this.name,e<1e-8,{error:e,tolerance:"<1e-8"});
-        }},
-        {name:"Stellar hydrostatic profile finite", run(){
-            const m=StellarStructure.integrate({rho_c:1.6e5,T_c:1.5e7,Mmax:PhysicsConstants.M_sun,dm:PhysicsConstants.M_sun/2000});
-            const finite=m.profile.length>10&&m.profile.every(x=>[x.m,x.r,x.rho,x.T,x.P].every(Number.isFinite)&&x.r>0&&x.rho>0&&x.T>0);
-            return Validator._assert(this.name,finite,{error:finite?0:1,tolerance:"all profile state finite and positive"});
-        }},
-        {name:"SPH density symmetry", run(){
-            const a=new PhysicalBody("a","GAS_CLOUD",1,1,new Vec3(-1,0,0),new Vec3());
-            const b=new PhysicalBody("b","GAS_CLOUD",1,1,new Vec3(1,0,0),new Vec3());
-            FluidEngine.h=4; FluidEngine.computeState([a,b]);
-            const e=Math.abs(a.sph_density-b.sph_density)/Math.max(a.sph_density,b.sph_density);
-            return Validator._assert(this.name,e<1e-14,{error:e,tolerance:"<1e-14"});
-        }}
+    tests:[
+        {name:"Kepler two-body: 10-period radius stability",run(){const x=Validator._twoBody(1800,10);return Validator._assert(this.name,x.radiusError<2e-3,{error:x.radiusError,tolerance:"<2e-3"});}},
+        {name:"Kepler timestep convergence",run(){const a=Validator._twoBody(3600,2),b=Validator._twoBody(1800,2);const ratio=Math.abs(b.radiusError-a.radiusError)/Math.max(a.radiusError,1e-15);return Validator._assert(this.name,b.radiusError<a.radiusError*1.25+1e-8,{error:ratio,tolerance:"refinement must not materially worsen error"});}},
+        {name:"Linear momentum conservation",run(){const x=Validator._twoBody(3600,10);return Validator._assert(this.name,x.momentumError<1e-12,{error:x.momentumError,tolerance:"<1e-12"});}},
+        {name:"Mechanical energy conservation",run(){const x=Validator._twoBody(3600,10);return Validator._assert(this.name,x.energyError<1e-5,{error:x.energyError,tolerance:"<1e-5"});}},
+        {name:"Collision merger linear + angular momentum",run(){const a=new PhysicalBody("a","PLANET",1e10,10,new Vec3(-8,0,0),new Vec3(0,-2,0)),b=new PhysicalBody("b","PLANET",2e10,10,new Vec3(8,0,0),new Vec3(0,1,0)),p0=a.vel.mult(a.mass).add(b.vel.mult(b.mass)),L0=a.pos.cross(a.vel.mult(a.mass)).add(b.pos.cross(b.vel.mult(b.mass))),o=[a,b];CollisionEngine.checkAndResolve(o);const p1=o[0].vel.mult(o[0].mass),L1=o[0].pos.cross(p1).add(o[0].spin.mult((2/5)*o[0].mass*o[0].radius**2)),pe=p1.sub(p0).mag()/Math.max(p0.mag(),1),le=L1.sub(L0).mag()/Math.max(L0.mag(),1);return Validator._assert(this.name,pe<1e-14&&le<1e-12,{error:Math.max(pe,le),tolerance:"linear <1e-14, angular <1e-12"});}},
+        {name:"Barnes-Hut deterministic convergence",run(){const make=[];for(let i=0;i<128;i++){const a=2*Math.PI*i/128,r=1e10*(1+.25*Math.sin(3*a));make.push(new PhysicalBody(String(i),"PLANET",1e20,1e5,new Vec3(r*Math.cos(a),r*Math.sin(a),0),new Vec3()));}const direct=GravityEngine.computeAccelerations(make,false),bh=GravityEngine.computeAccelerations(make,true);let max=0;for(let i=0;i<make.length;i++)max=Math.max(max,bh[i].sub(direct[i]).mag()/Math.max(direct[i].mag(),1e-300));return Validator._assert(this.name,max<.03,{error:max,tolerance:"<3%"});}},
+        {name:"Quantum Crank-Nicolson norm conservation",run(){const V=new Float64Array(128),q=QuantumEngine.solve1DSchrodinger(V,1e-10,1e-20,100,9.1093837015e-31);return Validator._assert(this.name,Math.abs(q.norm-1)<1e-10,{error:Math.abs(q.norm-1),tolerance:"<1e-10"});}},
+        {name:"MHD CFL + conserved-state finite-volume step",run(){const Bx=1e-3,U=[];for(let i=0;i<32;i++){const rho=i<16?1:.8,p=i<16?1:.8,By=1e-3,E=p/(5/3-1)+.5*(Bx*Bx+By*By)/PhysicsConstants.mu_0;U.push([rho,0,0,0,E,By,0]);}const maxDt=MHD1D.cflDt(U,1,Bx),out=MHD1D.step(U,1,.25*maxDt,Bx),finite=out.flat().every(Number.isFinite)&&out.every(u=>u[0]>0);return Validator._assert(this.name,finite,{error:finite?0:1,tolerance:"CFL-respecting, finite, rho>0"});}},
+        {name:"Radiation optical-depth positivity",run(){const tau=RadiationTransport.opticalDepth(.34,1e-4,1e7);return Validator._assert(this.name,tau>=0,{error:tau,tolerance:">=0"});}},
+        {name:"Schwarzschild redshift analytic check",run(){const M=PhysicsConstants.M_sun,r=10*GRGeodesic.schwarzschildRadius(M),z=1/GRGeodesic.redshiftFactor(r,M)-1,expected=1/Math.sqrt(.9)-1;return Validator._assert(this.name,Math.abs(z-expected)<1e-14,{error:Math.abs(z-expected),tolerance:"<1e-14"});}},
+        {name:"Cosmology matter-only analytic scaling",run(){const H0=PhysicsConstants.H0_s,history=CosmologyEngine.solveFriedmann(H0,1,0,0,PhysicsConstants.yr*1e9,PhysicsConstants.yr*1e7,1),t=history[history.length-1].t,a=history[history.length-1].a,expected=Math.pow(1+1.5*H0*t,2/3),e=Math.abs(a-expected)/Math.max(Math.abs(expected),1e-300);return Validator._assert(this.name,e<2e-5,{error:e,tolerance:"<2e-5"});}},
+        {name:"Radiation diffusion manufactured linear profile",run(){const T=new Float64Array([100,200,300,400]),rho=new Float64Array(4).fill(1),k=new Float64Array(4).fill(1),out=RadiationTransport.stepGreyDiffusion(T,rho,k,1,1e-6),e=Math.max(...out.map((v,i)=>Math.abs(v-T[i])));return Validator._assert(this.name,e<1e-8,{error:e,tolerance:"<1e-8"});}},
+        {name:"Stellar hydrostatic profile finite",run(){const m=StellarStructure.integrate({rho_c:1.6e5,T_c:1.5e7,Mmax:PhysicsConstants.M_sun,dm:PhysicsConstants.M_sun/2000}),finite=m.profile.length>10&&m.profile.every(x=>[x.m,x.r,x.rho,x.T,x.P].every(Number.isFinite)&&x.r>0&&x.rho>0&&x.T>0);return Validator._assert(this.name,finite,{error:finite?0:1,tolerance:"all profile state finite and positive"});}},
+        {name:"SPH density symmetry",run(){const a=new PhysicalBody("a","GAS_CLOUD",1,1,new Vec3(-1,0,0),new Vec3()),b=new PhysicalBody("b","GAS_CLOUD",1,1,new Vec3(1,0,0),new Vec3());FluidEngine.h=4;FluidEngine.computeState([a,b]);const e=Math.abs(a.sph_density-b.sph_density)/Math.max(a.sph_density,b.sph_density);return Validator._assert(this.name,e<1e-14,{error:e,tolerance:"<1e-14"});}}
     ],
-
-    runAllTests(returnResults=false){
-        const results=[];
-        for(const test of this.tests){
-            try{results.push(test.run());}
-            catch(e){results.push({name:test.name,status:"FAIL",error:Infinity,tolerance:"exception: "+e.message});}
-        }
-        return returnResults?results:results.every(r=>r.status==="PASS");
-    }
+    runAllTests(returnResults=false){const results=[];for(const test of this.tests){try{results.push(test.run())}catch(e){results.push({name:test.name,status:"FAIL",error:Infinity,tolerance:"exception: "+e.message})}}return returnResults?results:results.every(r=>r.status==="PASS");}
 };
