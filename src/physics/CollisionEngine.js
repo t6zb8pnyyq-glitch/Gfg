@@ -1,48 +1,55 @@
 const CollisionEngine = {
-        checkAndResolve: function(objects) {
-            let toRemove = []; let newObjects = [];
-            for(let i=0; i<objects.length; i++) {
-                if(toRemove.includes(i)) continue;
-                for(let j=i+1; j<objects.length; j++) {
-                    if(toRemove.includes(j)) continue;
-                    let objA = objects[i]; let objB = objects[j];
-                    let rVec = objB.pos.sub(objA.pos);
-                    let dist = rVec.mag();
-                    if(dist < (objA.radius + objB.radius)) {
-                        let newMass = objA.mass + objB.mass;
-                        let newPos = (objA.pos.mult(objA.mass).add(objB.pos.mult(objB.mass))).div(newMass);
-                        let newVel = (objA.vel.mult(objA.mass).add(objB.vel.mult(objB.mass))).div(newMass);
-                        let newRadius = Math.pow(Math.pow(objA.radius, 3) + Math.pow(objB.radius, 3), 1/3);
+    checkAndResolve(objects) {
+        const consumed = new Set();
+        const mergedBodies = [];
 
+        for(let i=0;i<objects.length;i++){
+            if(consumed.has(i)) continue;
+            for(let j=i+1;j<objects.length;j++){
+                if(consumed.has(j)) continue;
+                const a=objects[i], b=objects[j];
+                const d=a.pos.sub(b.pos).mag();
+                if(!(d < a.radius+b.radius)) continue;
 
-                        // Determine type based on mass hierarchy
-                        let type = objA.mass > objB.mass ? objA.type : objB.type;
-                        if(type !== "BLACK_HOLE" && newMass > 3.0 * PhysicsConstants.M_sun) type = "BLACK_HOLE";
-                        else if(type === "PLANET" && newMass > 0.08 * PhysicsConstants.M_sun) type = "STAR";
+                const M=a.mass+b.mass;
+                const pos=a.pos.mult(a.mass).add(b.pos.mult(b.mass)).div(M);
+                const vel=a.vel.mult(a.mass).add(b.vel.mult(b.mass)).div(M);
+                const R=Math.cbrt(a.radius**3+b.radius**3);
 
-                        let merged = new PhysicalBody(Date.now()+"_merged", type, newMass, newRadius, newPos, newVel);
+                let type=a.mass>=b.mass?a.type:b.type;
+                if(type!=="BLACK_HOLE" && M>3*PhysicsConstants.M_sun) type="BLACK_HOLE";
+                else if(type==="PLANET" && M>0.08*PhysicsConstants.M_sun) type="STAR";
 
-                        // Conservation of internal energy and thermodynamics (Inelastic merger)
-                        let keA = 0.5 * objA.mass * objA.vel.magSq();
-                        let keB = 0.5 * objB.mass * objB.vel.magSq();
-                        let keMerged = 0.5 * merged.mass * merged.vel.magSq();
-                        let energyDissipated = (keA + keB) - keMerged; // Dissipated kinetic becomes internal heat
+                const merged=new PhysicalBody("merge-"+Date.now()+"-"+i+"-"+j,type,M,R,pos,vel);
+                const keA=.5*a.mass*a.vel.magSq(), keB=.5*b.mass*b.vel.magSq(), keM=.5*M*vel.magSq();
+                merged.internalEnergy=Math.max(0,a.internalEnergy+b.internalEnergy+Math.max(0,keA+keB-keM));
+                merged.composition.X=(a.composition.X*a.mass+b.composition.X*b.mass)/M;
+                merged.composition.Y=(a.composition.Y*a.mass+b.composition.Y*b.mass)/M;
+                merged.composition.Z=(a.composition.Z*a.mass+b.composition.Z*b.mass)/M;
 
-                        merged.internalEnergy = objA.internalEnergy + objB.internalEnergy + energyDissipated;
+                // Preserve total angular momentum by converting unresolved orbital/spin
+                // angular momentum into rigid-body spin of the merged sphere.
+                const LA=a.pos.sub(pos).cross(a.vel.sub(vel).mult(a.mass));
+                const LB=b.pos.sub(pos).cross(b.vel.sub(vel).mult(b.mass));
+                const IA=(2/5)*a.mass*a.radius*a.radius, IB=(2/5)*b.mass*b.radius*b.radius;
+                const spinAngularMomentum=a.spin.mult(IA).add(b.spin.mult(IB));
+                const L=LA.add(LB).add(spinAngularMomentum);
+                const I=(2/5)*M*R*R;
+                merged.spin=I>0?L.div(I):new Vec3();
 
-                        // Weighted composition
-                        merged.composition.X = (objA.composition.X * objA.mass + objB.composition.X * objB.mass) / newMass;
-                        merged.composition.Y = (objA.composition.Y * objA.mass + objB.composition.Y * objB.mass) / newMass;
-                        merged.composition.Z = (objA.composition.Z * objA.mass + objB.composition.Z * objB.mass) / newMass;
-
-                        newObjects.push(merged);
-                        toRemove.push(i); toRemove.push(j);
-                    }
+                if(type==="BLACK_HOLE"){
+                    merged.radius=2*PhysicsConstants.G*M/(PhysicsConstants.c**2);
+                    merged.updateDensity();
                 }
-            }
-            if(toRemove.length > 0) {
-                toRemove.sort((a,b)=>b-a).forEach(idx => objects.splice(idx, 1));
-                objects.push(...newObjects);
+                consumed.add(i); consumed.add(j);
+                mergedBodies.push(merged);
+                break;
             }
         }
+        if(consumed.size){
+            const survivors=objects.filter((_,idx)=>!consumed.has(idx));
+            objects.length=0;
+            objects.push(...survivors,...mergedBodies);
+        }
     }
+};
