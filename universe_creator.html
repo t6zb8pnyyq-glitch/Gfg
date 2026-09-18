@@ -680,6 +680,8 @@ const ThermoEngine = {
     computeRadiation:function(dt,objects){
         if(!(dt>0))return;
         for(const o of objects){
+            // No optically-thin gas cooling is assumed without a specified opacity/emissivity model.
+            if(o.type==="GAS_CLOUD")continue;
             if(!(o.radius>0)||!(o.mass>0))continue;
             const T=Math.max(2.73,Number.isFinite(o.surfaceTemperature)?o.surfaceTemperature:2.73);
             const area=4*Math.PI*o.radius*o.radius;
