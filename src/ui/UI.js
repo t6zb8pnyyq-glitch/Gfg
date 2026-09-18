@@ -2,6 +2,7 @@ const UI = {
     selectedId: null,
     init: function() {
         const tabs = [
+            ["__CREATOR__","생성기"],["__INSPECTOR__","진단"],
             ["GRAVITY","중력/궤도"],["GALAXY","은하 N-body"],["SPH_FLUID","SPH 유체"],
             ["NUCLEAR","항성/핵"],["QUANTUM","양자"],["MHD","MHD"],
             ["RADIATION","복사수송"],["STELLAR","항성구조"],["GR","GR"],["COSMOLOGY","우주론"]
@@ -10,16 +11,20 @@ const UI = {
         if (!bar) throw new Error("module-bar missing");
         bar.replaceChildren(...tabs.map(([id,label]) => {
             const b=document.createElement("button");
-            b.type="button"; b.id="btn-lab-"+id; b.className="lab-module";
+            b.type="button";
+            b.id=id.startsWith("__") ? "btn-"+id.slice(2).toLowerCase() : "btn-lab-"+id;
+            b.className=id.startsWith("__") ? "mobile-drawer-btn" : "lab-module";
             b.textContent=label;
-            b.addEventListener("click",()=>Labs.loadLab(id),{passive:true});
+            if(id==="__CREATOR__") b.addEventListener("click",()=>this.togglePanel("creator"));
+            else if(id==="__INSPECTOR__") b.addEventListener("click",()=>this.togglePanel("inspector"));
+            else b.addEventListener("click",()=>Labs.loadLab(id));
             return b;
         }));
         this.updateInspector();
     },
     createObject: function() {
         const type = document.getElementById("type").value;
-        const num=(id,fallback)=>{const v=Number(document.getElementById(id).value);return Number.isFinite(v)?v:fallback;};
+        const num=(id,fallback)=>{const el=document.getElementById(id);const v=Number(el&&el.value);return Number.isFinite(v)?v:fallback;};
         const mass=num("mass",1e24), rad=num("radius",6e6);
         if(!(mass>0)||!(rad>0)) throw new Error("mass/radius must be positive");
         const dist=1e8;
@@ -42,8 +47,7 @@ const UI = {
         const x=clientX-rect.left,y=clientY-rect.top;
         let best=null,bestD=Infinity;
         for(const p of Renderer.projectObjects()){
-            const d=Math.hypot(p.px-x,p.py-y);
-            const hit=Math.max(10,p.pr);
+            const d=Math.hypot(p.px-x,p.py-y), hit=Math.max(10,p.pr);
             if(d<=hit&&d<bestD){best=p;bestD=d;}
         }
         this.selectedId=best?best.obj.id:null;
@@ -72,7 +76,7 @@ const UI = {
         let allPass=results.length>0;
         for(const r of results){
             const pass=r.status==="PASS",warn=r.status==="WARNING";
-            if(!pass&&!warn) allPass=false;
+            if(!pass) allPass=false;
             const tag=pass?"[PASS]":warn?"[WARNING]":"[FAIL]";
             html+="<li style='margin-bottom:8px;border-bottom:1px solid #333;padding-bottom:4px'>"+
               "<b>"+tag+"</b> "+r.name+"<br><span style='font-size:11px;color:#aaa'>Error: "+
