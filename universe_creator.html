@@ -56,6 +56,8 @@
             button, select, input { min-height:36px; }
             button:focus-visible, select:focus-visible, input:focus-visible { outline:2px solid #fff; outline-offset:1px; }
             .lab-btn { min-width:max-content; }
+            .mobile-panel-btn { display:none; }
+            @media (max-width:700px) { .mobile-panel-btn { display:block; width:auto; min-width:64px; } }
             .side-panel h3 { position:sticky; top:-10px; z-index:3; background:var(--panel); padding:4px 0 8px; }
             #validation-modal { position:fixed !important; inset:5vh 5vw !important; width:auto !important; height:auto !important; max-height:90vh; z-index:5000 !important; border-radius:10px; box-sizing:border-box; padding:max(12px, env(safe-area-inset-top)) 16px 16px; overscroll-behavior:contain; }
             #validation-modal button { width:auto; min-width:100px; }
@@ -1186,12 +1188,7 @@ const UI = {
             document.getElementById('validation-modal').addEventListener('click', (e) => {
                 if (e.target.id === 'validation-modal') e.currentTarget.style.display = 'none';
             });
-            // Reliable touch/click activation even in embedded iOS WebViews.
-            document.addEventListener('click', (e) => {
-                const b = e.target.closest('button');
-                if (!b || b.id === 'btn-close-audit' || b.id === 'btn-creator-panel' || b.id === 'btn-inspector-panel') return;
-                if (b.id && b.id.startsWith('btn-lab-')) Labs.loadLab(b.id.slice(8));
-            });
+            // Each control owns exactly one listener; no document-level duplicate dispatch.
         },
         createObject: function() {
             const type=document.getElementById('type').value;
