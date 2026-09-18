@@ -574,53 +574,46 @@ const GravityEngine = {
     }
 
 const CollisionEngine = {
-        checkAndResolve: function(objects) {
-            let toRemove = []; let newObjects = [];
-            for(let i=0; i<objects.length; i++) {
-                if(toRemove.includes(i)) continue;
-                for(let j=i+1; j<objects.length; j++) {
-                    if(toRemove.includes(j)) continue;
-                    let objA = objects[i]; let objB = objects[j];
-                    let rVec = objB.pos.sub(objA.pos);
-                    let dist = rVec.mag();
-                    if (dist <= (objA.radius + objB.radius)) {
-                        let newMass = objA.mass + objB.mass;
-                        let newPos = (objA.pos.mult(objA.mass).add(objB.pos.mult(objB.mass))).div(newMass);
-                        let newVel = (objA.vel.mult(objA.mass).add(objB.vel.mult(objB.mass))).div(newMass);
-                        let newRadius = Math.pow(Math.pow(objA.radius, 3) + Math.pow(objB.radius, 3), 1/3);
-
-
-                        // Determine type based on mass hierarchy
-                        let type = objA.mass > objB.mass ? objA.type : objB.type;
-                        if(type !== "BLACK_HOLE" && newMass > 3.0 * PhysicsConstants.M_sun) type = "BLACK_HOLE";
-                        else if(type === "PLANET" && newMass > 0.08 * PhysicsConstants.M_sun) type = "STAR";
-
-                        let merged = new PhysicalBody('merge-' + ((globalThis.crypto&&crypto.randomUUID)?crypto.randomUUID():Date.now().toString(36)), type, newMass, newRadius, newPos, newVel);
-
-                        // Conservation of internal energy and thermodynamics (Inelastic merger)
-                        let keA = 0.5 * objA.mass * objA.vel.magSq();
-                        let keB = 0.5 * objB.mass * objB.vel.magSq();
-                        let keMerged = 0.5 * merged.mass * merged.vel.magSq();
-                        let energyDissipated = (keA + keB) - keMerged; // Dissipated kinetic becomes internal heat
-
-                        merged.internalEnergy = objA.internalEnergy + objB.internalEnergy + energyDissipated;
-
-                        // Weighted composition
-                        merged.composition.X = (objA.composition.X * objA.mass + objB.composition.X * objB.mass) / newMass;
-                        merged.composition.Y = (objA.composition.Y * objA.mass + objB.composition.Y * objB.mass) / newMass;
-                        merged.composition.Z = (objA.composition.Z * objA.mass + objB.composition.Z * objB.mass) / newMass;
-
-                        newObjects.push(merged);
-                        toRemove.push(i); toRemove.push(j);
+    merge:function(a,b){
+        const mass=a.mass+b.mass;
+        const pos=a.pos.mult(a.mass).add(b.pos.mult(b.mass)).div(mass);
+        const vel=a.vel.mult(a.mass).add(b.vel.mult(b.mass)).div(mass);
+        const radius=Math.cbrt(a.radius**3+b.radius**3);
+        let type=a.mass>=b.mass?a.type:b.type;
+        if(type!=="BLACK_HOLE"&&mass>=3*PhysicsConstants.M_sun)type="BLACK_HOLE";
+        else if(type==="PLANET"&&mass>=0.08*PhysicsConstants.M_sun)type="STAR";
+        const id="merge-"+((globalThis.crypto&&typeof crypto.randomUUID==="function")?crypto.randomUUID():Date.now().toString(36));
+        const m=new PhysicalBody(id,type,mass,radius,pos,vel);
+        const keBefore=.5*a.mass*a.vel.magSq()+.5*b.mass*b.vel.magSq(),keAfter=.5*mass*vel.magSq();
+        m.internalEnergy=Math.max(0,a.internalEnergy)+Math.max(0,b.internalEnergy)+Math.max(0,keBefore-keAfter);
+        m.composition.X=(a.composition.X*a.mass+b.composition.X*b.mass)/mass;
+        m.composition.Y=(a.composition.Y*a.mass+b.composition.Y*b.mass)/mass;
+        m.composition.Z=(a.composition.Z*a.mass+b.composition.Z*b.mass)/mass;
+        m.charge=a.charge+b.charge;
+        m.spin=a.spin.mult(a.mass).add(b.spin.mult(b.mass)).div(mass);
+        m.surfaceTemperature=(a.surfaceTemperature*a.mass+b.surfaceTemperature*b.mass)/mass;
+        m.temperature=(a.temperature*a.mass+b.temperature*b.mass)/mass;
+        m.isotopes={...a.isotopes};
+        for(const [k,v] of Object.entries(b.isotopes))m.isotopes[k]=(m.isotopes[k]||0)+v;
+        return m;
+    },
+    checkAndResolve:function(objects){
+        let changed=true;
+        while(changed){
+            changed=false;
+            outer:for(let i=0;i<objects.length;i++){
+                for(let j=i+1;j<objects.length;j++){
+                    const a=objects[i],b=objects[j],r=a.pos.sub(b.pos),d=r.mag();
+                    if(d<=a.radius+b.radius){
+                        const m=this.merge(a,b);
+                        objects.splice(j,1);objects.splice(i,1);objects.push(m);
+                        changed=true;break outer;
                     }
                 }
             }
-            if(toRemove.length > 0) {
-                toRemove.sort((a,b)=>b-a).forEach(idx => objects.splice(idx, 1));
-                objects.push(...newObjects);
-            }
         }
     }
+};
 
 const ElectromagneticEngine = {
         // Quasi-static point-charge model: Coulomb + Biot-Savart magnetic force.
