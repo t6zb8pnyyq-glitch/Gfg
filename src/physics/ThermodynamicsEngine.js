@@ -1,10 +1,8 @@
 const ThermoEngine = {
     gamma: 5/3,
     cvPerMass(body) {
-        const mu = 0.61;
-        const kB = 1.380649e-23;
-        const mp = 1.67262192369e-27;
-        return 1.5 * kB / (mu * mp);
+        const mu = EOS.meanMolecularWeight(body.composition || {X:0.73,Y:0.25,Z:0.02}, true);
+        return 1.5 * PhysicsConstants.k_B / (mu * EOS.atomicMassUnit);
     },
     updateTemperature(objects) {
         for (const o of objects) {
@@ -15,7 +13,7 @@ const ThermoEngine = {
             }
             o.temperature = Math.max(2.73, o.internalEnergy / (o.mass * cv));
             o.updateDensity();
-            o.sph_pressure = o.density * kBPressure(o.temperature, o.density);
+            o.sph_pressure = EOS.pressure(o.density, o.temperature, o.composition);
         }
     },
     computeRadiation(dt, objects) {
@@ -27,6 +25,7 @@ const ThermoEngine = {
             const blackbody = sigma * area * Math.pow(o.temperature,4);
             o.luminosity = Number.isFinite(blackbody) ? blackbody : 0;
             const emitted = Math.min(o.internalEnergy, o.luminosity * dt);
+            o.radiatedEnergy = (o.radiatedEnergy || 0) + emitted;
             o.internalEnergy = Math.max(0, o.internalEnergy - emitted);
         }
     }
