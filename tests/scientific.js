@@ -9,7 +9,7 @@ const files=[
 "src/physics/QuantumEngine.js","src/physics/CosmologyEngine.js","src/core/Integrator.js","src/core/Diagnostics.js","src/core/Validator.js"
 ];
 const sandbox={console,Math,Float64Array,Float32Array,Map,Set,Array,Number,Date,Error,Infinity,performance:{now:()=>0},
-document:{getElementById:()=>({innerText:"",className:"",dataset:{}})},Engine:{status:"STABLE"}}; sandbox.global=sandbox; sandbox.self=sandbox;
+document:{getElementById:()=>({innerText:"",className:"",dataset:{}})},Engine:{status:"STABLE"}}; sandbox.global=sandbox; sandbox.self=sandbox; sandbox.exports={}; sandbox.module={exports:sandbox.exports};
 vm.createContext(sandbox);
 for(const f of files) vm.runInContext(fs.readFileSync(path.join(root,f),"utf8"),sandbox,{filename:f});
 const results=vm.runInContext("Validator.runAllTests(true)",sandbox);
