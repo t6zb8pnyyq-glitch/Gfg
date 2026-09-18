@@ -928,6 +928,17 @@ const Validator = {
         {name:"Cosmology: de Sitter Analytic Limit",run:()=>{
             const H=2e-18,t=1e15,a0=.7,h=CosmologyEngine.solveFriedmann(H,0,0,1,t,1e12,a0),exact=a0*Math.exp(H*t),err=Math.abs(h[h.length-1].a-exact)/exact;return{status:err<1e-9?"PASS":"FAIL",error:err,tolerance:"<1e-9 relative"};
         }},
+        {name:"Nuclear: Radioactive Half-Life",run:()=>{
+            const b=new PhysicalBody("decay","STAR",1e20,1e6,new Vec3(),new Vec3());b.isotopes={C14:1};
+            RadioactiveDecayEngine.evolve(b,NuclearData.isotopes.C14.halfLife);
+            const err=Math.abs(b.isotopes.C14-0.5);
+            return{status:err<1e-12?"PASS":"FAIL",error:err,tolerance:"<1e-12 absolute"};
+        }},
+        {name:"Thermodynamics: Blackbody Stefan-Boltzmann Law",run:()=>{
+            const r=6.96e8,T=5778,expected=4*Math.PI*r*r*PhysicsConstants.sigma_sb*T**4;
+            const rel=Math.abs(expected-3.828e26)/3.828e26;
+            return{status:rel<0.03?"PASS":"FAIL",error:rel,tolerance:"<3% relative to solar reference"};
+        }},
         {name:"Relativity: Schwarzschild Radius",run:()=>{
             const rs=2*PhysicsConstants.G*PhysicsConstants.M_sun/(PhysicsConstants.c**2),expected=2953.339382,err=Math.abs(rs-expected)/expected;return{status:err<1e-6?"PASS":"FAIL",error:err,tolerance:"<1e-6 relative"};
         }}
