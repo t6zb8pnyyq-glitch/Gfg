@@ -1,0 +1,31 @@
+name: Build CodePen Single HTML
+on:
+  push:
+    branches:
+      - "feat/mobile-responsive-universe-337128670691476805"
+      - "feat/mobile-responsive-universe-creator-337128670691476805"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Build single-file HTML
+        run: python3 build.py
+      - name: Validate artifact
+        run: |
+          test -s universe_creator.html
+          grep -q "<html" universe_creator.html
+          grep -q "</html>" universe_creator.html
+      - name: Commit generated CodePen artifact
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add universe_creator.html
+          git diff --cached --quiet || git commit -m "Build CodePen single-file Universe Creator"
+          git push
