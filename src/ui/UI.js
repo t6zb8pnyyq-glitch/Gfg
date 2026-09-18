@@ -1,7 +1,7 @@
 const UI={
     selectedId:null,
     init(){
-        const tabs=[["__CREATOR__","생성기"],["__INSPECTOR__","진단"],["GRAVITY","중력/궤도"],["GALAXY","은하 N-body"],["SPH_FLUID","SPH 유체"],["NUCLEAR","항성/핵"],["QUANTUM","양자"],["MHD","MHD"],["RADIATION","복사수송"],["STELLAR","항성구조"],["GR","GR"],["COSMOLOGY","우주론"]];
+        const tabs=[["__CREATOR__","생성기"],["__INSPECTOR__","진단"],["GRAVITY","중력/궤도"],["EPHEMERIS","실제 천체력"],["GALAXY","은하 N-body"],["SPH_FLUID","SPH 유체"],["NUCLEAR","항성/핵"],["QUANTUM","양자"],["MHD","MHD"],["RADIATION","복사수송"],["STELLAR","항성구조"],["GR","GR"],["COSMOLOGY","우주론"]];
         const bar=document.getElementById("module-bar");if(!bar)throw new Error("module-bar missing");
         bar.replaceChildren(...tabs.map(([id,label])=>{const b=document.createElement("button");b.type="button";b.id=id.startsWith("__")?"btn-"+id.slice(2).toLowerCase():"btn-lab-"+id;b.className=id.startsWith("__")?"mobile-drawer-btn":"lab-module";b.textContent=label;
             b.addEventListener("click",()=>id.startsWith("__")?this.togglePanel(id==="__CREATOR__"?"creator":"inspector"):Labs.loadLab(id));return b;}));
