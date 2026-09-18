@@ -1,11 +1,30 @@
 # SCIENTIFIC VERIFICATION MATRIX
 
-This document tracks the verification of implemented physical models against known analytical solutions or conservation laws.
+| Test | Subsystem | Method | Gate |
+|---|---|---|---|
+| Kepler 10 periods | N-body/integration | analytic two-body orbit | radius error < 2e-3 |
+| Timestep convergence | integration | dt vs dt/2 refinement | refinement does not materially worsen error |
+| Linear momentum | N-body | closed-system invariant | relative error < 1e-12 |
+| Mechanical energy | N-body | closed-system invariant | relative error < 1e-5 |
+| Merger linear/angular momentum | collision | exact conservation accounting | linear < 1e-14, angular < 1e-12 |
+| Barnes-Hut convergence | gravity | direct-sum reference | max relative acceleration error < 3% |
+| Quantum norm | quantum | integral of |psi|^2 | error < 1e-10 |
+| SPH symmetry | fluid | equal-particle manufactured symmetry | relative density error < 1e-14 |
 
-| Test Case | Physics Subsystem | Validation Method | Current Status | Expected Tolerance |
-| :--- | :--- | :--- | :--- | :--- |
-| Keplerian Orbit | Orbital Mechanics | Compare numeric integration against analytical orbital elements | PENDING | < 1% error over 10 periods |
-| Momentum Conservation | Core Mechanics | Calculate total momentum $\sum p_i$ | PENDING | < 1e-6 error |
-| Energy Conservation | Core Mechanics | Calculate $T + V$ | PENDING | < 1e-4 error |
-| Collision Outcome | Collision Mechanics| Verify $p_{final} = p_{initial}$ | PENDING | Exact |
-| Fluid Hydrostatic Equilibrium | Thermodynamics | SPH gradient zero in stable star | PENDING | < 1% density variance |
+## Required next validation gates
+
+- Restricted three-body / Jacobi integral.
+- Close-encounter timestep convergence.
+- SPH Sod shock tube.
+- Sedov blast.
+- Kelvin-Helmholtz instability.
+- Hydrostatic stellar models against Lane-Emden polytropes.
+- PP/CNO reaction-rate regression against tabulated reference data.
+- Radiative diffusion manufactured solution and optical-depth limits.
+- 1D MHD shock-tube tests.
+- Schwarzschild circular-orbit precession and redshift.
+- Quantum infinite-well eigenvalues and tunnelling convergence.
+- Friedmann limiting cases (matter, radiation, Lambda dominated).
+- Full regression suite across all coupled modules.
+
+A passing test means only that the named test passed. It does not certify the entire application.
