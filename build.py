@@ -149,8 +149,19 @@ def build_universe_creator():
 </html>
 """
 
+    artifact = html_header + css + html_mid + js + init_call + html_footer
+    if "<script src=" in artifact or "<link " in artifact:
+        raise RuntimeError("Standalone CodePen artifact contains an external runtime dependency")
+    if artifact.count("<html") != 1 or artifact.count("</html>") != 1:
+        raise RuntimeError("Invalid standalone HTML document")
+    if artifact.count("<script>") != 1:
+        raise RuntimeError("Expected exactly one inline runtime script")
+    if "let camera =" in artifact or "camera.rot" in artifact:
+        raise RuntimeError("Stale global camera dependency detected")
+    if "Labs.loadLab('GRAVITY')" not in artifact:
+        raise RuntimeError("Deterministic GRAVITY bootstrap missing")
     with open(output_file, "w") as f:
-        f.write(html_header + css + html_mid + js + init_call + html_footer)
+        f.write(artifact)
 
     print(f"Successfully built {output_file} from {len(MODULES_ORDER)} modules.")
 
