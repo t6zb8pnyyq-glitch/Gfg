@@ -116,7 +116,7 @@ def build_universe_creator():
             <label>적분기:</label>
             <select id="integrator" onchange="Engine.integratorType = this.value">
                 <option value="rk4">Runge-Kutta 4 (정밀)</option>
-                <option value="verlet">Velocity Verlet (안정)</option>
+                <option value="verlet">Velocity Verlet (안정)</option>\n                <option value="leapfrog">Leapfrog KDK (symplectic)</option>\n                <option value="yoshida4">Yoshida 4 (symplectic)</option>
                 <option value="euler">Semi-Implicit Euler</option>
             </select>
             <label>가속기:</label>
