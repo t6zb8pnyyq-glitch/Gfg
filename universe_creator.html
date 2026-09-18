@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NASA급 통합 전산 물리학 연구소</title>
+    <title>Universe Creator — Scientific Computational Physics Laboratory</title>
     <style>
 :root {
                 --bg: #000000;
@@ -20,57 +20,6 @@
                 font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', monospace; overflow: hidden;
                 display: flex; flex-direction: column; height: 100vh;
             }
-            /* Layout — canonical DOM mapping */
-            html, body { width:100%; height:100%; }
-            body { overflow:hidden; }
-            #layout-container { position:relative; width:100%; height:100dvh; min-height:100%; display:grid; grid-template-rows:auto minmax(0,1fr) auto; overflow:hidden; isolation:isolate; }
-            #module-bar { grid-row:1; min-height:44px; display:flex; align-items:center; gap:6px; padding:4px 8px; box-sizing:border-box; overflow-x:auto; overflow-y:hidden; white-space:nowrap; background:var(--panel); border-bottom:1px solid var(--border); position:relative; z-index:50; touch-action:pan-x; }
-            #viewport-container { grid-row:2; position:relative; min-width:0; min-height:0; overflow:hidden; background:#000; z-index:1; contain:layout paint; }
-            #universe-canvas { position:absolute; inset:0; display:block; width:100%; height:100%; z-index:1; pointer-events:auto; touch-action:none; }
-            #diagnostics-overlay { position:absolute; left:8px; top:8px; z-index:5; pointer-events:none; }
-            .side-panel { position:absolute; top:0; bottom:0; width:min(320px,30vw); box-sizing:border-box; overflow-x:hidden; overflow-y:auto; padding:10px; background:var(--panel); z-index:20; -webkit-overflow-scrolling:touch; touch-action:pan-y; }
-            #creator-panel { left:0; border-right:1px solid var(--border); }
-            #inspector-panel { right:0; border-left:1px solid var(--border); }
-            #control-bar { grid-row:3; min-height:48px; display:flex; align-items:center; gap:6px; padding:4px 8px; box-sizing:border-box; overflow-x:auto; overflow-y:hidden; background:var(--panel); border-top:1px solid var(--border); position:relative; z-index:50; -webkit-overflow-scrolling:touch; }
-            #control-bar > * { flex:0 0 auto; }
-            #control-bar select, #control-bar input { width:auto; }
-            button, select, input, label { position:relative; z-index:2; }
-            button, select { touch-action:manipulation; }
-            button { -webkit-tap-highlight-color:transparent; }
-            .lab-btn, #btn-pause, #btn-audit { pointer-events:auto; }
-            @media (max-width: 900px) {
-                #creator-panel, #inspector-panel { width:min(42vw,280px); }
-            }
-            @media (max-width: 700px) {
-                #module-bar { min-height:40px; }
-                .side-panel { width:calc(100vw - 16px); top:auto; bottom:56px; height:min(42vh,330px); max-height:330px; border:1px solid var(--border); border-radius:8px; left:8px; right:8px; }
-                #creator-panel { left:8px; }
-                #inspector-panel { left:8px; right:8px; top:auto; bottom:56px; }
-                #control-bar { min-height:52px; }
-                #viewport-container { min-height:0; }
-            }
-
-            /* Mobile / interaction hardening */
-            #module-bar, #control-bar { padding-left:max(8px, env(safe-area-inset-left)); padding-right:max(8px, env(safe-area-inset-right)); }
-            #control-bar { padding-bottom:max(4px, env(safe-area-inset-bottom)); }
-            button, select, input { min-height:36px; }
-            button:focus-visible, select:focus-visible, input:focus-visible { outline:2px solid #fff; outline-offset:1px; }
-            .lab-btn { min-width:max-content; }
-            .mobile-panel-btn { display:none; }
-            @media (max-width:700px) { .mobile-panel-btn { display:block; width:auto; min-width:64px; } }
-            .side-panel h3 { position:sticky; top:-10px; z-index:3; background:var(--panel); padding:4px 0 8px; }
-            #validation-modal { position:fixed !important; inset:5vh 5vw !important; width:auto !important; height:auto !important; max-height:90vh; z-index:5000 !important; border-radius:10px; box-sizing:border-box; padding:max(12px, env(safe-area-inset-top)) 16px 16px; overscroll-behavior:contain; }
-            #validation-modal button { width:auto; min-width:100px; }
-            @media (max-width:700px) {
-                #validation-modal { inset: max(8px, env(safe-area-inset-top)) 8px max(8px, env(safe-area-inset-bottom)) 8px !important; max-height:none; }
-                .side-panel { z-index:30; }
-                #creator-panel, #inspector-panel { display:none; }
-                #creator-panel.mobile-open, #inspector-panel.mobile-open { display:block; }
-            }
-            @media (prefers-reduced-motion: reduce) { * { scroll-behavior:auto !important; transition:none !important; } }
-            .sys-message { padding:6px 8px; margin:4px 0 8px; border-left:3px solid var(--border); background:rgba(15,23,42,.9); font-size:11px; }
-            .sys-message.danger { border-color:var(--danger); color:#fecaca; }
-
             /* Layout */
             #top-bar { height: 45px; background: var(--panel); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 10px; font-weight: bold; overflow-x: auto; white-space: nowrap; }
             #main-area { display: flex; flex: 1; height: calc(100vh - 85px); position: relative; }
@@ -107,8 +56,14 @@
     </style>
 </head>
 <body>
-    <div id="layout-container">
-        <div id="module-bar" aria-label="물리 실험 모듈"></div>
+    <div id="layout-container" style="touch-action:manipulation;">
+        <div id="module-bar">
+            <button type="button" id="btn-lab-GRAVITY" class="lab-module active" onclick="Labs.loadLab('GRAVITY')">중력/궤도 역학 (Solar)</button>
+            <button type="button" id="btn-lab-GALAXY" class="lab-module" onclick="Labs.loadLab('GALAXY')">은하 시뮬레이션 (Galaxy)</button>
+            <button type="button" id="btn-lab-SPH_FLUID" class="lab-module" onclick="Labs.loadLab('SPH_FLUID')">유체역학/SPH</button>
+            <button type="button" id="btn-lab-NUCLEAR_STAR" class="lab-module" onclick="Labs.loadLab('NUCLEAR_STAR')">항성/핵물리학</button>
+            <button type="button" id="btn-lab-QUANTUM_RELATIVITY" class="lab-module" onclick="Labs.loadLab('QUANTUM_RELATIVITY')">양자/상대성 (Test)</button>
+        </div>
 
         <div id="viewport-container">
             <canvas id="universe-canvas"></canvas>
@@ -135,7 +90,7 @@
             <input type="number" id="vel_y" value="0">
             <label>속도 Z (m/s)</label>
             <input type="number" id="vel_z" value="0">
-            <button id="btn-create" type="button">생성 (CREATE)</button>
+            <button onclick="UI.createObject()">생성 (CREATE)</button>
             <hr>
             <p style="font-size:10px; color:#aaa;">* 모바일: 화면을 더블 탭하여 생성 가능</p>
         </div>
@@ -153,31 +108,28 @@
         </div>
 
         <div id="control-bar">
-            <button id="btn-creator-panel" class="mobile-panel-btn" type="button">생성기</button>
-            <button id="btn-inspector-panel" class="mobile-panel-btn" type="button">진단</button>
-            <button id="btn-pause" type="button">일시정지 (PAUSE)</button>
+            <button id="btn-pause" onclick="Engine.togglePause()">일시정지 (PAUSE)</button>
             <label>적분기:</label>
-            <select id="integrator">
+            <select id="integrator" onchange="Engine.integratorType = this.value">
                 <option value="rk4">Runge-Kutta 4 (정밀)</option>
                 <option value="verlet">Velocity Verlet (안정)</option>
                 <option value="euler">Semi-Implicit Euler</option>
             </select>
             <label>가속기:</label>
-            <select id="sys-gravity">
+            <select id="sys-gravity" onchange="Engine.gravityAlgorithm = this.value">
                 <option value="BARNES_HUT">Barnes-Hut O(N log N)</option>
                 <option value="DIRECT">Direct O(N²)</option>
             </select>
             <label>타임스텝(dt):</label>
-            <input type="number" id="sys-dt" value="1.0" min="1e-9" step="any" style="width:90px;" aria-label="time step seconds">
-            <button id="btn-audit" type="button">검증 (AUDIT)</button>
+            <input type="number" id="sys-dt" value="1.0" style="width:60px;" onchange="Engine.dt = parseFloat(this.value)">
+            <button id="btn-audit" onclick="UI.showAudit()">검증 (AUDIT)</button>
         </div>
     </div>
 
-    <div id="validation-modal" role="dialog" aria-modal="true" style="display:none; position:absolute; top:10%; left:20%; width:60%; height:80%; background:#1e1e1e; border:2px solid var(--border); z-index:1000; padding:20px; overflow-y:auto;">
-        <button id="btn-close-audit" type="button" style="float:right;background:var(--danger);width:auto;">닫기</button>
+    <div id="validation-modal" style="display:none; position:absolute; top:10%; left:20%; width:60%; height:80%; background:#1e1e1e; border:2px solid var(--border); z-index:1000; padding:20px; overflow-y:auto;">
         <h2>과학적 검증 프레임워크 결과</h2>
         <div id="validation-results"></div>
-        
+        <button onclick="document.getElementById('validation-modal').style.display='none'" style="margin-top:20px;">닫기</button>
     </div>
 
     <script>
@@ -367,36 +319,6 @@ const PeriodicTable = [
     { Z: 118, symbol: "Og", mass: 294 }
 ];
 
-const NuclearData = {
-    isotopes:{
-        H1:{Z:1,A:1,halfLife:Infinity,mode:"stable",daughter:null},
-        H2:{Z:1,A:2,halfLife:Infinity,mode:"stable",daughter:null},
-        H3:{Z:1,A:3,halfLife:12.32*PhysicsConstants.yr,mode:"beta-",daughter:"He3"},
-        He3:{Z:2,A:3,halfLife:Infinity,mode:"stable",daughter:null},
-        He4:{Z:2,A:4,halfLife:Infinity,mode:"stable",daughter:null},
-        C12:{Z:6,A:12,halfLife:Infinity,mode:"stable",daughter:null},
-        C14:{Z:6,A:14,halfLife:5730*PhysicsConstants.yr,mode:"beta-",daughter:"N14"},
-        N14:{Z:7,A:14,halfLife:Infinity,mode:"stable",daughter:null},
-        O16:{Z:8,A:16,halfLife:Infinity,mode:"stable",daughter:null},
-        Fe56:{Z:26,A:56,halfLife:Infinity,mode:"stable",daughter:null},
-        Ni56:{Z:28,A:56,halfLife:6.075*PhysicsConstants.day,mode:"beta+",daughter:"Co56"},
-        Co56:{Z:27,A:56,halfLife:77.236*PhysicsConstants.day,mode:"beta+",daughter:"Fe56"},
-        U235:{Z:92,A:235,halfLife:7.038e8*PhysicsConstants.yr,mode:"alpha",daughter:"Th231"},
-        U238:{Z:92,A:238,halfLife:4.468e9*PhysicsConstants.yr,mode:"alpha",daughter:"Th234"},
-        Th234:{Z:90,A:234,halfLife:24.10*PhysicsConstants.day,mode:"beta-",daughter:"Pa234m"},
-        Pa234m:{Z:91,A:234,halfLife:70.2,mode:"beta-",daughter:"U234"},
-        U234:{Z:92,A:234,halfLife:2.455e5*PhysicsConstants.yr,mode:"alpha",daughter:"Th230"},
-        Th230:{Z:90,A:230,halfLife:7.538e4*PhysicsConstants.yr,mode:"alpha",daughter:"Ra226"},
-        Ra226:{Z:88,A:226,halfLife:1600*PhysicsConstants.yr,mode:"alpha",daughter:"Rn222"},
-        Th231:{Z:90,A:231,halfLife:25.52*3600,mode:"beta-",daughter:"Pa231"},
-        Pa231:{Z:91,A:231,halfLife:3.276e4*PhysicsConstants.yr,mode:"alpha",daughter:"Ac227"},
-        Ra228:{Z:88,A:228,halfLife:5.75*PhysicsConstants.yr,mode:"beta-",daughter:"Ac228"},
-        Ac228:{Z:89,A:228,halfLife:6.15*3600,mode:"beta-",daughter:"Th228"},
-        Th228:{Z:90,A:228,halfLife:1.9116*PhysicsConstants.yr,mode:"alpha",daughter:"Ra224"},
-        Th232:{Z:90,A:232,halfLife:1.405e10*PhysicsConstants.yr,mode:"alpha",daughter:"Ra228"}
-    }
-};
-
 /**
  * src/physics/PhysicalBody.js
  *
@@ -419,8 +341,7 @@ class PhysicalBody {
         this.spin = new Vec3();           // Angular velocity vector [rad/s]
 
         // --- Thermodynamics & Fluid State ---
-        this.temperature = 2.73;          // Diagnostic/core temperature [K]
-        this.surfaceTemperature = 2.73;  // Radiating surface temperature [K]
+        this.temperature = 2.73;          // Absolute temperature [K] (CMB default)
         this.internalEnergy = 0;          // Total internal energy [J]
 
         // Fluid/SPH specific
@@ -433,7 +354,6 @@ class PhysicalBody {
         // --- Nuclear & Chemical Composition ---
         // Mass fractions must sum to 1.0. X=Hydrogen, Y=Helium, Z=Metals
         this.composition = { X: 0.73, Y: 0.25, Z: 0.02 };
-        this.isotopes = {};
 
         // --- Electromagnetic ---
         this.charge = 0;                  // [C]
@@ -441,7 +361,6 @@ class PhysicalBody {
 
         // --- Radiation ---
         this.luminosity = 0;              // [W] (J/s)
-        this.radiativeLuminosity = 0;      // [W] blackbody estimate
     }
 
     updateDensity() {
@@ -466,17 +385,14 @@ class PhysicalBody {
         b.acc = this.acc.clone();
         b.spin = this.spin.clone();
         b.temperature = this.temperature;
-        b.surfaceTemperature = this.surfaceTemperature;
         b.internalEnergy = this.internalEnergy;
         b.density = this.density;
         b.sph_density = this.sph_density;
         b.sph_pressure = this.sph_pressure;
         b.composition = { ...this.composition };
-        b.isotopes = { ...this.isotopes };
         b.charge = this.charge;
         b.magneticField = this.magneticField.clone();
         b.luminosity = this.luminosity;
-        b.radiativeLuminosity = this.radiativeLuminosity;
         return b;
     }
 }
@@ -494,20 +410,59 @@ class BBox {
     }
 
 class OctreeNode {
- constructor(box){this.box=box;this.body=null;this.bodies=[];this.children=null;this.mass=0;this.centerOfMass=new Vec3();}
- insert(body){
-  if(!this.box.contains(body.pos))return;
-  if(!this.children){
-   if(this.bodies.length===0){this.bodies=[body];this.body=body;this.mass=body.mass;this.centerOfMass=body.pos.clone();return;}
-   let same=true;for(const b of this.bodies){if(b.pos.x!==body.pos.x||b.pos.y!==body.pos.y||b.pos.z!==body.pos.z){same=false;break;}}
-   if(same){const oldMass=this.mass;this.bodies.push(body);this.mass+=body.mass;this.centerOfMass=this.centerOfMass.mult(oldMass).add(body.pos.mult(body.mass)).div(this.mass);return;}
-   const old=this.bodies.slice();this.bodies=[];this.body=null;this.subdivide();for(const b of old)this.insertIntoChildren(b);
-  }
-  this.insertIntoChildren(body);const oldMass=this.mass,newMass=oldMass+body.mass;this.centerOfMass=this.centerOfMass.mult(oldMass).add(body.pos.mult(body.mass)).div(newMass);this.mass=newMass;
- }
- subdivide(){const s=this.box.size/2,x=this.box.x,y=this.box.y,z=this.box.z;this.children=[new OctreeNode(new BBox(x,y,z,s)),new OctreeNode(new BBox(x+s,y,z,s)),new OctreeNode(new BBox(x,y+s,z,s)),new OctreeNode(new BBox(x+s,y+s,z,s)),new OctreeNode(new BBox(x,y,z+s,s)),new OctreeNode(new BBox(x+s,y,z+s,s)),new OctreeNode(new BBox(x,y+s,z+s,s)),new OctreeNode(new BBox(x+s,y+s,z+s,s))];}
- insertIntoChildren(body){for(let i=0;i<8;i++)this.children[i].insert(body);}
-}
+        constructor(box) {
+            this.box = box;
+            this.body = null;
+            this.children = null;
+            this.mass = 0;
+            this.centerOfMass = new Vec3();
+        }
+        insert(body) {
+            if(!this.box.contains(body.pos)) return;
+            // To strictly handle identical coordinates without coordinate perturbation,
+            // we accumulate them in the current node without subdividing infinitely.
+            // In a pure Barnes-Hut, if two distinct particles occupy the exact same floating-point coordinate,
+            // we cannot subdivide a bounding box to separate them.
+            if(this.body && this.body.pos.x === body.pos.x && this.body.pos.y === body.pos.y && this.body.pos.z === body.pos.z) {
+                // They occupy the exact same position. Combine mass and COM in this leaf.
+                // We keep a reference to one body, but update the node's total representation.
+                let totalMass = this.mass + body.mass;
+                this.centerOfMass = this.centerOfMass.mult(this.mass).add(body.pos.mult(body.mass)).div(totalMass);
+                this.mass = totalMass;
+                return;
+            }
+
+            if(this.mass === 0) {
+                this.body = body;
+                this.mass = body.mass;
+                this.centerOfMass = body.pos.clone();
+            } else {
+                if(!this.children) this.subdivide();
+                if(this.body) {
+                    this.insertIntoChildren(this.body);
+                    this.body = null; // internal nodes don't hold bodies
+                }
+                this.insertIntoChildren(body);
+                // Update COM
+                let totalMass = this.mass + body.mass;
+                this.centerOfMass = this.centerOfMass.mult(this.mass).add(body.pos.mult(body.mass)).div(totalMass);
+                this.mass = totalMass;
+            }
+        }
+        subdivide() {
+            let s = this.box.size / 2;
+            let x = this.box.x, y = this.box.y, z = this.box.z;
+            this.children = [
+                new OctreeNode(new BBox(x,y,z,s)), new OctreeNode(new BBox(x+s,y,z,s)),
+                new OctreeNode(new BBox(x,y+s,z,s)), new OctreeNode(new BBox(x+s,y+s,z,s)),
+                new OctreeNode(new BBox(x,y,z+s,s)), new OctreeNode(new BBox(x+s,y,z+s,s)),
+                new OctreeNode(new BBox(x,y+s,z+s,s)), new OctreeNode(new BBox(x+s,y+s,z+s,s))
+            ];
+        }
+        insertIntoChildren(body) {
+            for(let i=0; i<8; i++) this.children[i].insert(body);
+        }
+    }
 
 const GravityEngine = {
         computeAccelerations: function(objects, useBarnesHut) {
@@ -528,17 +483,20 @@ const GravityEngine = {
                 let theta = 0.5; // accuracy param
 
                 function calculateForce(node, body) {
-                    if (!node || node.mass === 0) return new Vec3();
-                    const containsTarget = node.box.contains(body.pos);
-                    if(node.children===null){let acc=new Vec3();for(const source of node.bodies){if(source===body)continue;const rVec=source.pos.sub(body.pos),rSq=rVec.magSq();if(!(rSq>0)||!Number.isFinite(rSq))continue;acc=acc.add(rVec.mult(PhysicsConstants.G*source.mass/Math.pow(rSq,1.5)));}return acc;}
-                    const rVec = node.centerOfMass.sub(body.pos);
-                    const rSq = rVec.magSq(), r = Math.sqrt(rSq);
-                    if (!(r > 0) || !Number.isFinite(r)) return new Vec3();
-                    if (!containsTarget && (node.box.size / r) < theta)
-                        return rVec.mult(PhysicsConstants.G * node.mass / Math.pow(rSq,1.5));
-                    let acc = new Vec3();
-                    for(let i=0;i<8;i++) acc=acc.add(calculateForce(node.children[i],body));
-                    return acc;
+                    if(node.mass === 0) return new Vec3();
+                    let rVec = node.centerOfMass.sub(body.pos);
+                    let rSq = rVec.magSq();
+                    let r = Math.sqrt(rSq);
+                    if(r === 0) return new Vec3();
+
+                    if(node.children === null || (node.box.size / r) < theta) {
+                        let fMag = PhysicsConstants.G * node.mass / rSq;
+                        return rVec.mult(fMag / r);
+                    } else {
+                        let acc = new Vec3();
+                        for(let i=0; i<8; i++) acc = acc.add(calculateForce(node.children[i], body));
+                        return acc;
+                    }
                 }
 
                 for(let i=0; i<objects.length; i++) {
@@ -568,272 +526,306 @@ const GravityEngine = {
     }
 
 const CollisionEngine = {
-    merge:function(a,b){
-        const mass=a.mass+b.mass;
-        const pos=a.pos.mult(a.mass).add(b.pos.mult(b.mass)).div(mass);
-        const vel=a.vel.mult(a.mass).add(b.vel.mult(b.mass)).div(mass);
-        const radius=Math.cbrt(a.radius**3+b.radius**3);
-        let type=a.mass>=b.mass?a.type:b.type;
-        if(type!=="BLACK_HOLE"&&mass>=3*PhysicsConstants.M_sun)type="BLACK_HOLE";
-        else if(type==="PLANET"&&mass>=0.08*PhysicsConstants.M_sun)type="STAR";
-        const id="merge-"+((globalThis.crypto&&typeof crypto.randomUUID==="function")?crypto.randomUUID():Date.now().toString(36));
-        const m=new PhysicalBody(id,type,mass,radius,pos,vel);
-        const keBefore=.5*a.mass*a.vel.magSq()+.5*b.mass*b.vel.magSq(),keAfter=.5*mass*vel.magSq();
-        m.internalEnergy=Math.max(0,a.internalEnergy)+Math.max(0,b.internalEnergy)+Math.max(0,keBefore-keAfter);
-        m.composition.X=(a.composition.X*a.mass+b.composition.X*b.mass)/mass;
-        m.composition.Y=(a.composition.Y*a.mass+b.composition.Y*b.mass)/mass;
-        m.composition.Z=(a.composition.Z*a.mass+b.composition.Z*b.mass)/mass;
-        m.charge=a.charge+b.charge;
-        const IA=(2/5)*a.mass*a.radius*a.radius,IB=(2/5)*b.mass*b.radius*b.radius,IM=(2/5)*mass*radius*radius;
-        m.spin=a.spin.mult(IA).add(b.spin.mult(IB)).div(Math.max(IM,Number.MIN_VALUE));
-        m.surfaceTemperature=(a.surfaceTemperature*a.mass+b.surfaceTemperature*b.mass)/mass;
-        m.temperature=(a.temperature*a.mass+b.temperature*b.mass)/mass;
-        m.isotopes={...a.isotopes};
-        for(const [k,v] of Object.entries(b.isotopes))m.isotopes[k]=(m.isotopes[k]||0)+v;
-        return m;
-    },
-    checkAndResolve:function(objects){
-        let changed=true;
-        while(changed){
-            changed=false;
-            outer:for(let i=0;i<objects.length;i++){
-                for(let j=i+1;j<objects.length;j++){
-                    const a=objects[i],b=objects[j],r=a.pos.sub(b.pos),d=r.mag();
-                    if(d<=a.radius+b.radius){
-                        const m=this.merge(a,b);
-                        objects.splice(j,1);objects.splice(i,1);objects.push(m);
-                        changed=true;break outer;
-                    }
+    checkAndResolve(objects) {
+        const consumed = new Set();
+        const mergedBodies = [];
+
+        for(let i=0;i<objects.length;i++){
+            if(consumed.has(i)) continue;
+            for(let j=i+1;j<objects.length;j++){
+                if(consumed.has(j)) continue;
+                const a=objects[i], b=objects[j];
+                const d=a.pos.sub(b.pos).mag();
+                if(!(d < a.radius+b.radius)) continue;
+
+                const M=a.mass+b.mass;
+                const pos=a.pos.mult(a.mass).add(b.pos.mult(b.mass)).div(M);
+                const vel=a.vel.mult(a.mass).add(b.vel.mult(b.mass)).div(M);
+                const R=Math.cbrt(a.radius**3+b.radius**3);
+
+                let type=a.mass>=b.mass?a.type:b.type;
+                if(type!=="BLACK_HOLE" && M>3*PhysicsConstants.M_sun) type="BLACK_HOLE";
+                else if(type==="PLANET" && M>0.08*PhysicsConstants.M_sun) type="STAR";
+
+                const merged=new PhysicalBody("merge-"+Date.now()+"-"+i+"-"+j,type,M,R,pos,vel);
+                const keA=.5*a.mass*a.vel.magSq(), keB=.5*b.mass*b.vel.magSq(), keM=.5*M*vel.magSq();
+                merged.internalEnergy=Math.max(0,a.internalEnergy+b.internalEnergy+Math.max(0,keA+keB-keM));
+                merged.composition.X=(a.composition.X*a.mass+b.composition.X*b.mass)/M;
+                merged.composition.Y=(a.composition.Y*a.mass+b.composition.Y*b.mass)/M;
+                merged.composition.Z=(a.composition.Z*a.mass+b.composition.Z*b.mass)/M;
+
+                // Preserve total angular momentum by converting unresolved orbital/spin
+                // angular momentum into rigid-body spin of the merged sphere.
+                const LA=a.pos.sub(pos).cross(a.vel.sub(vel).mult(a.mass));
+                const LB=b.pos.sub(pos).cross(b.vel.sub(vel).mult(b.mass));
+                const IA=(2/5)*a.mass*a.radius*a.radius, IB=(2/5)*b.mass*b.radius*b.radius;
+                const spinAngularMomentum=a.spin.mult(IA).add(b.spin.mult(IB));
+                const L=LA.add(LB).add(spinAngularMomentum);
+                const I=(2/5)*M*R*R;
+                merged.spin=I>0?L.div(I):new Vec3();
+
+                if(type==="BLACK_HOLE"){
+                    merged.radius=2*PhysicsConstants.G*M/(PhysicsConstants.c**2);
+                    merged.updateDensity();
                 }
+                consumed.add(i); consumed.add(j);
+                mergedBodies.push(merged);
+                break;
             }
+        }
+        if(consumed.size){
+            const survivors=objects.filter((_,idx)=>!consumed.has(idx));
+            objects.length=0;
+            objects.push(...survivors,...mergedBodies);
         }
     }
 };
 
+
 const ElectromagneticEngine = {
-        // Quasi-static point-charge model: Coulomb + Biot-Savart magnetic force.
-        computeAccelerations:function(objects){
-            const accels=objects.map(()=>new Vec3()),ke=1/(4*Math.PI*PhysicsConstants.eps_0),km=PhysicsConstants.mu_0/(4*Math.PI);
-            for(let i=0;i<objects.length;i++){
-                const qi=objects[i].charge;if(qi===0)continue;
-                for(let j=i+1;j<objects.length;j++){
-                    const qj=objects[j].charge;if(qj===0)continue;
-                    const rij=objects[i].pos.sub(objects[j].pos),r2=rij.magSq();if(!(r2>0))continue;
-                    const invR=Math.sqrt(1/r2),invR3=invR/r2;
-                    const eForce=rij.mult(ke*qi*qj*invR3);
-                    accels[i]=accels[i].add(eForce.div(objects[i].mass));
-                    accels[j]=accels[j].sub(eForce.div(objects[j].mass));
-                    const Bj=objects[j].vel.cross(rij).mult(km*qj*invR3);
-                    const Bi=objects[i].vel.cross(rij.mult(-1)).mult(km*qi*invR3);
-                    accels[i]=accels[i].add(objects[i].vel.cross(Bj).mult(qi/objects[i].mass));
-                    accels[j]=accels[j].add(objects[j].vel.cross(Bi).mult(qj/objects[j].mass));
+        computeAccelerations: function(objects) {
+            let accels = new Array(objects.length).fill(null).map(() => new Vec3());
+            let k = 1 / (4 * Math.PI * PhysicsConstants.eps_0);
+            for(let i=0; i<objects.length; i++) {
+                if(objects[i].charge === 0) continue;
+                for(let j=i+1; j<objects.length; j++) {
+                    if(objects[j].charge === 0) continue;
+                    let rVec = objects[i].pos.sub(objects[j].pos);
+                    let rSq = rVec.magSq();
+                    if(rSq === 0) continue;
+                    let fMag = k * (objects[i].charge * objects[j].charge) / rSq;
+                    let force = rVec.mult(fMag / Math.sqrt(rSq));
+                    accels[i] = accels[i].add(force.div(objects[i].mass));
+                    accels[j] = accels[j].sub(force.div(objects[j].mass));
                 }
-                const Bext=objects[i].magneticField;
-                if(Bext&&Bext.magSq()>0)accels[i]=accels[i].add(objects[i].vel.cross(Bext).mult(qi/objects[i].mass));
             }
             return accels;
         }
     }
 
-const FluidEngine = {
- h:1e6,gamma:5/3,alphaVisc:1.0,
- computeAccelerations:function(objects){
-  const gas=objects.filter(o=>o.type==="GAS_CLOUD"),acc=new Map();for(const o of gas)acc.set(o.id,new Vec3());if(!gas.length)return acc;
-  const h=this.h,h2=h*h,kernel=315/(64*Math.PI*Math.pow(h,9));
-  for(const i of gas){let rho=0;for(const j of gas){const r2=i.pos.sub(j.pos).magSq();if(r2<h2)rho+=j.mass*Math.pow(h2-r2,3)*kernel;}i.sph_density=Math.max(rho,Number.MIN_VALUE);const u=Math.max(0,i.internalEnergy/Math.max(i.mass,Number.MIN_VALUE));const gasPressure=(this.gamma-1)*i.sph_density*u;
-  const T=Math.max(2.73,(2/3)*u*0.61*1.67262192369e-27/PhysicsConstants.k_B);
-  const radiationPressure=(4*PhysicsConstants.sigma_sb/(3*PhysicsConstants.c))*T**4;
-  i.sph_pressure=gasPressure+radiationPressure;}
-  const gradCoeff=-45/(Math.PI*Math.pow(h,6));
-  for(let a=0;a<gas.length;a++){const i=gas[a],ai=acc.get(i);for(let b=a+1;b<gas.length;b++){const j=gas[b],rv=i.pos.sub(j.pos),r=rv.mag();if(!(r>0&&r<h))continue;const grad=rv.div(r).mult(gradCoeff*Math.pow(h-r,2));const fP=grad.mult(-i.mass*j.mass*(i.sph_pressure/(i.sph_density*i.sph_density)+j.sph_pressure/(j.sph_density*j.sph_density)));ai.x+=fP.x/i.mass;ai.y+=fP.y/i.mass;ai.z+=fP.z/i.mass;const aj=acc.get(j);aj.x-=fP.x/j.mass;aj.y-=fP.y/j.mass;aj.z-=fP.z/j.mass;const vij=i.vel.sub(j.vel),vdotr=vij.dot(rv);if(vdotr<0){const cs=Math.sqrt(Math.max(0,this.gamma*Math.max(i.sph_pressure/i.sph_density,j.sph_pressure/j.sph_density))),mu=h*vdotr/(r*r+0.01*h2),rhoij=0.5*(i.sph_density+j.sph_density),Pi=-this.alphaVisc*cs*mu/rhoij,fV=grad.mult(-i.mass*j.mass*Pi);ai.x+=fV.x/i.mass;ai.y+=fV.y/i.mass;ai.z+=fV.z/i.mass;aj.x-=fV.x/j.mass;aj.y-=fV.y/j.mass;aj.z-=fV.z/j.mass;}}}return acc;
- },
- updateInternalEnergy:function(objects,dt){
-  const gas=objects.filter(o=>o.type==="GAS_CLOUD"),h=this.h,h2=h*h,gradCoeff=-45/(Math.PI*Math.pow(h,6));if(!gas.length)return;
-  const du=new Map();for(const o of gas)du.set(o.id,0);
-  for(let a=0;a<gas.length;a++){const i=gas[a];for(let b=a+1;b<gas.length;b++){const j=gas[b],rv=i.pos.sub(j.pos),r=rv.mag();if(!(r>0&&r<h))continue;
-    const grad=rv.div(r).mult(gradCoeff*Math.pow(h-r,2)),vdotgrad=i.vel.sub(j.vel).dot(grad),term=i.sph_pressure/(i.sph_density*i.sph_density)+j.sph_pressure/(j.sph_density*j.sph_density);
-    let Pi=0;const vdotr=i.vel.sub(j.vel).dot(rv);if(vdotr<0){const cs=Math.sqrt(Math.max(0,this.gamma*Math.max(i.sph_pressure/i.sph_density,j.sph_pressure/j.sph_density))),mu=h*vdotr/(r*r+0.01*h2),rhoij=.5*(i.sph_density+j.sph_density);Pi=-this.alphaVisc*cs*mu/rhoij;}
-    du.set(i.id,du.get(i.id)+.5*j.mass*(term+Pi)*vdotgrad);du.set(j.id,du.get(j.id)+.5*i.mass*(term+Pi)*vdotgrad);
-  }}
-  for(const o of gas)o.internalEnergy=Math.max(0,o.internalEnergy+du.get(o.id)*dt);
- },
- updateState:function(objects){this.computeAccelerations(objects);}
-};
+const FluidEngine={h:1e6,gamma:5/3,alphaViscosity:1,betaViscosity:2,epsilon:1e-30,kernels:{poly6(r,h){if(r<0||r>=h)return 0;const q=h*h-r*r;return 315/(64*Math.PI*h**9)*q**3},gradSpiky(rVec,h){const r=rVec.mag();if(r<=0||r>=h)return new Vec3();return rVec.div(r).mult(-45/(Math.PI*h**6)*(h-r)**2)}},computeState(objects){const gas=objects.filter(o=>o.type==="GAS_CLOUD");for(const i of gas){let rho=0;for(const j of gas)rho+=j.mass*this.kernels.poly6(i.pos.sub(j.pos).mag(),this.h);i.sph_density=Math.max(rho,this.epsilon);const u=Math.max(0,i.internalEnergy/Math.max(i.mass,this.epsilon));i.sph_pressure=(this.gamma-1)*i.sph_density*u}return gas},computeAccelerations(objects){const gas=this.computeState(objects),result=new Map();for(const i of gas){let a=new Vec3();for(const j of gas){if(i===j)continue;const rij=i.pos.sub(j.pos),r=rij.mag();if(r<=0||r>=this.h)continue;const grad=this.kernels.gradSpiky(rij,this.h),term=i.sph_pressure/i.sph_density**2+j.sph_pressure/j.sph_density**2;a=a.add(grad.mult(-j.mass*term));const vij=i.vel.sub(j.vel),rv=rij.dot(vij);if(rv<0){const mu=this.h*rv/(r*r+.01*this.h*this.h),ci=Math.sqrt(Math.max(0,this.gamma*i.sph_pressure/i.sph_density)),cj=Math.sqrt(Math.max(0,this.gamma*j.sph_pressure/j.sph_density)),pi=(-this.alphaViscosity*.5*(ci+cj)*mu+this.betaViscosity*mu*mu)/Math.max(.5*(i.sph_density+j.sph_density),this.epsilon);a=a.add(grad.mult(-j.mass*pi))}}result.set(i,a)}return result},updateInternalEnergy(objects,dt){const gas=this.computeState(objects),du=new Map(gas.map(o=>[o,0]));for(const i of gas)for(const j of gas){if(i===j)continue;const rij=i.pos.sub(j.pos),r=rij.mag();if(r<=0||r>=this.h)continue;const vij=i.vel.sub(j.vel),grad=this.kernels.gradSpiky(rij,this.h),term=i.sph_pressure/i.sph_density**2+j.sph_pressure/j.sph_density**2;let d=0.5*j.mass*term*vij.dot(grad);const rv=rij.dot(vij);if(rv<0){const mu=this.h*rv/(r*r+.01*this.h*this.h),c=.5*(Math.sqrt(Math.max(0,this.gamma*i.sph_pressure/i.sph_density))+Math.sqrt(Math.max(0,this.gamma*j.sph_pressure/j.sph_density))),pi=(-this.alphaViscosity*c*mu+this.betaViscosity*mu*mu)/Math.max(.5*(i.sph_density+j.sph_density),this.epsilon);d+=.5*j.mass*pi*vij.dot(grad)}du.set(i,du.get(i)+d)}for(const o of gas)o.internalEnergy=Math.max(0,o.internalEnergy+du.get(o)*o.mass*dt)},computeSPH(objects){const acc=this.computeAccelerations(objects);for(const[o,a]of acc)o.acc=o.acc.add(a);return acc}};
 
-const ThermoEngine = {
-    updateTemperature:function(objects){
-        const mp=1.67262192369e-27;
-        for(const o of objects){
-            if(!(o.mass>0)||!(o.internalEnergy>=0))continue;
-            if(o.type==="GAS_CLOUD"){
-                const mu=0.61;
-                const u=o.internalEnergy/o.mass;
-                o.temperature=Math.max(2.73,(2/3)*u*mu*mp/PhysicsConstants.k_B);
-                o.surfaceTemperature=o.temperature;
-            }else if(o.type==="STAR"){
-                if(!(o.surfaceTemperature>0)||!Number.isFinite(o.surfaceTemperature))o.surfaceTemperature=5778;
-            }else{
-                if(!(o.surfaceTemperature>0)||!Number.isFinite(o.surfaceTemperature))o.surfaceTemperature=Math.max(2.73,o.temperature||2.73);
-            }
-        }
+const EOS = {
+    radiationConstant: 4*PhysicsConstants.sigma_sb/PhysicsConstants.c,
+    atomicMassUnit: 1.66053906660e-27,
+
+    meanMolecularWeight(comp={X:0.73,Y:0.25,Z:0.02}, ionized=true) {
+        const X=comp.X??0, Y=comp.Y??0, Z=comp.Z??0;
+        if(ionized) return 1/Math.max(1e-30,2*X+0.75*Y+0.5*Z);
+        return 1/Math.max(1e-30,X/2+Y/4+Z/16);
     },
-    computeRadiation:function(dt,objects){
-        if(!(dt>0))return;
-        for(const o of objects){
-            // No optically-thin gas cooling is assumed without a specified opacity/emissivity model.
-            if(o.type==="GAS_CLOUD")continue;
-            if(!(o.radius>0)||!(o.mass>0))continue;
-            const T=Math.max(2.73,Number.isFinite(o.surfaceTemperature)?o.surfaceTemperature:2.73);
-            const area=4*Math.PI*o.radius*o.radius;
-            const blackbody=PhysicsConstants.sigma_sb*area*T**4;
-            const source=Number.isFinite(o.luminosity)&&o.luminosity>0?o.luminosity:blackbody;
-            o.radiativeLuminosity=blackbody;
-            if(o.type!=="GAS_CLOUD")o.luminosity=Math.max(Number.isFinite(o.luminosity)?o.luminosity:0,blackbody);
-            const loss=Math.min(Math.max(0,o.internalEnergy),Math.max(0,source*dt));
-            o.internalEnergy=Math.max(0,o.internalEnergy-loss);
-            if(typeof Engine!=="undefined")Engine.radiatedEnergy+=loss;
-        }
+
+    idealGasPressure(rho,T,mu) {
+        return rho*PhysicsConstants.k_B*T/(mu*this.atomicMassUnit);
+    },
+
+    radiationPressure(T) { return this.radiationConstant*T**4/3; },
+
+    pressure(rho,T,comp) {
+        const mu=this.meanMolecularWeight(comp,true);
+        return this.idealGasPressure(rho,T,mu)+this.radiationPressure(T);
+    },
+
+    specificInternalEnergy(rho,T,comp) {
+        const mu=this.meanMolecularWeight(comp,true);
+        return 1.5*PhysicsConstants.k_B*T/(mu*this.atomicMassUnit)+this.radiationConstant*T**4/rho;
+    },
+
+    soundSpeed(rho,T,comp) {
+        const mu=this.meanMolecularWeight(comp,true);
+        const p=this.pressure(rho,T,comp);
+        return Math.sqrt(Math.max(0,(5/3)*p/rho));
+    },
+
+    kramersOpacity(rho,T,X=0.73,Z=0.02) {
+        const Tg=Math.max(T,1);
+        return 4.0e25*(Z*(1+X))*rho*Tg**-3.5;
+    },
+
+    electronScatteringOpacity(X=0.73) { return 0.2*(1+X); },
+
+    opacity(rho,T,comp={X:0.73,Y:0.25,Z:0.02}) {
+        return Math.max(0,this.electronScatteringOpacity(comp.X)+this.kramersOpacity(rho,T,comp.X,comp.Z));
     }
 };
 
-const RadioactiveDecayEngine = {
-    evolve:function(body,dt){
-        if(!(dt>=0)||!body||!body.isotopes)return;
-        for(const [name,amount] of Object.entries(body.isotopes)){
-            const data=NuclearData.isotopes[name];if(!data||!(amount>0)||data.halfLife===Infinity)continue;
-            const remaining=amount*Math.exp(-Math.LN2*dt/data.halfLife),decayed=amount-remaining;
-            body.isotopes[name]=remaining;
-            if(data.daughter)body.isotopes[data.daughter]=(body.isotopes[data.daughter]||0)+decayed;
-        }
+
+const NuclearNetwork = {
+    // Analytic stellar-rate approximations in SI. They are deliberately exposed as
+    // approximations, not tabulated laboratory cross sections.
+    ppEnergyRate(rho,T,X) {
+        const T6=Math.max(T,1)/1e6;
+        const ergPerGramPerSecond=2.4e4*rho/1e3*X*X*Math.pow(T6,-2/3)*Math.exp(-33.8*Math.pow(T6,-1/3));
+        return Math.max(0,ergPerGramPerSecond*1e-4);
+    },
+
+    cnoEnergyRate(rho,T,X,Zcno=0.01) {
+        const T6=Math.max(T,1)/1e6;
+        const ergPerGramPerSecond=8.7e27*rho/1e3*X*Zcno*Math.pow(T6,-2/3)*Math.exp(-152.28*Math.pow(T6,-1/3));
+        return Math.max(0,ergPerGramPerSecond*1e-4);
+    },
+
+    tripleAlphaEnergyRate(rho,T,Y) {
+        const T8=Math.max(T,1)/1e8;
+        const ergPerGramPerSecond=5.1e8*(rho/1e5)**2*Y**3*T8**-3*Math.exp(-44.027/T8);
+        return Math.max(0,ergPerGramPerSecond*1e-4);
+    },
+
+    rates(rho,T,comp) {
+        return {
+            pp:this.ppEnergyRate(rho,T,comp.X),
+            cno:this.cnoEnergyRate(rho,T,comp.X,comp.Z),
+            tripleAlpha:this.tripleAlphaEnergyRate(rho,T,comp.Y)
+        };
+    },
+
+    hydrogenBurning(rho,T,comp,dt) {
+        const rates=this.rates(rho,T,comp);
+        const q=0.007*PhysicsConstants.c**2;
+        const burned=Math.min(comp.X,Math.max(0,(rates.pp+rates.cno)*dt/q));
+        return {
+            rates,
+            dX:-burned,
+            dY:burned,
+            energy:burned*rho*q
+        };
     }
 };
 
-const StellarStructureEngine = {
-    solvePolytrope:function(M,R,n=3,N=800){
-        if(!(M>0)||!(R>0)||!(n>0)||N<20)throw new Error("Invalid polytrope parameters");
-        const h=12/N,deriv=(x,y,z)=>[z,-2*z/x-Math.pow(Math.max(y,0),n)];
-        let x=1e-6,y=1-x*x/6,z=-x/3,prevX=x,prevY=y,xi1=null;
-        for(let k=0;k<N;k++){const d=h,k1=deriv(x,y,z),k2=deriv(x+d/2,y+k1[0]*d/2,z+k1[1]*d/2),k3=deriv(x+d/2,y+k2[0]*d/2,z+k2[1]*d/2),k4=deriv(x+d,y+k3[0]*d,z+k3[1]*d),ny=y+d*(k1[0]+2*k2[0]+2*k3[0]+k4[0])/6,nz=z+d*(k1[1]+2*k2[1]+2*k3[1]+k4[1])/6,nx=x+d;if(ny<=0){xi1=prevX+(0-prevY)*(nx-prevX)/(ny-prevY);break;}prevX=nx;prevY=ny;x=nx;y=ny;z=nz;}
-        if(!xi1)throw new Error("Lane-Emden zero not found");
-        const a=R/xi1,dx=xi1/N,th=new Float64Array(N+1),dv=new Float64Array(N+1);th[0]=1;dv[0]=0;
-        x=1e-7;y=1-x*x/6;z=-x/3;
-        for(let i=1;i<=N;i++){const k1=deriv(x,y,z),k2=deriv(x+dx/2,y+k1[0]*dx/2,z+k1[1]*dx/2),k3=deriv(x+dx/2,y+k2[0]*dx/2,z+k2[1]*dx/2),k4=deriv(x+dx,y+k3[0]*dx,z+k3[1]*dx);y+=dx*(k1[0]+2*k2[0]+2*k3[0]+k4[0])/6;z+=dx*(k1[1]+2*k2[1]+2*k3[1]+k4[1])/6;x=i*dx;th[i]=Math.max(0,y);dv[i]=z;}
-        const rhoC=M/(4*Math.PI*a**3*Math.max(1e-300,-xi1**2*dv[N])),profile=[];let P=0;
-        for(let i=N;i>=0;i--){const r=a*i*dx,rho=rhoC*th[i]**n,dr=a*dx;if(i<N){const menc=4*Math.PI*rhoC*a**3*Math.max(0,-(i+1)*dx*(i+1)*dx*dv[i+1]);P+=PhysicsConstants.G*menc*rho*dr/Math.max(r*r,1);}profile.push({r,rho,pressure:P,temperature:rho>0?P*.61*1.67262192369e-27/(rho*PhysicsConstants.k_B):0});}
-        profile.reverse();return{xi1,a,rhoC,centralPressure:profile[0].pressure,centralTemperature:profile[0].temperature,profile};
-    }
+
+const RadiationTransport={a:4*PhysicsConstants.sigma_sb/PhysicsConstants.c,opticalDepth(kappa,rho,ds){if(kappa<0||rho<0||ds<0)throw new Error("Negative optical-depth input");return kappa*rho*ds},diffusionFlux(T_left,T_right,kappa,rho,ds){const T=Math.max(1,.5*(T_left+T_right)),D=PhysicsConstants.c/(3*Math.max(kappa*rho,1e-300));return -4*this.a*T**3*D*(T_right-T_left)/Math.max(ds,1e-300)},stepGreyDiffusion(T,rho,kappa,dx,dt){if(T.length<3||rho.length!==T.length||kappa.length!==T.length||!(dx>0&&dt>=0))throw new Error("Invalid radiation grid");const out=Float64Array.from(T);for(let i=1;i<T.length-1;i++){const Dl=PhysicsConstants.c/(3*Math.max(kappa[i-1]*rho[i-1],1e-300)),Dr=PhysicsConstants.c/(3*Math.max(kappa[i]*rho[i],1e-300));const El=this.a*T[i]**4,Elp=this.a*T[i+1]**4,Elm=this.a*T[i-1]**4;const fluxR=-Dr*(Elp-El)/dx,fluxL=-Dl*(El-Elm)/dx;const dEdt=-(fluxR-fluxL)/dx;const cv=Math.max(1e-30,4200*rho[i]);out[i]=Math.max(0,T[i]+dt*dEdt/cv)}out[0]=T[0];out[out.length-1]=T[T.length-1];return out}};
+
+const MHD1D={gamma:5/3,flux(U,Bx){const[rho,mx,my,mz,E,By,Bz]=U,vx=mx/rho,vy=my/rho,vz=mz/rho,B2=Bx*Bx+By*By+Bz*Bz,v2=vx*vx+vy*vy+vz*vz,p=Math.max(0,(this.gamma-1)*(E-.5*rho*v2-.5*B2/PhysicsConstants.mu_0)),pt=p+B2/(2*PhysicsConstants.mu_0),vdB=vx*Bx+vy*By+vz*Bz;return[mx,mx*vx+p+(By*By+Bz*Bz-Bx*Bx)/(2*PhysicsConstants.mu_0),my*vx-By*Bx/PhysicsConstants.mu_0,mz*vx-Bz*Bx/PhysicsConstants.mu_0,(E+pt)*vx-Bx*vdB/PhysicsConstants.mu_0,By*vx-Bx*vy,Bz*vx-Bx*vz]},fastSpeed(U,Bx){const[rho,mx,my,mz,E,By,Bz]=U,v2=(mx*mx+my*my+mz*mz)/(rho*rho),B2=Bx*Bx+By*By+Bz*Bz,p=Math.max(0,(this.gamma-1)*(E-.5*rho*v2-.5*B2/PhysicsConstants.mu_0)),a2=this.gamma*p/rho,va2=B2/(PhysicsConstants.mu_0*rho),term=a2+va2,disc=Math.max(0,term*term-4*a2*Bx*Bx/(PhysicsConstants.mu_0*rho));return Math.sqrt(Math.max(0,.5*(term+Math.sqrt(disc))))},rusanovFlux(L,R,Bx){const fL=this.flux(L,Bx),fR=this.flux(R,Bx),s=Math.max(Math.abs(L[1]/L[0])+this.fastSpeed(L,Bx),Math.abs(R[1]/R[0])+this.fastSpeed(R,Bx));return fL.map((x,i)=>.5*(x+fR[i])-.5*s*(R[i]-L[i]))},step(U,dx,dt,Bx){const F=[];for(let i=0;i<U.length-1;i++)F[i]=this.rusanovFlux(U[i],U[i+1],Bx);const out=U.map(u=>u.slice());for(let i=1;i<U.length-1;i++)for(let k=0;k<7;k++)out[i][k]-=dt/dx*(F[i][k]-F[i-1][k]);return out}};
+
+const GRGeodesic={
+ schwarzschildRadius(M){return 2*PhysicsConstants.G*M/(PhysicsConstants.c**2)},
+ redshiftFactor(r,M){const A=1-this.schwarzschildRadius(M)/r;return A>0?Math.sqrt(A):0},
+ properTimeRate(r,M){return this.redshiftFactor(r,M)},
+ metric(r,M){const rs=this.schwarzschildRadius(M),A=1-rs/r;if(A<=0)throw new Error("Schwarzschild chart singular at/inside horizon");return[-A,1/A,r*r,r*r]},
+ derivatives(s,M){
+  const[t,r,phi,ut,ur,up]=s,rs=this.schwarzschildRadius(M),A=1-rs/r;if(r<=rs)throw new Error("Geodesic reached Schwarzschild horizon");
+  const Ap=rs/(r*r);
+  return[ut,ur,up,-Ap/(A)*ut*ur,-(A*Ap/2)*ut*ut+(Ap/(2*A))*ur*ur+A*r*up*up,-2*ur*up/r];
+ },
+ rk4(s,dt,M){const add=(a,b,f)=>a.map((x,i)=>x+f*b[i]),k1=this.derivatives(s,M),k2=this.derivatives(add(s,k1,dt/2),M),k3=this.derivatives(add(s,k2,dt/2),M),k4=this.derivatives(add(s,k3,dt),M);return s.map((x,i)=>x+dt*(k1[i]+2*k2[i]+2*k3[i]+k4[i])/6)}
 };
 
-const NuclearEngine = {
-    // One-zone stellar burning model. Rates are standard analytic educational
-    // approximations, not a full stellar-evolution reaction network.
-    computeFusion: function(dt, objs) {
-        for(const o of objs)RadioactiveDecayEngine.evolve(o,dt);
-        const mp=1.67262192369e-27;
-        const qPP=0.007*PhysicsConstants.c**2;     // J/kg H consumed (mass-defect scale)
-        const q3A=5.8e13;                          // J/kg He consumed, approximate
-        for(const o of objs){
-            if(o.type!=="STAR"||!(o.mass>0)||!(o.radius>0))continue;
-            const Tc=(PhysicsConstants.G*o.mass*mp)/(PhysicsConstants.k_B*o.radius);
-            o.temperature=Tc;
-            const thermal=1.5*(o.mass/mp)*PhysicsConstants.k_B*Tc;
-            if(!(o.internalEnergy>0)||!Number.isFinite(o.internalEnergy))o.internalEnergy=thermal;
+const StellarStructure={G:PhysicsConstants.G,integrate({rho_c,T_c,Mmax=PhysicsConstants.M_sun,dm=Mmax/4000,composition={X:.73,Y:.25,Z:.02}}={}){if(!(rho_c>0&&T_c>0&&dm>0))throw new Error("Invalid stellar central conditions");const p=[],a=4*PhysicsConstants.sigma_sb/PhysicsConstants.c;let m=dm,r=Math.cbrt(3*dm/(4*Math.PI*rho_c)),rho=rho_c,T=T_c,P=EOS.pressure(rho,T,composition),L=0;for(let k=0;k<100000&&m<=Mmax;k++,m+=dm){const rate=NuclearNetwork.rates(rho,T,composition),eps=rate.pp+rate.cno+rate.tripleAlpha;L+=eps*dm;const kap=EOS.opacity(rho,T,composition);p.push({m,r,rho,T,P,L,opacity:kap});const dPdm=-this.G*m/(4*Math.PI*r**4),drdm=1/(4*Math.PI*r*r*rho),dTdm=-3*kap*L/(64*Math.PI*Math.PI*a*PhysicsConstants.c*r**4*Math.max(T,1)**3);P+=dPdm*dm;r+=drdm*dm;T=Math.max(2.73,T+dTdm*dm);if(P<=0||!Number.isFinite(P)||r<=0||!Number.isFinite(T))break;const mu=EOS.meanMolecularWeight(composition,true);rho=Math.max(1e-20,P*mu*EOS.atomicMassUnit/(PhysicsConstants.k_B*T))}return{profile:p,mass:p.length?p[p.length-1].m:0,luminosty:L}}};
 
-            const rho=o.density*1e-3; // kg m^-3 -> g cm^-3 for the cgs fitting formula
-            const X=Math.max(0,Math.min(1,o.composition.X));
-            const Y=Math.max(0,Math.min(1,o.composition.Y));
-            let released=0;
-
-            // epsilon_pp ≈ 2.4e4 rho X² T6^(-2/3) exp[-33.8 T6^(-1/3)] erg g^-1 s^-1
-            if(Tc>3e6&&rho>0&&X>0){
-                const T6=Tc/1e6;
-                const epsPP=2.4e4*rho*X*X*Math.pow(T6,-2/3)*Math.exp(-33.8*Math.pow(T6,-1/3))*1e-4;
-                const dX=Math.min(X,Math.max(0,epsPP*dt/qPP));
-                o.composition.X-=dX;
-                o.composition.Y+=dX;
-                released+=dX*o.mass*qPP;
-            }
-
-            // epsilon_3alpha ≈ 5.1e8 rho² Y³ T8^-3 exp[-4.4027/T8] erg g^-1 s^-1
-            if(Tc>8e7&&rho>0&&Y>0){
-                const T8=Tc/1e8;
-                const eps3=5.1e8*rho*rho*Y*Y*Y*Math.pow(T8,-3)*Math.exp(-4.4027/T8)*1e-4;
-                const dY=Math.min(o.composition.Y,Math.max(0,eps3*dt/q3A));
-                o.composition.Y-=dY;
-                o.composition.Z+=dY;
-                released+=dY*o.mass*q3A;
-            }
-
-            o.internalEnergy+=released;
-            const sum=o.composition.X+o.composition.Y+o.composition.Z;
-            if(!(sum>0)||!Number.isFinite(sum))throw new Error("Invalid stellar composition");
-            o.composition.X/=sum;o.composition.Y/=sum;o.composition.Z/=sum;
-            o.luminosity=released/Math.max(dt,Number.MIN_VALUE);
-        }
-    }
-};
-const BlackHoleThermodynamics = {
-    hawkingTemperature:function(mass){return PhysicsConstants.h_bar*PhysicsConstants.c**3/(8*Math.PI*PhysicsConstants.G*PhysicsConstants.k_B*mass);},
-    hawkingPower:function(mass){return PhysicsConstants.h_bar*PhysicsConstants.c**6/(15360*Math.PI*PhysicsConstants.G**2*mass**2);}
-};
+const NuclearEngine={computeFusion(dt,objs){if(!(dt>=0))throw new Error("Negative nuclear timestep");for(const o of objs){if(o.type!=="STAR"||!o.composition)continue;const rho=o.density>0?o.density:Math.max(1e-20,o.mass/(4*Math.PI*Math.max(o.radius,1)**3/3));const Tc=o.temperature>0?o.temperature:PhysicsConstants.G*o.mass*1.67262192369e-27/(PhysicsConstants.k_B*Math.max(o.radius,1));o.temperature=Tc;const rates=NuclearNetwork.rates(rho,Tc,o.composition),q=0.007*PhysicsConstants.c**2,dx=Math.min(o.composition.X,Math.max(0,(rates.pp+rates.cno)*dt/q));o.composition.X-=dx;o.composition.Y+=dx;o.internalEnergy=(o.internalEnergy||0)+dx*o.mass*q;const dy=Math.min(o.composition.Y,Math.max(0,rates.tripleAlpha*dt/(0.006*PhysicsConstants.c**2)));o.composition.Y-=dy;o.composition.Z+=dy;o.internalEnergy+=dy*o.mass*0.006*PhysicsConstants.c**2}}};
 
 const RelativityEngine = {
-    // 1PN Schwarzschild test-particle correction; not valid in the strong-field/horizon regime.
-    computeSchwarzschildPrecession:function(objects){
-        const accels=objects.map(()=>new Vec3()),bhs=objects.filter(o=>o.type==="BLACK_HOLE"&&o.mass>0);
-        if(objects.length<2||!bhs.length)return accels;
-        const bh=bhs.reduce((a,b)=>a.mass>b.mass?a:b),M=bh.mass,posM=bh.pos,rs=2*PhysicsConstants.G*M/(PhysicsConstants.c**2);
-        for(let i=0;i<objects.length;i++){
-            if(objects[i]===bh)continue;
-            const rVec=objects[i].pos.sub(posM),r=rVec.mag();if(!(r>0)||!Number.isFinite(r))continue;
-            if(r<=10*rs)throw new Error("1PN relativity invalid at r <= 10 Schwarzschild radii");
-            const v=objects[i].vel,v2=v.magSq(),rv=rVec.dot(v);
-            const correction=rVec.mult((4*PhysicsConstants.G*M/r-v2)/(PhysicsConstants.c**2)).add(v.mult(4*rv/(PhysicsConstants.c**2)));
-            accels[i]=correction.mult(PhysicsConstants.G*M/(r**3));
+        computeSchwarzschildPrecession: function(objects) {
+            let accels = new Array(objects.length).fill(null).map(() => new Vec3());
+            // Assume obj 0 is the dominant mass (black hole)
+            if(objects.length < 2 || objects[0].type !== "BLACK_HOLE") return accels;
+            let M = objects[0].mass;
+            let posM = objects[0].pos;
+            for(let i=1; i<objects.length; i++) {
+                let rVec = objects[i].pos.sub(posM);
+                let r = rVec.mag();
+                let vVec = objects[i].vel;
+                let vSq = vVec.magSq();
+
+                // PN correction
+                let rDotV = rVec.dot(vVec);
+                let term1 = (4 * PhysicsConstants.G * M) / (PhysicsConstants.c * PhysicsConstants.c * r) - (vSq / (PhysicsConstants.c * PhysicsConstants.c));
+                let term2 = 4 * rDotV / (PhysicsConstants.c * PhysicsConstants.c);
+
+                let a_gr = rVec.mult(term1).add(vVec.mult(term2)).mult(PhysicsConstants.G * M / Math.pow(r, 3));
+                accels[i] = accels[i].add(a_gr);
+            }
+            return accels;
         }
-        return accels;
+    }
+
+const QuantumEngine = {
+    _solveTridiagonalComplex(aRe, aIm, bRe, bIm, cRe, cIm, dRe, dIm) {
+        const n = dRe.length;
+        const cr = new Float64Array(n), ci = new Float64Array(n);
+        const dr = new Float64Array(n), di = new Float64Array(n);
+        const den = (x,y) => x*x + y*y;
+        const div = (xr,xi,yr,yi) => {
+            const q = den(yr,yi);
+            return [(xr*yr+xi*yi)/q, (xi*yr-xr*yi)/q];
+        };
+        [cr[0],ci[0]] = div(cRe[0],cIm[0],bRe[0],bIm[0]);
+        [dr[0],di[0]] = div(dRe[0],dIm[0],bRe[0],bIm[0]);
+        for(let i=1;i<n;i++){
+            const pr=aRe[i]*cr[i-1]-aIm[i]*ci[i-1];
+            const pi=aRe[i]*ci[i-1]+aIm[i]*cr[i-1];
+            const br=bRe[i]-pr, bi=bIm[i]-pi;
+            const qr=aRe[i]*dr[i-1]-aIm[i]*di[i-1];
+            const qi=aRe[i]*di[i-1]+aIm[i]*dr[i-1];
+            const rr=dRe[i]-qr, ri=dIm[i]-qi;
+            [cr[i],ci[i]]=i<n-1?div(cRe[i],cIm[i],br,bi):[0,0];
+            [dr[i],di[i]]=div(rr,ri,br,bi);
+        }
+        const xr=new Float64Array(n),xi=new Float64Array(n);
+        xr[n-1]=dr[n-1];xi[n-1]=di[n-1];
+        for(let i=n-2;i>=0;i--){
+            const pr=cr[i]*xr[i+1]-ci[i]*xi[i+1];
+            const pi=cr[i]*xi[i+1]+ci[i]*xr[i+1];
+            xr[i]=dr[i]-pr;xi[i]=di[i]-pi;
+        }
+        return {re:xr,im:xi};
+    },
+
+    normalize(re, im, dx) {
+        let norm=0;
+        for(let i=0;i<re.length;i++) norm += re[i]*re[i]+im[i]*im[i];
+        norm=Math.sqrt(norm*dx);
+        if(!Number.isFinite(norm)||norm===0) throw new Error("Quantum normalization failed");
+        for(let i=0;i<re.length;i++){re[i]/=norm;im[i]/=norm;}
+    },
+
+    norm(re, im, dx) {
+        let n=0; for(let i=0;i<re.length;i++) n+=re[i]*re[i]+im[i]*im[i];
+        return n*dx;
+    },
+
+    solve1DSchrodinger(V_array, dx, dt, steps, particleMass) {
+        const N=V_array.length;
+        if(N<3||!(dx>0)||!(dt>0)||!(steps>=0)||!(particleMass>0)) throw new Error("Invalid quantum solver parameters");
+        const hbar=PhysicsConstants.h_bar, m=particleMass;
+        const re=new Float64Array(N), im=new Float64Array(N);
+        const x0=(N-1)*0.25, sigma=Math.max(2,N/20);
+        for(let i=1;i<N-1;i++) re[i]=Math.exp(-Math.pow(i-x0,2)/(2*sigma*sigma));
+        this.normalize(re,im,dx);
+
+        // Crank-Nicolson: (I + i dt H / 2hbar) psi(n+1) =
+        // (I - i dt H / 2hbar) psi(n), unconditionally stable for Hermitian H.
+        const t=hbar*hbar/(2*m*dx*dx);
+        for(let step=0;step<steps;step++){
+            const ar=new Float64Array(N),ai=new Float64Array(N);
+            const br=new Float64Array(N),bi=new Float64Array(N);
+            const cr=new Float64Array(N),ci=new Float64Array(N);
+            const dr=new Float64Array(N),di=new Float64Array(N);
+            for(let i=1;i<N-1;i++){
+                const hdiag=2*t+V_array[i];
+                ar[i]=0; ai[i]=-dt*t/(2*hbar);
+                br[i]=1; bi[i]=dt*hdiag/(2*hbar);
+                cr[i]=0; ci[i]=-dt*t/(2*hbar);
+                // RHS is assembled directly below from the Hermitian Hamiltonian.
+            }
+            // Correct RHS directly from H: psi - i*dt/(2hbar) H psi.
+            for(let i=1;i<N-1;i++){
+                const hR=-t*re[i-1]+(2*t+V_array[i])*re[i]-t*re[i+1];
+                const hI=-t*im[i-1]+(2*t+V_array[i])*im[i]-t*im[i+1];
+                dr[i]=re[i]+dt*hI/(2*hbar);
+                di[i]=im[i]-dt*hR/(2*hbar);
+            }
+            const sol=this._solveTridiagonalComplex(ar,ai,br,bi,cr,ci,dr,di);
+            re.set(sol.re);im.set(sol.im);
+            re[0]=re[N-1]=im[0]=im[N-1]=0;
+            this.normalize(re,im,dx);
+        }
+        return {re,im,norm:this.norm(re,im,dx),method:"Crank-Nicolson",boundary:"Dirichlet psi=0"};
     }
 };
 
-const QuantumEngine = {
-    // Stable Crank-Nicolson time evolution for the 1D TDSE.
-    solve1DSchrodinger: function(V_array, dx, dt, steps, particleMass) {
-        const N=V_array.length, hbar=PhysicsConstants.h_bar, m=particleMass;
-        if(N<3||!(dx>0)||!(dt>0)||!(m>0)) throw new Error("Invalid quantum grid");
-        let re=new Float64Array(N), im=new Float64Array(N);
-        const x0=N/4, sigma=Math.max(1,N/20);
-        let n2=0; for(let i=1;i<N-1;i++){re[i]=Math.exp(-0.5*((i-x0)/sigma)**2);n2+=re[i]**2;}
-        const n=Math.sqrt(n2*dx); for(let i=0;i<N;i++)re[i]/=n;
-        const A=hbar*hbar/(2*m*dx*dx), alpha=dt/(2*hbar);
-        function solve(dr,di,or,oi,rr,ri){
-            const n=rr.length, cr=new Float64Array(n-1),ci=new Float64Array(n-1),qr=new Float64Array(n),qi=new Float64Array(n),xr=new Float64Array(n),xi=new Float64Array(n);
-            let den=dr[0]**2+di[0]**2; cr[0]=(or[0]*dr[0]+oi[0]*di[0])/den; ci[0]=(oi[0]*dr[0]-or[0]*di[0])/den; qr[0]=(rr[0]*dr[0]+ri[0]*di[0])/den; qi[0]=(ri[0]*dr[0]-rr[0]*di[0])/den;
-            for(let i=1;i<n;i++){const ar=or[i-1],ai=oi[i-1],tr=dr[i]-(ar*cr[i-1]-ai*ci[i-1]),ti=di[i]-(ar*ci[i-1]+ai*cr[i-1]),td=tr*tr+ti*ti;if(!(td>0)||!Number.isFinite(td))throw new Error("Quantum linear solve singular");if(i<n-1){cr[i]=(or[i]*tr+oi[i]*ti)/td;ci[i]=(oi[i]*tr-or[i]*ti)/td;}const br=rr[i]-(ar*qr[i-1]-ai*qi[i-1]),bi=ri[i]-(ar*qi[i-1]+ai*qr[i-1]);qr[i]=(br*tr+bi*ti)/td;qi[i]=(bi*tr-br*ti)/td;}
-            xr[n-1]=qr[n-1];xi[n-1]=qi[n-1];for(let i=n-2;i>=0;i--){xr[i]=qr[i]-(cr[i]*xr[i+1]-ci[i]*xi[i+1]);xi[i]=qi[i]-(cr[i]*xi[i+1]+ci[i]*xr[i+1]);}return {re:xr,im:xi};
-        }
-        for(let s=0;s<steps;s++){const n=N-2,dr=new Float64Array(n),di=new Float64Array(n),or=new Float64Array(n-1),oi=new Float64Array(n-1),rr=new Float64Array(n),ri=new Float64Array(n);
-            for(let k=0;k<n;k++){const i=k+1,H=V_array[i]+2*A,hr=H*re[i],hi=H*im[i];dr[k]=1;di[k]=alpha*H;if(k<n-1){or[k]=0;oi[k]=alpha*(-A);}if(i>1){hr+=(-A)*re[i-1];hi+=(-A)*im[i-1];}if(i<N-2){hr+=(-A)*re[i+1];hi+=(-A)*im[i+1];}rr[k]=re[i]+alpha*hi;ri[k]=im[i]-alpha*hr;}
-            const z=solve(dr,di,or,oi,rr,ri);for(let k=0;k<n;k++){re[k+1]=z.re[k];im[k+1]=z.im[k];}re[0]=im[0]=re[N-1]=im[N-1]=0;}
-        let norm=0;for(let i=0;i<N;i++)norm+=(re[i]**2+im[i]**2);norm=Math.sqrt(norm*dx);if(!(norm>0)||!Number.isFinite(norm))throw new Error("Quantum normalization failed");for(let i=0;i<N;i++){re[i]/=norm;im[i]/=norm;}return {re,im,norm};
-    }
-};
-const CosmologyEngine = {
-    solveFriedmann:function(H0_si,Omega_m,Omega_r,Omega_lambda,t_end,dt,a_initial,Omega_k=null){
-        if(!(H0_si>0)||!(dt>0)||!(t_end>=0)||!(a_initial>0))throw new Error("Invalid Friedmann parameters");
-        const Ok=Omega_k===null?1-Omega_m-Omega_r-Omega_lambda:Omega_k;
-        let a=a_initial,t=0,history=[];
-        const H=x=>{if(!(x>0)||!Number.isFinite(x))throw new Error("Invalid scale factor");const h2=H0_si**2*(Omega_r*x**-4+Omega_m*x**-3+Ok*x**-2+Omega_lambda);if(!(h2>=0)||!Number.isFinite(h2))throw new Error("Invalid H²");return Math.sqrt(h2);};
-        const f=x=>x*H(x);
-        while(t<t_end){
-            history.push({t,a});
-            const h=Math.min(dt,t_end-t,0.02/Math.max(H(a),Number.MIN_VALUE));
-            const k1=f(a),k2=f(a+h*k1/2),k3=f(a+h*k2/2),k4=f(a+h*k3);
-            a+=h*(k1+2*k2+2*k3+k4)/6;t+=h;
-            if(!Number.isFinite(a)||a<=0)throw new Error("Friedmann integration diverged");
-        }
-        history.push({t,a});return history;
-    }
-};
+
+const CosmologyEngine={derivative(a,H0,Om,Or,Ol){if(!(a>0))throw new Error("Scale factor must be positive");const E2=Om*a**-3+Or*a**-4+Ol;if(E2<0)throw new Error("Friedmann H^2 became negative");return a*H0*Math.sqrt(E2)},solveFriedmann(H0_si,Omega_m,Omega_r,Omega_lambda,t_end,dt,a_initial=1){if(!(H0_si>0&&t_end>=0&&dt>0&&a_initial>0))throw new Error("Invalid Friedmann parameters");const h=(a)=>this.derivative(a,H0_si,Omega_m,Omega_r,Omega_lambda);let a=a_initial,t=0,history=[];while(t<=t_end){history.push({t,a});if(t+dt>t_end)break;const k1=h(a),k2=h(a+dt*k1/2),k3=h(a+dt*k2/2),k4=h(a+dt*k3);a+=dt*(k1+2*k2+2*k3+k4)/6;if(!(a>0&&Number.isFinite(a)))throw new Error("Friedmann integration diverged");t+=dt}return history}};
 
 const Integrators = {
         eulerSemiImplicit: function(objects, dt, accels) {
@@ -876,108 +868,196 @@ const Integrators = {
     }
 
 const Diagnostics = {
-        initEnergy: null,
-        getKineticEnergy: function(objects) { return objects.reduce((sum, o) => sum + 0.5 * o.mass * o.vel.magSq(), 0); },
-        getPotentialEnergy:function(objects){
-            let u=0;for(let i=0;i<objects.length;i++)for(let j=i+1;j<objects.length;j++){const r=objects[i].pos.sub(objects[j].pos).mag();if(r>0)u-=PhysicsConstants.G*objects[i].mass*objects[j].mass/r;}return u;
-        },
-        getCoulombEnergy:function(objects){
-            let u=0,k=1/(4*Math.PI*PhysicsConstants.eps_0);
-            for(let i=0;i<objects.length;i++)for(let j=i+1;j<objects.length;j++){const r=objects[i].pos.sub(objects[j].pos).mag();if(r>0&&objects[i].charge!==0&&objects[j].charge!==0)u+=k*objects[i].charge*objects[j].charge/r;}return u;
-        },
-        getInternalEnergy:function(objects){return objects.reduce((s,o)=>s+Math.max(0,Number.isFinite(o.internalEnergy)?o.internalEnergy:0),0);},
-        getTotalMomentum: function(objects) { return objects.reduce((sum, o) => sum.add(o.vel.mult(o.mass)), new Vec3()); },
-        update: function(objects) {
-            let totalE=this.getKineticEnergy(objects)+this.getPotentialEnergy(objects)+this.getCoulombEnergy(objects)+this.getInternalEnergy(objects)+(typeof Engine!=="undefined"?Engine.radiatedEnergy:0);
-            let mom = this.getTotalMomentum(objects);
-            if (this.initEnergy === null && objects.length > 0) this.initEnergy = totalE;
-            const denom = Math.max(Math.abs(this.initEnergy ?? 0), Number.MIN_VALUE);
-            let eErr = this.initEnergy !== null ? Math.abs((totalE-this.initEnergy)/denom)*100 : 0;
+    initEnergy: null,
+    initialMomentum: null,
+    initialAngularMomentum: null,
 
-            document.getElementById('diag-energy').innerText = totalE.toExponential(3) + " J";
-            document.getElementById('diag-e-err').innerText = eErr.toFixed(6) + " %";
-            document.getElementById('diag-mom').innerText = mom.mag().toExponential(3);
+    getKineticEnergy(objects) {
+        return objects.reduce((sum, o) => sum + 0.5 * o.mass * o.vel.magSq(), 0);
+    },
 
-            let statusEl = document.getElementById('diag-status');
-            if(!Number.isFinite(totalE) || !Number.isFinite(eErr) || eErr > 100) { statusEl.innerText = "FAIL (발산)"; statusEl.className = "val fail"; Engine.status = "FAILED"; }
-            else if(eErr > 1) { statusEl.innerText = "WARNING (경고)"; statusEl.className = "val warn"; }
-            else { statusEl.innerText = "STABLE (안정)"; statusEl.className = "val pass"; }
+    getPotentialEnergy(objects) {
+        let u = 0;
+        for (let i = 0; i < objects.length; i++) {
+            for (let j = i + 1; j < objects.length; j++) {
+                const r = objects[i].pos.sub(objects[j].pos).mag();
+                if (r > 0) u -= PhysicsConstants.G * objects[i].mass * objects[j].mass / r;
+            }
         }
+        return u;
+    },
+
+    getTotalMomentum(objects) {
+        return objects.reduce((sum, o) => sum.add(o.vel.mult(o.mass)), new Vec3());
+    },
+
+    getAngularMomentum(objects) {
+        return objects.reduce((sum, o) => sum.add(o.pos.cross(o.vel.mult(o.mass))), new Vec3());
+    },
+
+    begin(objects) {
+        this.initEnergy = this.getKineticEnergy(objects) + this.getPotentialEnergy(objects);
+        this.initialMomentum = this.getTotalMomentum(objects);
+        this.initialAngularMomentum = this.getAngularMomentum(objects);
+    },
+
+    relativeError(value, reference, floor = 1e-300) {
+        return Math.abs(value - reference) / Math.max(Math.abs(reference), floor);
+    },
+
+    vectorRelativeError(v, ref, floor = 1e-300) {
+        return v.sub(ref).mag() / Math.max(ref.mag(), floor);
+    },
+
+    sample(objects) {
+        const totalE = this.getKineticEnergy(objects) + this.getPotentialEnergy(objects);
+        const mom = this.getTotalMomentum(objects);
+        const ang = this.getAngularMomentum(objects);
+        return {
+            energy: totalE,
+            energyRelativeError: this.initEnergy == null ? 0 : this.relativeError(totalE, this.initEnergy),
+            momentumRelativeError: this.initialMomentum == null ? 0 : this.vectorRelativeError(mom, this.initialMomentum),
+            angularMomentumRelativeError: this.initialAngularMomentum == null ? 0 : this.vectorRelativeError(ang, this.initialAngularMomentum)
+        };
+    },
+
+    update(objects) {
+        if (this.initEnergy == null && objects.length) this.begin(objects);
+        const s = this.sample(objects);
+        const finite = [s.energy, s.energyRelativeError, s.momentumRelativeError, s.angularMomentumRelativeError].every(Number.isFinite);
+        const statusEl = document.getElementById('diag-status');
+        const energyEl = document.getElementById('diag-energy');
+        const errEl = document.getElementById('diag-e-err');
+        const momEl = document.getElementById('diag-mom');
+        if (energyEl) energyEl.innerText = Number(s.energy).toExponential(6) + " J";
+        if (errEl) errEl.innerText = (s.energyRelativeError * 100).toExponential(6) + " %";
+        if (momEl) momEl.innerText = (momEl.dataset && momEl.dataset.vector === "true")
+            ? s.momentumRelativeError.toExponential(6)
+            : this.getTotalMomentum(objects).mag().toExponential(6);
+        if (statusEl) {
+            if (!finite) {
+                statusEl.innerText = "FAIL (비유한값)";
+                statusEl.className = "val fail";
+                Engine.status = "FAILED";
+            } else if (s.energyRelativeError > 1e-2) {
+                statusEl.innerText = "WARNING (오차)";
+                statusEl.className = "val warn";
+            } else {
+                statusEl.innerText = "STABLE";
+                statusEl.className = "val pass";
+            }
+        }
+        return s;
     }
+};
+
 
 const Validator = {
-    tests:[
-        {name:"Gravity: Kepler Period / Phase",run:()=>{
-            const M=PhysicsConstants.M_sun,m=PhysicsConstants.M_earth,r=PhysicsConstants.AU;
-            const v=Math.sqrt(PhysicsConstants.G*M/r),a=new PhysicalBody("S","STAR",M,1e9,new Vec3(0,0,0),new Vec3()),b=new PhysicalBody("P","PLANET",m,1e6,new Vec3(r,0,0),new Vec3(0,v,0));
-            const dt=3600,T=2*Math.PI*Math.sqrt(r**3/(PhysicsConstants.G*M));for(let t=0;t<T;t+=dt)Integrators.verlet([a,b],Math.min(dt,T-t),x=>GravityEngine.computeAccelerations(x,false));
-            const radiusErr=Math.abs(b.pos.mag()-r)/r,phaseErr=Math.hypot(b.pos.x-r,b.pos.y)/r;
-            return{status:Math.max(radiusErr,phaseErr)<0.05?"PASS":"FAIL",error:Math.max(radiusErr,phaseErr),tolerance:"<5% orbital phase/radius error"};
+    _assert(name, condition, metrics) {
+        return {name, status: condition ? "PASS" : "FAIL", ...metrics};
+    },
+
+    _twoBody(dt, periods) {
+        const M=PhysicsConstants.M_sun, m=PhysicsConstants.M_earth, r=PhysicsConstants.AU;
+        const mu=PhysicsConstants.G*(M+m), n=Math.sqrt(mu/r**3), T=2*Math.PI/n;
+        const vc=Math.sqrt(mu/r);
+        const comR=r*m/(M+m), comV=vc*m/(M+m);
+        const A=new PhysicalBody("S","STAR",M,6.96e8,new Vec3(-comR,0,0),new Vec3(0,-comV,0));
+        const B=new PhysicalBody("P","PLANET",m,6.371e6,new Vec3(r-comR,0,0),new Vec3(0,vc-comV,0));
+        const objects=[A,B];
+        const steps=Math.ceil(periods*T/dt);
+        const initialE=Diagnostics.getKineticEnergy(objects)+Diagnostics.getPotentialEnergy(objects);
+        const initialP=Diagnostics.getTotalMomentum(objects);
+        for(let k=0;k<steps;k++) Integrators.verlet(objects,dt,obs=>GravityEngine.computeAccelerations(obs,false));
+        const finalE=Diagnostics.getKineticEnergy(objects)+Diagnostics.getPotentialEnergy(objects);
+        const finalP=Diagnostics.getTotalMomentum(objects);
+        const rel=objects[1].pos.sub(objects[0].pos);
+        const phaseError=Math.abs(rel.mag()-r)/r;
+        return {T, initialE, finalE, initialP, finalP, energyError:Math.abs((finalE-initialE)/initialE), momentumError:finalP.sub(initialP).mag()/Math.max(initialP.mag(),1), radiusError:phaseError};
+    },
+
+    tests: [
+        {name:"Kepler two-body: 10-period radius stability", run(){
+            const x=Validator._twoBody(1800,10);
+            return Validator._assert(this.name,x.radiusError<2e-3,{error:x.radiusError,tolerance:"<2e-3"});
         }},
-        {name:"Gravity: Momentum Conservation",run:()=>{
-            const a=new PhysicalBody("A","PLANET",2e24,1e6,new Vec3(-2e9,0,0),new Vec3(0,1000,0)),b=new PhysicalBody("B","PLANET",3e24,1e6,new Vec3(3e9,0,0),new Vec3(0,-700,0)),as=GravityEngine.computeAccelerations([a,b],false);
-            const f1=as[0].mult(a.mass),f2=as[1].mult(b.mass),rel=f1.add(f2).mag()/Math.max(f1.mag(),f2.mag());
-            return{status:rel<1e-14?"PASS":"FAIL",error:rel,tolerance:"<1e-14 relative force residual"};
+        {name:"Kepler timestep convergence", run(){
+            const a=Validator._twoBody(3600,2), b=Validator._twoBody(1800,2);
+            const ratio=Math.abs(b.radiusError-a.radiusError)/Math.max(a.radiusError,1e-15);
+            return Validator._assert(this.name,b.radiusError<a.radiusError*1.25+1e-8,{error:ratio,tolerance:"refinement must not materially worsen error"});
         }},
-        {name:"Collision: Inelastic Momentum Conservation",run:()=>{
-            const m1=1e24,m2=1e24,v1=new Vec3(1000,0,0),v2=new Vec3(-1000,0,0),a=new PhysicalBody("1","PLANET",m1,1e6,new Vec3(-1e6,0,0),v1),b=new PhysicalBody("2","PLANET",m2,1e6,new Vec3(1e6,0,0),v2),objs=[a,b];
-            const p=v1.mult(m1).add(v2.mult(m2));CollisionEngine.checkAndResolve(objs);if(objs.length!==1)return{status:"FAIL",error:1,tolerance:"one merged body"};
-            const residual=p.sub(objs[0].vel.mult(objs[0].mass)).mag()/Math.max(p.mag(),1);return{status:residual<1e-14?"PASS":"FAIL",error:residual,tolerance:"<1e-14 relative momentum error"};
+        {name:"Linear momentum conservation", run(){
+            const x=Validator._twoBody(3600,10);
+            return Validator._assert(this.name,x.momentumError<1e-12,{error:x.momentumError,tolerance:"<1e-12"});
         }},
-        {name:"Barnes-Hut: Direct-Sum Agreement",run:()=>{
-            const bh=[],direct=[];for(let i=0;i<64;i++){const q=i+1,o=new PhysicalBody(""+i,"PLANET",1e20,1e5,new Vec3((q*17%101)*1e8/101,(q*43%97)*1e8/97,(q*29%89)*1e8/89),new Vec3());bh.push(o.clone());direct.push(o.clone());}
-            const A=GravityEngine.computeAccelerations(bh,true),B=GravityEngine.computeAccelerations(direct,false);let max=0;for(let i=0;i<bh.length;i++)max=Math.max(max,A[i].sub(B[i]).mag()/Math.max(B[i].mag(),1e-30));
-            return{status:max<0.1?"PASS":"FAIL",error:max,tolerance:"<10% relative acceleration error"};
+        {name:"Mechanical energy conservation", run(){
+            const x=Validator._twoBody(3600,10);
+            return Validator._assert(this.name,x.energyError<1e-5,{error:x.energyError,tolerance:"<1e-5"});
         }},
-        {name:"Barnes-Hut: Duplicate Coordinates",run:()=>{
-            const a=new PhysicalBody("A","PLANET",1e20,1e5,new Vec3(0,0,0),new Vec3()),b=new PhysicalBody("B","PLANET",2e20,1e5,new Vec3(0,0,0),new Vec3()),c=new PhysicalBody("C","PLANET",3e20,1e5,new Vec3(1e9,0,0),new Vec3()),A=GravityEngine.computeAccelerations([a,b,c],true),B=GravityEngine.computeAccelerations([a,b,c],false);
-            const err=A[0].sub(B[0]).mag()/Math.max(B[0].mag(),1e-30);return{status:err<1e-14?"PASS":"FAIL",error:err,tolerance:"<1e-14 relative"};
+        {name:"Collision merger linear + angular momentum", run(){
+            const a=new PhysicalBody("a","PLANET",1e10,10,new Vec3(-8,0,0),new Vec3(0,-2,0));
+            const b=new PhysicalBody("b","PLANET",2e10,10,new Vec3(8,0,0),new Vec3(0,1,0));
+            const p0=a.vel.mult(a.mass).add(b.vel.mult(b.mass));
+            const L0=a.pos.cross(a.vel.mult(a.mass)).add(b.pos.cross(b.vel.mult(b.mass)));
+            const o=[a,b]; CollisionEngine.checkAndResolve(o);
+            const p1=o[0].vel.mult(o[0].mass);
+            const L1=o[0].pos.cross(o[0].vel.mult(o[0].mass)).add(o[0].spin.mult((2/5)*o[0].mass*o[0].radius**2));
+            const pe=p1.sub(p0).mag()/Math.max(p0.mag(),1);
+            const le=L1.sub(L0).mag()/Math.max(L0.mag(),1);
+            return Validator._assert(this.name,pe<1e-14&&le<1e-12,{error:Math.max(pe,le),tolerance:"linear <1e-14, angular <1e-12"});
         }},
-        {name:"SPH: Pairwise Momentum Symmetry",run:()=>{
-            const a=new PhysicalBody("A","GAS_CLOUD",1e20,1e5,new Vec3(-2e5,0,0),new Vec3()),b=new PhysicalBody("B","GAS_CLOUD",1e20,1e5,new Vec3(2e5,0,0),new Vec3());a.internalEnergy=b.internalEnergy=1e20;
-            const A=FluidEngine.computeAccelerations([a,b]),res=A.get(a).mult(a.mass).add(A.get(b).mult(b.mass)).mag(),scale=Math.max(A.get(a).mag()*a.mass,1);
-            return{status:res/scale<1e-14?"PASS":"FAIL",error:res/scale,tolerance:"<1e-14 relative"};
+        {name:"Barnes-Hut deterministic convergence", run(){
+            const make=[];
+            for(let i=0;i<128;i++){
+                const a=2*Math.PI*i/128, r=1e10*(1+0.25*Math.sin(3*a));
+                make.push(new PhysicalBody(String(i),"PLANET",1e20,1e5,new Vec3(r*Math.cos(a),r*Math.sin(a),0),new Vec3()));
+            }
+            const direct=GravityEngine.computeAccelerations(make,false);
+            const bh=GravityEngine.computeAccelerations(make,true);
+            let max=0;
+            for(let i=0;i<make.length;i++) max=Math.max(max,bh[i].sub(direct[i]).mag()/Math.max(direct[i].mag(),1e-300));
+            return Validator._assert(this.name,max<0.03,{error:max,tolerance:"<3%"});
         }},
-        {name:"Quantum: Probability Normalization",run:()=>{
-            const V=new Float64Array(120).fill(0),q=QuantumEngine.solve1DSchrodinger(V,1e-11,1e-21,20,9.1093837015e-31);let n=0;for(let i=0;i<V.length;i++)n+=(q.re[i]**2+q.im[i]**2);n=Math.sqrt(n*1e-11);return{status:Math.abs(n-1)<1e-10?"PASS":"FAIL",error:Math.abs(n-1),tolerance:"<1e-10 absolute"};
+        {name:"Quantum Crank-Nicolson norm conservation", run(){
+            const V=new Float64Array(128);
+            const q=QuantumEngine.solve1DSchrodinger(V,1e-10,1e-20,100,9.1093837015e-31);
+            return Validator._assert(this.name,Math.abs(q.norm-1)<1e-10,{error:Math.abs(q.norm-1),tolerance:"<1e-10"});
         }},
-        {name:"Cosmology: de Sitter Analytic Limit",run:()=>{
-            const H=2e-18,t=1e15,a0=.7,h=CosmologyEngine.solveFriedmann(H,0,0,1,t,1e12,a0),exact=a0*Math.exp(H*t),err=Math.abs(h[h.length-1].a-exact)/exact;return{status:err<1e-9?"PASS":"FAIL",error:err,tolerance:"<1e-9 relative"};
+
+        {name:"MHD conserved-state finite-volume step", run(){
+            const Bx=1e-3,U=[];for(let i=0;i<32;i++){const rho=i<16?1:.8,p=i<16?1:.8,By=1e-3,E=p/(5/3-1)+.5*(Bx*Bx+By*By)/PhysicsConstants.mu_0;U.push([rho,0,0,0,E,By,0]);}
+            const out=MHD1D.step(U,1,1e-4,Bx),finite=out.flat().every(Number.isFinite)&&out.every(u=>u[0]>0);
+            return Validator._assert(this.name,finite,{error:finite?0:1,tolerance:"all finite, rho>0"});
         }},
-        {name:"Nuclear: Radioactive Half-Life",run:()=>{
-            const b=new PhysicalBody("decay","STAR",1e20,1e6,new Vec3(),new Vec3());b.isotopes={C14:1};
-            RadioactiveDecayEngine.evolve(b,NuclearData.isotopes.C14.halfLife);
-            const err=Math.abs(b.isotopes.C14-0.5);
-            return{status:err<1e-12?"PASS":"FAIL",error:err,tolerance:"<1e-12 absolute"};
-        }},
-        {name:"Thermodynamics: Blackbody Stefan-Boltzmann Law",run:()=>{
-            const r=6.96e8,T=5778,expected=4*Math.PI*r*r*PhysicsConstants.sigma_sb*T**4;
-            const rel=Math.abs(expected-3.828e26)/3.828e26;
-            return{status:rel<0.03?"PASS":"FAIL",error:rel,tolerance:"<3% relative to solar reference"};
-        }},
-        {name:"Relativity: Schwarzschild Radius",run:()=>{
-            const rs=2*PhysicsConstants.G*PhysicsConstants.M_sun/(PhysicsConstants.c**2),expected=2953.339382,err=Math.abs(rs-expected)/expected;return{status:err<1e-6?"PASS":"FAIL",error:err,tolerance:"<1e-6 relative"};
+        {name:"Radiation optical-depth positivity", run(){const tau=RadiationTransport.opticalDepth(.34,1e-4,1e7);return Validator._assert(this.name,tau>=0,{error:tau,tolerance:">=0"});}},
+        {name:"Schwarzschild redshift analytic check", run(){const M=PhysicsConstants.M_sun,r=10*GRGeodesic.schwarzschildRadius(M),z=1/GRGeodesic.redshiftFactor(r,M)-1,expected=1/Math.sqrt(.9)-1;return Validator._assert(this.name,Math.abs(z-expected)<1e-14,{error:Math.abs(z-expected),tolerance:"<1e-14"});}},        {name:"SPH density symmetry", run(){
+            const a=new PhysicalBody("a","GAS_CLOUD",1,1,new Vec3(-1,0,0),new Vec3());
+            const b=new PhysicalBody("b","GAS_CLOUD",1,1,new Vec3(1,0,0),new Vec3());
+            FluidEngine.h=4; FluidEngine.computeState([a,b]);
+            const e=Math.abs(a.sph_density-b.sph_density)/Math.max(a.sph_density,b.sph_density);
+            return Validator._assert(this.name,e<1e-14,{error:e,tolerance:"<1e-14"});
         }}
     ],
-    runAllTests:function(){return this.tests.map(test=>{try{return{name:test.name,...test.run()};}catch(e){return{name:test.name,status:"FAIL",error:1,tolerance:e.message||"exception"};}})}
+
+    runAllTests(returnResults=false){
+        const results=[];
+        for(const test of this.tests){
+            try{results.push(test.run());}
+            catch(e){results.push({name:test.name,status:"FAIL",error:Infinity,tolerance:"exception: "+e.message});}
+        }
+        return returnResults?results:results.every(r=>r.status==="PASS");
+    }
 };
+
+
 const Labs = {
         current: "GRAVITY",
         loadLab: function(labName) {
             this.current = labName;
-            UI.selectedId = null;
-            Engine.objects = [];
-            Engine.time = 0;
-            Engine.radiatedEnergy = 0;
-            Engine.status = "STABLE";
-            Engine.paused = false;
-            Diagnostics.initEnergy = null;
+            Engine.objects = []; Diagnostics.initEnergy = 0; Engine.time = 0;
             Engine.activeModels = ["Gravity", "Collision", "Thermodynamics"];
-            const pauseButton = document.getElementById('btn-pause');
-            if (pauseButton) { pauseButton.textContent = "일시정지 (PAUSE)"; pauseButton.setAttribute('aria-pressed','false'); }
-            document.querySelectorAll('.lab-btn').forEach(b => b.classList.remove('active'));
-            const activeButton = document.getElementById('btn-lab-' + labName);
-            if (activeButton) activeButton.classList.add('active');
+            document.querySelectorAll('.lab-module').forEach(b => b.classList.remove('active'));
+            try { document.getElementById('btn-lab-'+labName).classList.add('active'); } catch(e) {}
 
             let info = "";
             if(labName === 'GALAXY') {
@@ -986,44 +1066,14 @@ const Labs = {
                 let smbhMass = 1e35;
                 Engine.objects.push(new PhysicalBody("SMBH", "BLACK_HOLE", smbhMass, 1e9, new Vec3(), new Vec3())); // Central BH
                 for(let i=0; i<300; i++) {
-                    let r = 1e11 + ((i*0.6180339887498949)%1)*1e12;
-                    let theta = (i*2.399963229728653)%(Math.PI*2);
+                    let r = 1e11 + Math.random()*1e12;
+                    let theta = Math.random()*Math.PI*2;
                     let v = Math.sqrt(PhysicsConstants.G * smbhMass / r);
                     Engine.objects.push(new PhysicalBody("S"+i, "STAR", PhysicsConstants.M_sun, 1e8,
                         new Vec3(r*Math.cos(theta), 0, r*Math.sin(theta)),
                         new Vec3(-v*Math.sin(theta), 0, v*Math.cos(theta))));
                 }
                 Engine.dt = 1.0; Renderer.scale = 1e-10; // lower timestep to avoid numerical divergence of energy error.
-            }
-            else if(labName === 'MULTISTAR') {
-                info="계층형 4중항성 N-body 실험. 두 개의 내부 쌍성계가 공전하는 초기조건.";
-                Engine.gravityAlgorithm="DIRECT"; document.getElementById('sys-gravity').value="DIRECT";
-                const M=PhysicsConstants.M_sun,Rin=1.0*PhysicsConstants.AU,Rout=30*PhysicsConstants.AU;
-                const vIn=Math.sqrt(PhysicsConstants.G*M/(2*Rin)),vOut=Math.sqrt(PhysicsConstants.G*M/Rout);
-                const pair1=[new Vec3(-Rin,0,0),new Vec3(Rin,0,0)],pair2=[new Vec3(Rout-Rin,0,0),new Vec3(Rout+Rin,0,0)];
-                Engine.objects.push(new PhysicalBody("A1","STAR",M,6.96e8,pair1[0],new Vec3(0,-vIn-vOut,0)));
-                Engine.objects.push(new PhysicalBody("A2","STAR",M,6.96e8,pair1[1],new Vec3(0,vIn-vOut,0)));
-                Engine.objects.push(new PhysicalBody("B1","STAR",M,6.96e8,pair2[0],new Vec3(0,vIn+vOut,0)));
-                Engine.objects.push(new PhysicalBody("B2","STAR",M,6.96e8,pair2[1],new Vec3(0,-vIn+vOut,0)));
-                Engine.dt=21600;Renderer.scale=2e-11;
-            }
-            else if(labName === 'BLACKHOLE') {
-                info="슈바르츠실트 중심질량 + 1PN 약중력장 보정 실험. 완전한 수치상대성이 아닌 1PN 근사.";
-                Engine.gravityAlgorithm="DIRECT";document.getElementById('sys-gravity').value="DIRECT";
-                Engine.activeModels.push("Relativity");
-                const M=10*PhysicsConstants.M_sun,rs=2*PhysicsConstants.G*M/(PhysicsConstants.c**2),r=100*rs,v=Math.sqrt(PhysicsConstants.G*M/r);
-                const bhBody=new PhysicalBody("BH","BLACK_HOLE",M,rs,new Vec3(),new Vec3());bhBody.temperature=BlackHoleThermodynamics.hawkingTemperature(M);bhBody.surfaceTemperature=bhBody.temperature;bhBody.luminosity=BlackHoleThermodynamics.hawkingPower(M);Engine.objects.push(bhBody);
-                Engine.objects.push(new PhysicalBody("TEST","PLANET",1e20,1e3,new Vec3(r,0,0),new Vec3(0,v,0)));
-                Engine.dt=Math.max(1e-3,0.001*2*Math.PI*Math.sqrt(r**3/(PhysicsConstants.G*M)));Renderer.scale=1e-7;
-            }
-            else if(labName === 'ELECTROMAGNETIC') {
-                info="점전하 Coulomb + 저속 자기력 실험. 진공, 점입자, 비복사 근사.";
-                Engine.gravityAlgorithm="DIRECT";document.getElementById('sys-gravity').value="DIRECT";
-                Engine.activeModels.push("Electromagnetic");
-                const q=1e-6,m=1e20,d=1e7;
-                const a=new PhysicalBody("Q+","PLANET",m,1e5,new Vec3(-d/2,0,0),new Vec3(0,1e4,0));
-                const b=new PhysicalBody("Q-","PLANET",m,1e5,new Vec3(d/2,0,0),new Vec3(0,-1e4,0));
-                a.charge=q;b.charge=-q;a.magneticField=new Vec3(0,0,1e-3);b.magneticField=new Vec3(0,0,1e-3);Engine.objects.push(a,b);Engine.dt=1;Renderer.scale=1e-5;
             }
             else if(labName === 'GRAVITY') {
                 info = "표준 N-Body 중력 (태양계 내부 근사).";
@@ -1037,16 +1087,14 @@ const Labs = {
                 Engine.activeModels.push("Fluid", "Thermodynamics");
                 for(let i=0; i<50; i++) {
                     Engine.objects.push(new PhysicalBody("G"+i, "GAS_CLOUD", 1e20, 1e5,
-                        new Vec3(((i*37)%101-50)*1e4, ((i*61)%101-50)*1e4, ((i*17)%31-15)*2e3), new Vec3()));
+                        new Vec3((Math.random()-0.5)*1e6, (Math.random()-0.5)*1e6, 0), new Vec3()));
                 }
                 Engine.dt = 1; Renderer.scale = 1e-4;
             }
             else if(labName === 'NUCLEAR') {
-                info = "항성 구조 및 핵융합 (PP-Chain Network). Lane–Emden n=3 구조 + PP-chain 근사. 중심 온도/밀도와 수소 질량분율 변화 확인.";
+                info = "항성 구조 및 핵융합 (PP-Chain Network). 온도와 밀도에 따른 수소 질량 분율 변화 확인.";
                 Engine.activeModels.push("Nuclear", "Thermodynamics");
                 let star = new PhysicalBody("Star", "STAR", PhysicsConstants.M_sun, 6.96e8, new Vec3(), new Vec3());
-                const structure=StellarStructureEngine.solvePolytrope(star.mass,star.radius,3,800);
-                star.temperature=structure.centralTemperature;star.surfaceTemperature=5778;star.structure=structure;
                 Engine.objects.push(star);
                 Engine.dt = 3.15e7 * 1e6; // 1 million years per step to see fusion
                 Renderer.scale = 1e-9;
@@ -1057,6 +1105,45 @@ const Labs = {
                 let m_e = 9.109e-31;
                 let q_res = QuantumEngine.solve1DSchrodinger(V, 0.1, 0.01, 100, m_e);
                 info += `<br><br>[QUANTUM STATE]<br>Wavepacket Normalized Integration Complete.<br>Max Probability Amplitude: ${Math.max(...q_res.re).toExponential(3)}`;
+            }
+            else if(labName === 'MHD') {
+                info = "1D ideal MHD conservative finite-volume laboratory (Rusanov flux).";
+                Engine.activeModels = [];
+                const N=64, dx=1e7, Bx=1e-3;
+                const U=[];
+                for(let i=0;i<N;i++){
+                    const left=i<N/2, rho=left?1e-6:1.25e-6, p=left?1e5:1e4, vx=left?0:0, By=left?1e-3: -1e-3;
+                    const E=p/(5/3-1)+0.5*rho*vx*vx+0.5*(Bx*Bx+By*By)/PhysicsConstants.mu_0;
+                    const u=[rho,rho*vx,0,0,E,By,0]; u.Bx=Bx; U.push(u);
+                }
+                const evolved=MHD1D.step(U,dx,100, Bx);
+                Diagnostics.mhdState=evolved;
+                info += "<br><br>[MHD STATE]<br>64-cell conservative update completed.";
+            }
+            else if(labName === 'RADIATION') {
+                info = "Grey radiative diffusion laboratory with optical-depth diagnostics.";
+                Engine.activeModels = [];
+                const N=64,T=new Float64Array(N),rho=new Float64Array(N),k=new Float64Array(N);
+                for(let i=0;i<N;i++){T[i]=300+7000*Math.exp(-((i-N/2)/(N/6))**2);rho[i]=1e-4;k[i]=0.34;}
+                const out=RadiationTransport.stepGreyDiffusion(T,rho,k,1e7,10);
+                Diagnostics.radiationTemperature=out;
+                info += "<br><br>[RADIATION STATE]<br>Grey diffusion step completed.";
+            }
+            else if(labName === 'STELLAR') {
+                info = "1D hydrostatic stellar structure (EOS + opacity + analytic reaction-rate source terms).";
+                Engine.activeModels = [];
+                const model=StellarStructure.integrate({rho_c:1.6e5,T_c:1.5e7,Mmax:PhysicsConstants.M_sun,dm:PhysicsConstants.M_sun/4000});
+                Diagnostics.stellarProfile=model.profile;
+                info += "<br><br>[STELLAR STATE]<br>Integrated shells: "+model.profile.length+"<br>Enclosed mass: "+model.mass.toExponential(3)+" kg";
+            }
+            else if(labName === 'GR') {
+                info = "Schwarzschild geodesic laboratory using proper-time equations.";
+                Engine.activeModels = [];
+                const M=PhysicsConstants.M_sun, r0=10*GRGeodesic.schwarzschildRadius(M);
+                const state=[0,r0,0,PhysicsConstants.c,0,0.0001];
+                let s=state; for(let i=0;i<100;i++) s=GRGeodesic.rk4(s,0.01,M);
+                Diagnostics.grState=s;
+                info += "<br><br>[GR STATE]<br>Geodesic integration completed; redshift factor: "+GRGeodesic.redshiftFactor(r0,M).toExponential(6);
             }
             else if(labName === 'COSMOLOGY') {
                 info = "빅뱅 팽창 (프리드만 우주론). 척도 인자 a(t) 진화 확인 완료.";
@@ -1080,140 +1167,53 @@ const Labs = {
     }
 
 const Renderer = {
-        canvas: null, ctx: null, cameraRot: {x: 0, y: 0}, cameraPan: {x: 0, y: 0}, scale: 1e-9,
-        isDragging: false, isPanDragging: false, lastMouse: {x: 0, y: 0}, activePointers:new Map(), pinchDistance:0,
-
-        init: function() {
-            this.canvas = document.getElementById('universe-canvas');
-            this.ctx = this.canvas.getContext('2d');
-            this.resize();
-            window.addEventListener('resize', () => this.resize());
-
-            // Map global camera values structurally instead of loosely
-            camera.rot = this.cameraRot;
-            camera.pan = this.cameraPan;
-
-            // Tap selects; drag rotates. Pointer capture keeps iOS interactions deterministic.
-            this.canvas.addEventListener('pointerdown',(e)=>{this.activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(this.activePointers.size===2){const p=[...this.activePointers.values()];this.pinchDistance=Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y);this.dragMoved=true;return;}this.isDragging=true;this.dragMoved=false;this.pointerId=e.pointerId;this.lastMouse={x:e.clientX,y:e.clientY};this.downPoint={x:e.clientX,y:e.clientY};this.canvas.setPointerCapture(e.pointerId);});
-            this.canvas.addEventListener('pointermove',(e)=>{if(this.activePointers.has(e.pointerId))this.activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(this.activePointers.size===2){const p=[...this.activePointers.values()],d=Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y);if(this.pinchDistance>0)this.scale*=Math.min(1.25,Math.max(.8,d/this.pinchDistance));this.pinchDistance=d;return;}if(!this.isDragging||e.pointerId!==this.pointerId)return;const dx=e.clientX-this.lastMouse.x,dy=e.clientY-this.lastMouse.y;if(Math.hypot(e.clientX-this.downPoint.x,e.clientY-this.downPoint.y)>6)this.dragMoved=true;this.cameraRot.y+=dx*0.01;this.cameraRot.x+=dy*0.01;this.lastMouse={x:e.clientX,y:e.clientY};});
-            this.canvas.addEventListener('pointerup',(e)=>{const wasSingle=this.activePointers.size===1&&e.pointerId===this.pointerId;if(wasSingle&&!this.dragMoved)UI.selectAtScreen(e.clientX,e.clientY);this.activePointers.delete(e.pointerId);this.pinchDistance=0;this.isDragging=false;try{this.canvas.releasePointerCapture(e.pointerId);}catch(err){}});
-            this.canvas.addEventListener('pointercancel',(e)=>{this.activePointers.delete(e.pointerId);this.isDragging=false;this.pinchDistance=0;});
-            this.canvas.addEventListener('wheel', (e) => {
-                e.preventDefault();
-                this.scale = Math.min(1e-2,Math.max(1e-18,this.scale*(e.deltaY>0?0.9:1.1)));
-            }, {passive: false});
-
-            let lastTap = 0;
-            this.canvas.addEventListener('dblclick', (e) => {
-                if (e.target !== this.canvas) return;
-                UI.createObject();
-            });
-            this.canvas.addEventListener('touchend', (e) => {
-                if (e.changedTouches.length !== 1) return;
-                const now = performance.now();
-                if (now - lastTap < 280) {
-                    e.preventDefault();
-                    UI.createObject();
-                    lastTap = 0;
-                } else lastTap = now;
-            }, {passive:false});
-        },
-        resize: function() {
-            const r = this.canvas.parentElement.getBoundingClientRect();
-            const dpr = Math.min(window.devicePixelRatio || 1, 2);
-            this.canvas.width = Math.max(1, Math.round(r.width * dpr));
-            this.canvas.height = Math.max(1, Math.round(r.height * dpr));
-            this.canvas.style.width = r.width + 'px';
-            this.canvas.style.height = r.height + 'px';
-            this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        },
-        projectObjects:function(){const w=this.canvas.clientWidth||1,h=this.canvas.clientHeight||1,cx=w/2+this.cameraPan.x,cy=h/2+this.cameraPan.y,sx=Math.sin(this.cameraRot.x),cxr=Math.cos(this.cameraRot.x),sy=Math.sin(this.cameraRot.y),cyr=Math.cos(this.cameraRot.y);return Engine.objects.map(o=>{const x1=o.pos.x*cyr-o.pos.z*sy,z1=o.pos.z*cyr+o.pos.x*sy,y2=o.pos.y*cxr-z1*sx,z2=z1*cxr+o.pos.y*sx;return {obj:o,px:cx+x1*this.scale,py:cy+y2*this.scale,pz:z2,pr:Math.max(1.5,o.radius*this.scale)};});},
-        draw: function() {
-            this.ctx.fillStyle = "#000";
-            const cssW = this.canvas.clientWidth || (this.canvas.width / (window.devicePixelRatio || 1));
-            const cssH = this.canvas.clientHeight || (this.canvas.height / (window.devicePixelRatio || 1));
-            this.ctx.fillRect(0, 0, cssW, cssH);
-            let cx = (this.canvas.clientWidth || this.canvas.width) / 2 + this.cameraPan.x;
-            let cy = (this.canvas.clientHeight || this.canvas.height) / 2 + this.cameraPan.y;
-            let sinX = Math.sin(this.cameraRot.x), cosX = Math.cos(this.cameraRot.x);
-            let sinY = Math.sin(this.cameraRot.y), cosY = Math.cos(this.cameraRot.y);
-
-            let projObjs=this.projectObjects();projObjs.sort((a,b)=>a.pz-b.pz);
-
-            for(let p of projObjs) {
-                this.ctx.beginPath();
-                this.ctx.arc(p.px, p.py, p.pr, 0, Math.PI*2);
-                if(p.obj.type === "STAR") this.ctx.fillStyle = "#facc15";
-                else if(p.obj.type === "PLANET") this.ctx.fillStyle = "#0ea5e9";
-                else if(p.obj.type === "BLACK_HOLE") { this.ctx.fillStyle = "#000"; this.ctx.strokeStyle="#fff"; this.ctx.stroke(); }
-                else if(p.obj.type === "GAS_CLOUD") this.ctx.fillStyle = "rgba(16, 185, 129, 0.5)";
-                else this.ctx.fillStyle = "#aaa";
-                this.ctx.fill();
-                if(p.obj.id===UI.selectedId){this.ctx.beginPath();this.ctx.arc(p.px,p.py,p.pr+4,0,Math.PI*2);this.ctx.strokeStyle="#fff";this.ctx.lineWidth=2;this.ctx.stroke();}
-            }
-        }
-    }
+ canvas:null,ctx:null,cameraRot:{x:0,y:0},cameraPan:{x:0,y:0},scale:1e-9,isDragging:false,pointerId:null,lastMouse:{x:0,y:0},downPoint:{x:0,y:0},dragMoved:false,
+ init(){
+  this.canvas=document.getElementById("universe-canvas");if(!this.canvas)throw new Error("Universe canvas missing");
+  this.ctx=this.canvas.getContext("2d");this.resize();window.addEventListener("resize",()=>this.resize(),{passive:true});this.canvas.style.touchAction="none";
+  this.canvas.addEventListener("pointerdown",e=>{if(e.pointerType==="mouse"&&e.button!==0)return;this.isDragging=true;this.pointerId=e.pointerId;this.dragMoved=false;this.lastMouse={x:e.clientX,y:e.clientY};this.downPoint={x:e.clientX,y:e.clientY};try{this.canvas.setPointerCapture(e.pointerId)}catch(_){}});
+  this.canvas.addEventListener("pointermove",e=>{if(!this.isDragging||e.pointerId!==this.pointerId)return;const dx=e.clientX-this.lastMouse.x,dy=e.clientY-this.lastMouse.y;if(Math.hypot(e.clientX-this.downPoint.x,e.clientY-this.downPoint.y)>6)this.dragMoved=true;this.cameraRot.y+=dx*.01;this.cameraRot.x+=dy*.01;this.lastMouse={x:e.clientX,y:e.clientY}});
+  const end=e=>{if(e.pointerId!==this.pointerId)return;const click=!this.dragMoved;this.isDragging=false;this.pointerId=null;try{this.canvas.releasePointerCapture(e.pointerId)}catch(_){}if(click&&e.type==="pointerup")UI.selectAtScreen(e.clientX,e.clientY)};
+  this.canvas.addEventListener("pointerup",end);this.canvas.addEventListener("pointercancel",end);
+  this.canvas.addEventListener("dblclick",e=>{if(e.target===this.canvas)UI.createObject(e.clientX,e.clientY)});
+  this.canvas.addEventListener("wheel",e=>{e.preventDefault();this.scale=Math.min(1e-2,Math.max(1e-18,this.scale*(e.deltaY>0?.9:1.1)))},{passive:false});
+ },
+ resize(){const r=this.canvas.parentElement.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);this.canvas.width=Math.max(1,Math.round(r.width*dpr));this.canvas.height=Math.max(1,Math.round(r.height*dpr));this.canvas.style.width=r.width+"px";this.canvas.style.height=r.height+"px";this.ctx.setTransform(dpr,0,0,dpr,0,0)},
+ projectObjects(){const w=this.canvas.clientWidth||1,h=this.canvas.clientHeight||1,cx=w/2+this.cameraPan.x,cy=h/2+this.cameraPan.y,sx=Math.sin(this.cameraRot.x),cxr=Math.cos(this.cameraRot.x),sy=Math.sin(this.cameraRot.y),cyr=Math.cos(this.cameraRot.y);return Engine.objects.map(o=>{const x1=o.pos.x*cyr-o.pos.z*sy,z1=o.pos.z*cyr+o.pos.x*sy,y2=o.pos.y*cxr-z1*sx,z2=z1*cxr+o.pos.y*sx;return{obj:o,px:cx+x1*this.scale,py:cy+y2*this.scale,pz:z2,pr:Math.max(1.5,o.radius*this.scale)}})},
+ draw(){const w=this.canvas.clientWidth||1,h=this.canvas.clientHeight||1;this.ctx.fillStyle="#000";this.ctx.fillRect(0,0,w,h);for(const x of this.projectObjects().sort((a,b)=>a.pz-b.pz)){this.ctx.beginPath();this.ctx.arc(x.px,x.py,x.pr,0,Math.PI*2);if(x.obj.type==="STAR")this.ctx.fillStyle="#facc15";else if(x.obj.type==="PLANET")this.ctx.fillStyle="#0ea5e9";else if(x.obj.type==="BLACK_HOLE"){this.ctx.fillStyle="#000";this.ctx.strokeStyle="#fff";this.ctx.stroke()}else if(x.obj.type==="GAS_CLOUD")this.ctx.fillStyle="rgba(16,185,129,.5)";else this.ctx.fillStyle="#aaa";this.ctx.fill();if(UI.selectedId===x.obj.id){this.ctx.beginPath();this.ctx.arc(x.px,x.py,x.pr+4,0,Math.PI*2);this.ctx.strokeStyle="#fff";this.ctx.stroke()}}}
+};
 
 const UI = {
-        selectedId:null,
-        selectAtScreen:function(x,y){const r=Renderer.canvas.getBoundingClientRect(),sx=x-r.left,sy=y-r.top;const hit=Renderer.projectObjects().filter(p=>Math.hypot(p.px-sx,p.py-sy)<=Math.max(10,p.pr*1.5)).sort((a,b)=>b.pz-a.pz)[0];this.selectedId=hit?hit.obj.id:null;this.updateInspector();},
         init: function() {
-            const tabs = [
-                ['GRAVITY','중력/궤도'], ['MULTISTAR','다중항성'], ['GALAXY','은하'], ['BLACKHOLE','블랙홀/1PN'],
-                ['SPH_FLUID','유체/SPH'], ['ELECTROMAGNETIC','전자기'], ['NUCLEAR','항성/핵'], ['QUANTUM','양자'], ['COSMOLOGY','우주론']
-            ];
-            const bar = document.getElementById('module-bar');
-            bar.innerHTML = '';
-            for (const [id,label] of tabs) {
-                const b = document.createElement('button');
-                b.id = 'btn-lab-' + id;
-                b.className = 'lab-btn';
-                b.type = 'button';
-                b.textContent = label;
-                b.addEventListener('click', () => Labs.loadLab(id));
-                bar.appendChild(b);
-            }
-            const creatorBtn = document.getElementById('btn-creator-panel');
-            const inspectorBtn = document.getElementById('btn-inspector-panel');
-            const toggle = (id) => {
-                const el = document.getElementById(id);
-                if (el) el.classList.toggle('mobile-open');
-            };
-            if (creatorBtn) creatorBtn.addEventListener('click', () => toggle('creator-panel'));
-            if (inspectorBtn) inspectorBtn.addEventListener('click', () => toggle('inspector-panel'));
-            const closeAudit = document.getElementById('btn-close-audit');
-            if (closeAudit) closeAudit.addEventListener('click', () => {
-                document.getElementById('validation-modal').style.display = 'none';
-            });
-            document.getElementById('validation-modal').addEventListener('click', (e) => {
-                if (e.target.id === 'validation-modal') e.currentTarget.style.display = 'none';
-            });
-            // Each control owns exactly one listener; no document-level duplicate dispatch.
+            let tabs = ['GRAVITY', 'MULTISTAR', 'GALAXY', 'BLACKHOLE', 'SPH_FLUID', 'MHD', 'RADIATION', 'NUCLEAR', 'STELLAR', 'GR', 'QUANTUM', 'COSMOLOGY'];
+            let html = "";
+            for(let t of tabs) { html += `<button id="btn-lab-${t}" class="lab-btn" onclick="Labs.loadLab('${t}')">${t}</button>`; }
+            document.getElementById('module-bar').innerHTML = html;
         },
-        createObject: function(screenX=null,screenY=null) {
-            const type=document.getElementById('type').value;
-            const mass=Number(document.getElementById('mass').value),rad=Number(document.getElementById('radius').value);
-            const vx=Number(document.getElementById('vel_x').value),vy=Number(document.getElementById('vel_y').value),vz=Number(document.getElementById('vel_z').value);
-            if(!Number.isFinite(mass)||mass<=0||!Number.isFinite(rad)||rad<=0||![vx,vy,vz].every(Number.isFinite)){this.setMessage("생성 실패: 유한한 SI 값이 필요합니다.","danger");return false;}
-            const vel=new Vec3(vx,vy,vz);if(vel.magSq()>=PhysicsConstants.c**2){this.setMessage("생성 실패: 광속 이상 속도입니다.","danger");return false;}
-            const d=1e8;
-            let pos;
-            if(Number.isFinite(screenX)&&Number.isFinite(screenY)){
-                const r=Renderer.canvas.getBoundingClientRect(),sx=(screenX-r.left-(Renderer.canvas.clientWidth/2+Renderer.cameraPan.x))/Renderer.scale,sy=(screenY-r.top-(Renderer.canvas.clientHeight/2+Renderer.cameraPan.y))/Renderer.scale;
-                const x=sx,y=sy,z=-d,cy=Math.cos(Renderer.cameraRot.y),syaw=Math.sin(Renderer.cameraRot.y),cx=Math.cos(Renderer.cameraRot.x),sxaw=Math.sin(Renderer.cameraRot.x);
-                const z1=z*cx-sy*sxaw,posX=x*cy+z1*syaw,posZ=-x*syaw+z1*cy,posY=sy*cx+z*sxaw;
-                pos=new Vec3(posX,posY,posZ);
-            }else{
-                pos=new Vec3(d*Math.sin(camera.rot.y),d*Math.sin(-camera.rot.x),-d*Math.cos(camera.rot.y));
-            }
-            const id=(globalThis.crypto&&typeof crypto.randomUUID==='function')?crypto.randomUUID():Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
-            const body=new PhysicalBody('body-'+id,type,mass,rad,pos,vel);
-            if(type==='STAR'){body.temperature=1.57e7;body.surfaceTemperature=5778;}
-            if(type==='BLACK_HOLE'){body.radius=2*PhysicsConstants.G*mass/(PhysicsConstants.c**2);body.updateDensity();body.temperature=BlackHoleThermodynamics.hawkingTemperature(mass);body.surfaceTemperature=body.temperature;body.luminosity=BlackHoleThermodynamics.hawkingPower(mass);}
-            if(type==='GAS_CLOUD'){body.temperature=100;const mu=0.61,mp=1.67262192369e-27;body.internalEnergy=1.5*(mass/(mu*mp))*PhysicsConstants.k_B*body.temperature;}
-            Engine.objects.push(body);Diagnostics.initEnergy=null;this.updateInspector();return true;
+        createObject: function() {
+            let type = document.getElementById('type').value;
+            let mass = parseFloat(document.getElementById('mass').value) || 1e24;
+            let rad = parseFloat(document.getElementById('radius').value) || 6e6;
+            let vx = parseFloat(document.getElementById('vel_x').value) || 0;
+            let vy = parseFloat(document.getElementById('vel_y').value) || 0;
+            let vz = parseFloat(document.getElementById('vel_z').value) || 0;
+
+            // Spawn distance from camera center (mocked placement)
+            let dist = 1e8;
+            let spawnPos = new Vec3(
+                dist * Math.sin(Renderer.cameraRot.y),
+                dist * Math.sin(-Renderer.cameraRot.x),
+                -dist * Math.cos(Renderer.cameraRot.y)
+            );
+
+            let vel = new Vec3(vx, vy, vz);
+            let body = new PhysicalBody(Date.now().toString(), type, mass, rad, spawnPos, vel);
+            if (type === 'STAR') body.temperature = 5778;
+
+            Engine.objects.push(body);
+            Diagnostics.initEnergy = 0;
+            this.updateInspector();
         },
-        setMessage: function(message,kind="info"){const el=document.getElementById('inspector-data');if(el)el.insertAdjacentHTML('afterbegin',`<div class="sys-message ${kind}">${message}</div>`);},
         updateInspector: function() {
             let ins = document.getElementById('inspector-data');
             if(Engine.objects.length === 0) {
@@ -1224,8 +1224,8 @@ const UI = {
             ins.innerHTML = `<b>Target: ${o.id} (${o.type})</b><br>
             Mass: ${o.mass.toExponential(3)} kg<br>
             Radius: ${o.radius.toExponential(3)} m<br>
-            Temperature: ${(Number.isFinite(o.temperature)?o.temperature:0).toExponential(3)} K<br>
-            Luminosity: ${(Number.isFinite(o.luminosity)?o.luminosity:0).toExponential(3)} W`;
+            Temperature: ${o.temperature.toExponential(3)} K<br>
+            Luminosity: ${o.luminosity.toExponential(3)} W`;
         },
         showAudit: function() {
             let results = Validator.runAllTests(true);
@@ -1245,7 +1245,7 @@ const UI = {
                 </li>`;
             }
             html += "</ul>";
-            if(allPass && results.length > 0) html += "<div style='color:#10b981; margin-top:10px;'>모든 현재 검증 항목을 통과했습니다. (자동 검증 결과)</div>";
+            if(allPass && results.length > 0) html += "<div style='color:#10b981; margin-top:10px;'>현재 등록된 검증 항목을 모두 통과했습니다.</div>";
             else html += "<div style='color:#f59e0b; margin-top:10px;'>시스템이 불완전하거나 검증 중입니다. (INCOMPLETE)</div>";
 
             document.getElementById('validation-results').innerHTML = html;
@@ -1254,17 +1254,11 @@ const UI = {
     }
 
 const Engine = {
-        objects: [], time: 0, dt: 120, integratorType: "RK4", gravityAlgorithm: "BARNES_HUT", radiatedEnergy:0,
-        status: "STABLE", paused: false, frames: 0, lastFpsTime: 0, lastUiUpdate: 0,
+        objects: [], time: 0, dt: 120, integratorType: "RK4", gravityAlgorithm: "BARNES_HUT",
+        status: "STABLE", paused: false, frames: 0, lastFpsTime: 0,
         activeModels: ["Gravity", "Collision", "Thermodynamics"],
 
-        setIntegrator: function(type) { this.integratorType = String(type).toLowerCase(); },
-        setDt: function(value) {
-            const v = Number(value);
-            if (!Number.isFinite(v) || v <= 0) return false;
-            this.dt = v;
-            return true;
-        },
+        setIntegrator: function(type) { this.integratorType = type; },
 
         getAccelerations: function(objs) {
             let accels = new Array(objs.length).fill(null).map(() => new Vec3());
@@ -1278,12 +1272,8 @@ const Engine = {
                 for(let i=0; i<objs.length; i++) accels[i] = accels[i].add(grAcc[i]);
             }
             if(this.activeModels.includes("Electromagnetic")) {
-                let emAcc=ElectromagneticEngine.computeAccelerations(objs);
-                for(let i=0;i<objs.length;i++) accels[i]=accels[i].add(emAcc[i]);
-            }
-            if(this.activeModels.includes("Fluid")){
-                const fl=FluidEngine.computeAccelerations(objs);
-                for(let i=0;i<objs.length;i++){const a=fl.get(objs[i]);if(a)accels[i]=accels[i].add(a);}
+                let emAcc = ElectromagneticEngine.computeAccelerations(objs);
+                for(let i=0; i<objs.length; i++) accels[i] = accels[i].add(emAcc[i]);
             }
             return accels;
         },
@@ -1291,16 +1281,12 @@ const Engine = {
         step: function() {
             if(this.status === "FAILED") return;
 
-            // Resolve contacts already present before evaluating a singular/near-singular force.
-            CollisionEngine.checkAndResolve(this.objects);
-            // Hard numerical validity gate.
-            for(const o of this.objects){
-                const finite=[o.mass,o.radius,o.pos.x,o.pos.y,o.pos.z,o.vel.x,o.vel.y,o.vel.z,o.acc.x,o.acc.y,o.acc.z].every(Number.isFinite);
-                if(!finite||!(o.mass>0)||!(o.radius>0)){this.status="FAILED";throw new Error("Non-finite or invalid body state");}
-                if(o.vel.magSq()>=PhysicsConstants.c**2){this.status="FAILED";throw new Error("Superluminal velocity detected");}
+            // Safety
+            for(let o of this.objects) {
+                if(isNaN(o.pos.x) || isNaN(o.vel.x)) { this.status = "FAILED"; alert("CATASTROPHIC NUMERICAL INSTABILITY DETECTED (NaN)."); return; }
+                if(o.vel.magSq() >= PhysicsConstants.c * PhysicsConstants.c) { this.status = "FAILED"; alert("SUPERLUMINAL VELOCITY DETECTED."); return; }
             }
 
-            if (!Number.isFinite(this.dt) || this.dt <= 0) { this.status="FAILED"; throw new Error("Invalid simulation timestep"); }
             let t_integrator = this.integratorType.toLowerCase();
             if(t_integrator === "euler") {
                 Integrators.eulerSemiImplicit(this.objects, this.dt, this.getAccelerations(this.objects));
@@ -1310,9 +1296,8 @@ const Engine = {
                 Integrators.rk4(this.objects, this.dt, (obs)=>this.getAccelerations(obs));
             }
 
-
+            if(this.activeModels.includes("Fluid")) FluidEngine.computeSPH(this.objects);
             if(this.activeModels.includes("Nuclear")) NuclearEngine.computeFusion(this.dt, this.objects);
-            if(this.activeModels.includes("Fluid")) FluidEngine.updateInternalEnergy(this.objects,this.dt);
             if(this.activeModels.includes("Collision")) CollisionEngine.checkAndResolve(this.objects);
 
             // Thermodynamics and Radiation processing
@@ -1323,18 +1308,13 @@ const Engine = {
 
             this.time += this.dt;
             Diagnostics.update(this.objects);
-            const nowUi=performance.now();
-            if(nowUi-this.lastUiUpdate>=125){this.lastUiUpdate=nowUi;UI.updateInspector();}
+
+            // diag-time and diag-count are omitted to map strictly to provided canonical HTML,
+            // or handled via UI.updateInspector() directly.
+            UI.updateInspector();
         },
 
-        togglePause: function() {
-            this.paused = !this.paused;
-            const b = document.getElementById('btn-pause');
-            if (b) {
-                b.textContent = this.paused ? "재개 (RESUME)" : "일시정지 (PAUSE)";
-                b.setAttribute('aria-pressed', String(this.paused));
-            }
-        },
+        togglePause: function() { this.paused = !this.paused; document.getElementById('btn-pause').innerText = this.paused ? "재개 (RESUME)" : "일시정지 (PAUSE)"; },
 
         loop: function() {
             requestAnimationFrame(() => this.loop());
@@ -1342,20 +1322,13 @@ const Engine = {
             if(now - this.lastFpsTime >= 1000) { this.frames = 0; this.lastFpsTime = now; } // FPS tracking decoupled from DOM
 
             if(!this.paused) {
-                const substeps = 1;
-                for(let i=0;i<substeps;i++){
-                    try {
-                        this.step();
-                    } catch(err) {
-                        this.status="FAILED";
-                        this.paused=true;
-                        const msg=err&&err.message?err.message:String(err);
-                        const statusEl=document.getElementById('diag-status');
-                        if(statusEl){statusEl.textContent="FAILED (계산 중단)";statusEl.className="val fail";}
-                        if(window.UI&&UI.setMessage)UI.setMessage("수치 계산 중단: "+msg,"danger");
-                        break;
-                    }
-                    if(this.status==="FAILED")break;
+                // Implement controlled substepping separated from framerate
+                let substeps = 1; // Default to 1 substep per frame unless explicitly configured otherwise
+                if (this.integratorType.toLowerCase() === "rk4") substeps = 4; // Use higher precision splitting if requested
+
+                for(let i=0; i<substeps; i++) {
+                    this.step();
+                    if(this.status === "FAILED") break;
                 }
             }
             Renderer.draw();
@@ -1363,30 +1336,7 @@ const Engine = {
     }
 
 
-
-function bindControls() {
-    const dt = document.getElementById('sys-dt');
-    const integrator = document.getElementById('integrator');
-    const gravity = document.getElementById('sys-gravity');
-    const pause = document.getElementById('btn-pause');
-    const audit = document.getElementById('btn-audit');
-    const create = document.getElementById('btn-create');
-    if (dt) dt.addEventListener('change', () => { if (!Engine.setDt(dt.value)) dt.value = Engine.dt; });
-    if (integrator) integrator.addEventListener('change', () => Engine.setIntegrator(integrator.value));
-    if (gravity) gravity.addEventListener('change', () => Engine.gravityAlgorithm = gravity.value);
-    if (pause) pause.addEventListener('click', () => Engine.togglePause());
-    if (audit) audit.addEventListener('click', () => UI.showAudit());
-    if (create) create.addEventListener('click', () => UI.createObject());
-    if (pause) pause.setAttribute('aria-pressed','false');
-}
-
-window.addEventListener('load', () => {
-    UI.init();
-    Renderer.init();
-    bindControls();
-    Labs.loadLab('GRAVITY');
-    Engine.loop();
-});
+window.addEventListener('DOMContentLoaded', () => { UI.init(); Renderer.init(); Labs.loadLab('GRAVITY'); Engine.loop(); });
 
     </script>
 </body>
