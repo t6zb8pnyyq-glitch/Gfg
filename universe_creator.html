@@ -702,6 +702,8 @@ const NuclearEngine = {
     }
 };
 const RelativityEngine = {
+        // First post-Newtonian Schwarzschild test-particle correction in harmonic-like coordinates.
+        // This is not a full Einstein-equation / numerical-relativity solver.
         computeSchwarzschildPrecession: function(objects) {
             let accels = new Array(objects.length).fill(null).map(() => new Vec3());
             // Assume obj 0 is the dominant mass (black hole)
@@ -906,6 +908,36 @@ const Labs = {
                 }
                 Engine.dt = 1.0; Renderer.scale = 1e-10; // lower timestep to avoid numerical divergence of energy error.
             }
+            else if(labName === 'MULTISTAR') {
+                info="계층형 4중항성 N-body 실험. 두 개의 내부 쌍성계가 공전하는 초기조건.";
+                Engine.gravityAlgorithm="DIRECT"; document.getElementById('sys-gravity').value="DIRECT";
+                const M=PhysicsConstants.M_sun,Rin=1.5*PhysicsConstants.AU,Rout=12*PhysicsConstants.AU;
+                const vIn=Math.sqrt(PhysicsConstants.G*M/(2*Rin)),vOut=Math.sqrt(PhysicsConstants.G*(4*M)/(2*Rout));
+                const pair1=[new Vec3(-Rin,0,0),new Vec3(Rin,0,0)],pair2=[new Vec3(Rout-Rin,0,0),new Vec3(Rout+Rin,0,0)];
+                Engine.objects.push(new PhysicalBody("A1","STAR",M,6.96e8,pair1[0],new Vec3(0,-vIn,0)));
+                Engine.objects.push(new PhysicalBody("A2","STAR",M,6.96e8,pair1[1],new Vec3(0,vIn,0)));
+                Engine.objects.push(new PhysicalBody("B1","STAR",M,6.96e8,pair2[0],new Vec3(0,vOut,0)));
+                Engine.objects.push(new PhysicalBody("B2","STAR",M,6.96e8,pair2[1],new Vec3(0,-vOut,0)));
+                Engine.dt=21600;Renderer.scale=2e-11;
+            }
+            else if(labName === 'BLACKHOLE') {
+                info="슈바르츠실트 중심질량 + 1PN 약중력장 보정 실험. 완전한 수치상대성이 아닌 1PN 근사.";
+                Engine.gravityAlgorithm="DIRECT";document.getElementById('sys-gravity').value="DIRECT";
+                Engine.activeModels.push("Relativity");
+                const M=10*PhysicsConstants.M_sun,rs=2*PhysicsConstants.G*M/(PhysicsConstants.c**2),r=100*rs,v=Math.sqrt(PhysicsConstants.G*M/r);
+                Engine.objects.push(new PhysicalBody("BH","BLACK_HOLE",M,rs,new Vec3(),new Vec3()));
+                Engine.objects.push(new PhysicalBody("TEST","PLANET",1e20,1e3,new Vec3(r,0,0),new Vec3(0,v,0)));
+                Engine.dt=Math.max(1e-3,0.001*2*Math.PI*Math.sqrt(r**3/(PhysicsConstants.G*M)));Renderer.scale=1e-7;
+            }
+            else if(labName === 'ELECTROMAGNETIC') {
+                info="점전하 Coulomb + 저속 자기력 실험. 진공, 점입자, 비복사 근사.";
+                Engine.gravityAlgorithm="DIRECT";document.getElementById('sys-gravity').value="DIRECT";
+                Engine.activeModels.push("Electromagnetic");
+                const q=1e-6,m=1e20,d=1e7;
+                const a=new PhysicalBody("Q+","PLANET",m,1e5,new Vec3(-d/2,0,0),new Vec3(0,1e4,0));
+                const b=new PhysicalBody("Q-","PLANET",m,1e5,new Vec3(d/2,0,0),new Vec3(0,-1e4,0));
+                a.charge=q;b.charge=-q;Engine.objects.push(a,b);Engine.dt=1;Renderer.scale=1e-5;
+            }
             else if(labName === 'GRAVITY') {
                 info = "표준 N-Body 중력 (태양계 내부 근사).";
                 Engine.gravityAlgorithm = "DIRECT"; document.getElementById('sys-gravity').value = "DIRECT";
@@ -1038,8 +1070,8 @@ const UI = {
         selectAtScreen:function(x,y){const r=Renderer.canvas.getBoundingClientRect(),sx=x-r.left,sy=y-r.top;const hit=Renderer.projectObjects().filter(p=>Math.hypot(p.px-sx,p.py-sy)<=Math.max(10,p.pr*1.5)).sort((a,b)=>b.pz-a.pz)[0];this.selectedId=hit?hit.obj.id:null;this.updateInspector();},
         init: function() {
             const tabs = [
-                ['GRAVITY','중력/궤도'], ['GALAXY','은하'], ['SPH_FLUID','유체/SPH'],
-                ['NUCLEAR','항성/핵'], ['QUANTUM','양자'], ['COSMOLOGY','우주론']
+                ['GRAVITY','중력/궤도'], ['MULTISTAR','다중항성'], ['GALAXY','은하'], ['BLACKHOLE','블랙홀/1PN'],
+                ['SPH_FLUID','유체/SPH'], ['ELECTROMAGNETIC','전자기'], ['NUCLEAR','항성/핵'], ['QUANTUM','양자'], ['COSMOLOGY','우주론']
             ];
             const bar = document.getElementById('module-bar');
             bar.innerHTML = '';
