@@ -648,5 +648,104 @@ UR.deep.verification={run:()=>[
 ].map(x=>({name:x[0],ok:!!x[1]}))};
 window.dispatchEvent(new CustomEvent("universe:deep-physics-ready",{detail:UR.deep.meta}));
 })();
+</script><script id="scientific-verification-and-models">
+(()=>{"use strict";
+const U=window.UniverseResearch=window.UniverseResearch||{},D=U.deep=U.deep||{};
+const G=6.67430e-11,c=299792458,k=1.380649e-23,h=6.62607015e-34,hb=1.054571817e-34,sb=5.670374419e-8,Ms=1.98847e30,Mearth=5.9722e24,AU=1.495978707e11,pi=Math.PI;
+const cl=(x,a,b)=>Math.max(a,Math.min(b,x));
+D.mechanics=D.mechanics||{};
+D.mechanics.elements=(r,v,mu)=>{
+ const R=Math.hypot(...r),V=Math.hypot(...v),dot=r[0]*v[0]+r[1]*v[1]+r[2]*v[2];
+ const H=[r[1]*v[2]-r[2]*v[1],r[2]*v[0]-r[0]*v[2],r[0]*v[1]-r[1]*v[0]],Hn=Math.hypot(...H);
+ const n=[-H[1],H[0],0],nn=Math.hypot(...n),evec=[(v[1]*H[2]-v[2]*H[1])/mu-H[0]/R,(v[2]*H[0]-v[0]*H[2])/mu-H[1]/R,(v[0]*H[1]-v[1]*H[0])/mu-H[2]/R];
+ const e=Math.hypot(...evec),energy=V*V/2-mu/R,a=-mu/(2*energy),i=Math.acos(cl(H[2]/Math.max(Hn,1e-300),-1,1));
+ let O=nn?Math.atan2(n[1],n[0]):0,w=0,nu=0;
+ if(nn>1e-14&&e>1e-14){w=Math.acos(cl((n[0]*evec[0]+n[1]*evec[1])/(nn*e),-1,1));if(evec[2]<0)w=2*pi-w}
+ if(e>1e-14){nu=Math.acos(cl((evec[0]*r[0]+evec[1]*r[1]+evec[2]*r[2])/(e*R),-1,1));if(dot<0)nu=2*pi-nu}
+ return{a,e,i,Omega:O,omega:w,nu,period:a>0?2*pi*Math.sqrt(a*a*a/mu):NaN,angularMomentum:Hn,specificEnergy:energy};
+};
+D.mechanics.fromElements=(a,e,i,O,w,nu,mu)=>{
+ const p=a*(1-e*e),rr=p/(1+e*Math.cos(nu)),x=rr*Math.cos(nu),y=rr*Math.sin(nu),f=Math.sqrt(mu/p),co=Math.cos(O),so=Math.sin(O),ci=Math.cos(i),si=Math.sin(i),cw=Math.cos(w),sw=Math.sin(w);
+ const rot=z=>[(co*cw-so*sw*ci)*z[0]+(-co*sw-so*cw*ci)*z[1]+so*si*z[2],(so*cw+co*sw*ci)*z[0]+(-so*sw+co*cw*ci)*z[1]-co*si*z[2],sw*si*z[0]+cw*si*z[1]+ci*z[2]];
+ return{r:rot([x,y,0]),v:rot([-f*Math.sin(nu),f*(e+Math.cos(nu)),0])};
+};
+D.mechanics.j2={rates:(mu,R,J2,a,e,i)=>{
+ const n=Math.sqrt(mu/a**3),f=1-e*e,A=J2*(R/a)**2;
+ const node=-1.5*n*A*Math.cos(i)/(f*f),peri=.75*n*A*(5*Math.cos(i)**2-1)/(f*f);
+ return{node_rad_s:node,periapsis_rad_s:peri,node_deg_year:node*180/pi*31557600,periapsis_deg_year:peri*180/pi*31557600};
+},acceleration:(r,mu,R,J2)=>{
+ const[x,y,z]=r,q=x*x+y*y+z*z,zz=z*z/q,f=1.5*J2*mu*R*R/Math.pow(Math.sqrt(q),5);
+ return[f*x*(5*zz-1),f*y*(5*zz-1),f*z*(5*zz-3)];
+}};
+D.mechanics.tides={rocheFluid:(R,M,m)=>2.44*R*Math.cbrt(M/m),rocheRigid:(R,M,m)=>1.26*R*Math.cbrt(M/m),hill:(a,m,M)=>a*Math.cbrt(m/(3*M)),tidalTensorScale:(M,r)=>2*G*M/r**3,syncAngularRate:(M,a)=>Math.sqrt(G*M/a**3),tidalHeatingApprox:(k2,Q,R,m,n)=>2.5*(k2/Q)*G*m*m*R**5*n*n};
+D.integrators=D.integrators||{};
+D.integrators.rk45=(f,y,t,tEnd,tol=1e-9,h0=(tEnd-t)/100)=>{
+ let Y=y.slice(),T=t,h=Math.sign(tEnd-t)*Math.min(Math.abs(h0),Math.abs(tEnd-t)),steps=0;
+ while(T!==tEnd&&steps++<100000){
+  if(Math.abs(h)>Math.abs(tEnd-T))h=tEnd-T;
+  const k1=f(T,Y),y2=Y.map((q,i)=>q+h*k1[i]/5),k2=f(T+h/5,y2),y3=Y.map((q,i)=>q+h*(3*k1[i]+9*k2[i])/40),k3=f(T+3*h/10,y3),y4=Y.map((q,i)=>q+h*(44*k1[i]/45-56*k2[i]/15+32*k3[i]/9)),k4=f(T+4*h/5,y4),y5=Y.map((q,i)=>q+h*(19372*k1[i]/6561-25360*k2[i]/2187+64448*k3[i]/6561-212*k4[i]/729)),k5=f(T+8*h/9,y5),y6=Y.map((q,i)=>q+h*(9017*k1[i]/3168-355*k2[i]/33+46732*k3[i]/5247+49*k4[i]/176-5103*k5[i]/18656)),k6=f(T+h,y6);
+  const hi=Y.map((q,i)=>q+h*(35*k1[i]/384+500*k3[i]/1113+125*k4[i]/192-2187*k5[i]/6784+11*k6[i]/84)),k7=f(T+h,hi);
+  let err=0;for(let i=0;i<Y.length;i++)err=Math.max(err,Math.abs(h*((35/384-5179/57600)*k1[i]+(500/1113-7571/16695)*k3[i]+(125/192-393/640)*k4[i]+(-2187/6784+92097/339200)*k5[i]+(11/84-187/2100)*k6[i]-k7[i]/40)));
+  const scale=tol*Math.max(1,...Y.map(Math.abs)),fac=cl(.9*Math.pow(Math.max(scale/Math.max(err,1e-300),1e-12),.2),.1,5);
+  if(err<=scale){Y=hi;T+=h} h*=fac;if(Math.abs(h)<1e-16*Math.max(1,Math.abs(T)))return{y:Y,t:T,steps,converged:false,reason:"minimum step"};
+ }
+ return{y:Y,t:T,steps,converged:T===tEnd,reason:T===tEnd?"":"step limit"};
+};
+D.mechanics.twoBody={energy:(r,v,m1,m2)=>.5*(m1+m2)*v*v-G*m1*m2/r,reducedMass:(m1,m2)=>m1*m2/(m1+m2),gravitationalParameter:(m1,m2)=>G*(m1+m2),escapeVelocity:(m1,m2,r)=>Math.sqrt(2*G*(m1+m2)/r),mutualHill:(a1,a2,m1,m2,M)=>(a1+a2)/2*Math.cbrt((m1+m2)/(3*M))};
+D.plasma=D.plasma||{};
+D.plasma.thermalSpeed=(T,m)=>Math.sqrt(2*k*T/m);
+D.plasma.ionSoundSpeed=(T,mu=.61)=>Math.sqrt(5*k*T/(3*mu*1.6735575e-27));
+D.plasma.debyeLength=(T,n,z=1)=>Math.sqrt(8.8541878128e-12*k*T/(n*z*z*1.602176634e-19**2));
+D.plasma.plasmaFrequency=(n,m=9.1093837e-31,q=1.602176634e-19)=>Math.sqrt(n*q*q/(8.8541878128e-12*m));
+D.plasma.alfven=(B,rho)=>Math.abs(B)/Math.sqrt(4*pi*1e-7*rho);
+D.plasma.magneticPressure=B=>B*B/(8*pi*1e-7);
+D.transfer=D.transfer||{};
+D.transfer.planckFrequency=(T,nu)=>2*h*nu**3/c**2/Math.expm1(h*nu/(k*T));
+D.transfer.planckWavelength=(T,l)=>2*h*c*c/l**5/Math.expm1(h*c/(l*k*T));
+D.transfer.photonOccupation=(T,nu)=>1/Math.expm1(h*nu/(k*T));
+D.transfer.greyTemperature=(Teff,tau)=>Teff*Math.pow(.75*(tau+2/3),.25);
+D.transfer.luminosity=(R,T)=>4*pi*R*R*sb*T**4;
+D.transfer.fluxAtDistance=(L,r)=>L/(4*pi*r*r);
+D.nuclear=D.nuclear||{};
+D.nuclear.massDefectEnergy=B=>B*1.602176634e-13;
+D.nuclear.fissionEnergyFromFraction=(m,f)=>m*f*c*c;
+D.nuclear.QFromAtomicMasses=(reactants,products)=>reactants.reduce((s,x)=>s+x,0)-products.reduce((s,x)=>s+x,0);
+D.quantum=D.quantum||{};
+D.quantum.deBroglie=p=>h/p;
+D.quantum.uncertainty=dx=>h/(4*pi*dx);
+D.quantum.compton=m=>h/(m*c);
+D.quantum.fermiEnergy=(n,m=9.1093837e-31)=>hb*hb/(2*m)*Math.pow(3*pi*pi*n,2/3);
+D.quantum.hydrogenBinding=(n,Z=1)=>-13.605693122994*Z*Z/(n*n);
+D.cosmology=D.cosmology||{};
+const simp=(f,a,b)=>(b-a)*(f(a)+4*f((a+b)/2)+f(b))/6;
+const adap=(f,a,b,e,w,d)=>{const m=(a+b)/2,l=simp(f,a,m),r=simp(f,m,b);return d<=0||Math.abs(l+r-w)<=15*e?l+r+(l+r-w)/15:adap(f,a,m,e/2,l,d-1)+adap(f,m,b,e/2,r,d-1)};
+D.cosmology.distance=(z,Om=.315,Ode=.685,w=-1,H0=67.4)=>{
+ const E=x=>Math.sqrt(Om*(1+x)**3+(1-Om-Ode)*(1+x)**2+Ode*(1+x)**(3*(1+w))),I=adap(x=>1/E(x),0,z,1e-9,simp(x=>1/E(x),0,z),18),Dh=299792.458/H0;
+ return{comovingMpc:Dh*I,luminosityMpc:Dh*I*(1+z),angularDiameterMpc:Dh*I/(1+z)};
+};
+D.cosmology.lookback=(z,Om=.315,Ode=.685,w=-1)=>{const E=x=>Math.sqrt(Om*(1+x)**3+(1-Om-Ode)*(1+x)**2+Ode*(1+x)**(3*(1+w))),I=adap(x=>1/((1+x)*E(x)),0,z,1e-9,simp(x=>1/((1+x)*E(x)),0,z),18);return I/67.4*9.778e9};
+D.blackHole=D.blackHole||{};
+D.blackHole.surfaceGravity=M=>c**4/(4*G*M);
+D.blackHole.temperature=M=>h*c**3/(8*pi*G*M*k);
+D.blackHole.entropy=M=>4*pi*G*M*M/(hb*c);
+D.blackHole.evaporationLifetime=M=>5120*pi*G*G*M**3/(hb*c**4);
+D.blackHole.iscoFrequency=M=>c**3/(2*pi*6**1.5*G*M);
+D.blackHole.redshift=(M,r)=>1/Math.sqrt(1-2*G*M/(r*c*c))-1;
+D.verification=D.verification||{};
+const tests=[
+["Kepler circular speed",()=>Math.abs(Math.sqrt(G*Ms/AU)-29784.6918)<1],
+["Earth year",()=>Math.abs(2*pi*Math.sqrt(AU**3/(G*Ms))/31557600-1)<.01],
+["Solar Schwarzschild radius",()=>Math.abs(2*G*Ms/c**2-2953.25)<2],
+["Bohr ground state",()=>Math.abs(D.quantum.hydrogenBinding(1)+13.605693122994)<1e-9],
+["Planck positivity",()=>D.transfer.planckWavelength(5772,500e-9)>0],
+["Hill radius Earth",()=>D.mechanics.tides.hill(AU,Mearth,Ms)>1.4e9],
+["Black-hole temperature positive",()=>D.blackHole.temperature(Ms)>0],
+["Cosmological distance positive",()=>D.cosmology.distance(1).comovingMpc>0]
+];
+D.verification.scientificStack=tests;
+D.verification.runScientific=()=>tests.map(([name,fn])=>{try{return{name,pass:!!fn()}}catch(e){return{name,pass:false,error:String(e)}}});
+D.deep.meta.models=(D.deep.meta.models||[]).concat(["orbital-elements","J2","tides","RK45","plasma","radiative-transfer","black-hole-thermodynamics"]);
+window.dispatchEvent(new CustomEvent("universe:scientific-verification-ready",{detail:{tests:tests.length}}));
+})();
 </script></body>
 </html>
